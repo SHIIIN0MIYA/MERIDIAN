@@ -1,0 +1,12 @@
+﻿__pycache__/
+*.py[cod]
+.pytest_cache/
+.idea/
+.reasonix/
+build/
+dist/
+%SystemDrive%/
+*.spec
+.codex_write_test.txt
+_render_verification.py
+verification-*.png
