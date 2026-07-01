@@ -514,46 +514,111 @@ def render_vertical_pixel_text(font, text, color, scale=2, gap=6):
 
 
 def draw_restrained_meteors(surf, rect, tick, max_meteors=2, alpha_scale=1.0):
-    """Draw subtle pixel meteor streaks clipped to a background rect."""
+    """Draw meteor traces as timed twinkling star dots, not moving sprites."""
     max_meteors = max(0, min(2, int(max_meteors)))
     if max_meteors == 0 or rect.width <= 0 or rect.height <= 0:
         return
 
-    overlay = pygame.Surface(rect.size, pygame.SRCALPHA)
+    paths = [
+        ((1.05, 0.10), (0.72, 0.20), (0.44, 0.31)),
+        ((0.92, 0.08), (0.60, 0.19), (0.26, 0.36)),
+        ((1.08, 0.24), (0.80, 0.32), (0.50, 0.48)),
+        ((0.78, 0.04), (0.52, 0.16), (0.20, 0.26)),
+        ((1.02, 0.42), (0.75, 0.50), (0.48, 0.64)),
+        ((0.88, 0.34), (0.62, 0.43), (0.30, 0.58)),
+        ((1.10, 0.58), (0.76, 0.63), (0.42, 0.78)),
+        ((0.70, 0.18), (0.45, 0.28), (0.18, 0.42)),
+        ((1.04, 0.15), (0.86, 0.28), (0.66, 0.40)),
+        ((0.62, 0.07), (0.38, 0.17), (0.14, 0.29)),
+        ((1.06, 0.32), (0.88, 0.43), (0.70, 0.55)),
+        ((0.98, 0.50), (0.70, 0.58), (0.36, 0.72)),
+        ((0.84, 0.13), (0.56, 0.26), (0.32, 0.41)),
+        ((1.12, 0.05), (0.92, 0.14), (0.74, 0.26)),
+        ((0.76, 0.46), (0.50, 0.55), (0.24, 0.68)),
+        ((1.02, 0.68), (0.78, 0.72), (0.54, 0.84)),
+    ]
     schedules = [
-        {"cycle": 168, "offset": 12, "start": 0.10, "end": 0.78, "y": 0.18, "length": 94, "drift": 0.10},
-        {"cycle": 232, "offset": 104, "start": 0.18, "end": 0.86, "y": 0.48, "length": 116, "drift": -0.06},
+        {"cycle": 430, "offset": 17, "active": 156, "seed": 3},
+        {"cycle": 590, "offset": 113, "active": 174, "seed": 11},
     ]
 
-    for spec in schedules[:max_meteors]:
-        cycle = spec["cycle"]
-        phase = ((tick + spec["offset"]) % cycle) / cycle
-        if phase < spec["start"] or phase > spec["end"]:
-            continue
+    overlay = pygame.Surface(rect.size, pygame.SRCALPHA)
+    strength_scale = max(0.0, min(1.0, alpha_scale))
 
-        local_t = (phase - spec["start"]) / (spec["end"] - spec["start"])
-        fade = math.sin(local_t * math.pi)
-        alpha = int(78 * fade * max(0.0, min(1.0, alpha_scale)))
+    def bezier(path, t):
+        (x0, y0), (x1, y1), (x2, y2) = path
+        inv = 1.0 - t
+        x = inv * inv * x0 + 2 * inv * t * x1 + t * t * x2
+        y = inv * inv * y0 + 2 * inv * t * y1 + t * t * y2
+        return int(rect.width * x), int(rect.height * y)
+
+    def bezier_direction(path, t):
+        (x0, y0), (x1, y1), (x2, y2) = path
+        dx = 2 * (1.0 - t) * (x1 - x0) + 2 * t * (x2 - x1)
+        dy = 2 * (1.0 - t) * (y1 - y0) + 2 * t * (y2 - y1)
+        dx *= rect.width
+        dy *= rect.height
+        length = max(1.0, math.hypot(dx, dy))
+        return dx / length, dy / length
+
+    def draw_trace_dot(x, y, alpha, size=3):
         if alpha <= 0:
+            return
+        pygame.draw.rect(overlay, (*C.DESK_ACCENT, min(90, alpha // 2)), (x - 3, y - 3, size + 6, size + 6))
+        pygame.draw.rect(overlay, (*C.DESK_ACCENT_LIGHT, alpha), (x, y, size, size))
+        if alpha > 105:
+            shine = max(1, size - 2)
+            pygame.draw.rect(overlay, (*C.DESK_TEXT, min(255, alpha + 65)), (x + 1, y + 1, shine, shine))
+
+    for lane, schedule in enumerate(schedules[:max_meteors]):
+        cycle = schedule["cycle"]
+        event_tick = tick + schedule["offset"]
+        cycle_index = event_tick // cycle
+        frame = event_tick % cycle
+        if frame >= schedule["active"]:
             continue
 
-        x = int(rect.width * (1.08 - 1.26 * local_t))
-        y = int(rect.height * (spec["y"] + spec["drift"] * local_t))
-        length = spec["length"]
-        dx = int(length * (0.82 + 0.12 * fade))
-        dy = int(length * 0.36)
+        path_index = (cycle_index * 7 + schedule["seed"]) % len(paths)
+        path = paths[path_index]
+        head = frame / max(1, schedule["active"] - 1)
+        dots = 30
+        tail = 16
 
-        head = (x, y)
-        tail = (x + dx, y - dy)
-        glow = (*C.DESK_ACCENT_LIGHT, alpha // 3)
-        core = (*C.DESK_ACCENT_LIGHT, alpha)
-        mid = (*C.DESK_ACCENT, max(18, alpha // 2))
+        for index in range(dots):
+            dot_t = index / (dots - 1)
+            age = head * (dots + tail) - index
+            if age < 0 or age > tail:
+                continue
+            fade = math.sin(min(1.0, max(0.0, head)) * math.pi)
+            tail_fade = (1.0 - age / tail) ** 1.18
+            alpha = int(360 * strength_scale * fade * tail_fade)
+            if alpha <= 10:
+                continue
 
-        pygame.draw.line(overlay, glow, tail, head, 4)
-        pygame.draw.line(overlay, mid, tail, head, 2)
-        pygame.draw.line(overlay, core, (x - 8, y + 3), head, 2)
-        pygame.draw.rect(overlay, core, (x - 1, y - 1, 3, 3))
-        pygame.draw.rect(overlay, (*C.DESK_TEXT, min(145, alpha + 35)), (x, y, 1, 1))
+            x, y = bezier(path, dot_t)
+            flicker = 0.82 + 0.18 * math.sin(tick * 0.42 + index * 1.7 + lane)
+            draw_trace_dot(x, y, min(255, int(alpha * flicker)), size=4 if age < 1.2 else 3)
+
+            if age > 1.0:
+                scatter_life = min(1.0, (age - 1.0) / max(1.0, tail - 1.0))
+                scatter_alpha = int(alpha * (1.0 - scatter_life * 0.72) * 0.82)
+                if scatter_alpha > 8:
+                    dir_x, dir_y = bezier_direction(path, dot_t)
+                    norm_x, norm_y = -dir_y, dir_x
+                    for p in range(5):
+                        side = -1 if (index + p + path_index) % 2 == 0 else 1
+                        spread = (5 + p * 4) * (0.35 + scatter_life * 1.55)
+                        lag = (3 + p * 2) * scatter_life
+                        jitter_x = ((index * 7 + p * 5 + path_index) % 5) - 2
+                        jitter_y = ((index * 3 + p * 7 + path_index) % 5) - 2
+                        sx = int(x + norm_x * side * spread - dir_x * lag + jitter_x)
+                        sy = int(y + norm_y * side * spread - dir_y * lag + jitter_y)
+                        particle_size = 2 if p < 3 and scatter_life < 0.75 else 1
+                        pygame.draw.rect(
+                            overlay,
+                            (*C.DESK_ACCENT_LIGHT, min(235, scatter_alpha)),
+                            (sx, sy, particle_size, particle_size),
+                        )
 
     surf.blit(overlay, rect.topleft)
 
@@ -679,4 +744,10 @@ class Board:
 # ============================================================
 #  Game
 # ============================================================
+
+
+
+
+
+
 
