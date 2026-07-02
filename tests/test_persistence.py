@@ -5,13 +5,10 @@ import tempfile
 import unittest
 
 
-os.environ.setdefault("SDL_VIDEODRIVER", "dummy")
-os.environ.setdefault("SDL_AUDIODRIVER", "dummy")
-
-from haos_game_deck import Game
-from haos_game_deck.common import pygame
-from haos_game_deck.persistence import SaveManager, default_data
-from haos_game_deck.system import ACHIEVEMENTS
+from meridian import Game
+from meridian.common import pygame
+from meridian.persistence import SaveManager, default_data
+from meridian.system import ACHIEVEMENTS
 
 
 class SaveManagerTests(unittest.TestCase):
@@ -27,7 +24,7 @@ class SaveManagerTests(unittest.TestCase):
 
     def test_first_load_and_unknown_fields(self):
         data = self.manager.load()
-        self.assertEqual(data["schema_version"], 3)
+        self.assertEqual(data["schema_version"], 4)
         data["future_field"] = {"kept": True}
         self.manager.save(data)
         self.assertTrue(self.manager.load()["future_field"]["kept"])
@@ -75,7 +72,7 @@ class SaveManagerTests(unittest.TestCase):
         old["achievements"]["air_old"] = {"unlocked_at": "old"}
         old["achievements"]["snake_5"] = {"unlocked_at": "kept"}
         migrated = self.manager.migrate(old)
-        self.assertEqual(migrated["schema_version"], 3)
+        self.assertEqual(migrated["schema_version"], 4)
         self.assertEqual(migrated["records"]["snake"]["best_score"], 77)
         self.assertEqual(migrated["statistics"]["snake"]["food_eaten"], 55)
         self.assertEqual(migrated["records"]["air"]["best_score"], 0)
@@ -91,14 +88,14 @@ class RuntimePersistenceTests(unittest.TestCase):
         test_root.mkdir(exist_ok=True)
         self.temp = tempfile.TemporaryDirectory(dir=test_root)
         self.path = str(Path(self.temp.name) / "runtime.json")
-        self.previous_save_path = os.environ.get("HAOS_GAME_DECK_SAVE_PATH")
-        os.environ["HAOS_GAME_DECK_SAVE_PATH"] = self.path
+        self.previous_save_path = os.environ.get("MERIDIAN_SAVE_PATH")
+        os.environ["MERIDIAN_SAVE_PATH"] = self.path
 
     def tearDown(self):
         if self.previous_save_path is None:
-            os.environ.pop("HAOS_GAME_DECK_SAVE_PATH", None)
+            os.environ.pop("MERIDIAN_SAVE_PATH", None)
         else:
-            os.environ["HAOS_GAME_DECK_SAVE_PATH"] = self.previous_save_path
+            os.environ["MERIDIAN_SAVE_PATH"] = self.previous_save_path
         self.temp.cleanup()
 
     def test_settings_records_and_stats_reload(self):

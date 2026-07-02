@@ -2,6 +2,57 @@ from .common import *
 
 
 class GomokuMixin:
+    def _init_gomoku(self):
+        self.board_size = DEFAULT_SIZE
+        self.board = Board(self.board_size)
+        self.hover_pos = None
+        self.win_alpha = 0
+        self.shake_duration = 0
+        self.shake_x = 0
+        self.shake_y = 0
+        self.preview_active = False
+        self.preview_cell = None
+        self.preview_x = 0.0
+        self.preview_y = 0.0
+        self.preview_target_x = 0.0
+        self.preview_target_y = 0.0
+        self.preview_player = 1
+        self.ripples = []
+        self.invalid_marks = []
+        self.occupied_hover_pos = None
+        self.undo_animations = []
+        self.win_line_frame = 0
+        self.win_line_active = False
+        self.win_stone_flash_frame = 0
+        self.win_stone_flash_active = False
+        self.win_particle_burst_index = -1
+        self.pressed_button_action = None
+        self.end_page_delay = 0
+        self.end_panel_anim_frame = 0
+        self.end_text_flash_tick = 0
+        self.end_overlay_alpha = 0
+        self.animations = []
+        self.particles = []
+        self.black_wins = 0
+        self.white_wins = 0
+        self.draws = 0
+        self._win_scored = False
+        self.wood_bg = create_wood_texture(WINDOW_W, WINDOW_H)
+        self.menu_logo_text = "GOMOKU"
+        self.menu_logo_scale = 3
+        self.menu_logo_phase = [0.00, 0.87, 1.76, 2.43, 3.39, 4.12]
+        self.menu_logo_swing_amp = [4.8, 4.2, 5.0, 4.4, 4.7, 4.1]
+        self.menu_logo_micro_amp = [0.22, 0.18, 0.24, 0.20, 0.22, 0.18]
+        self.menu_logo_rope_len = [22, 21, 23, 22, 22, 21]
+        self.menu_logo_gap = 6
+        self.menu_logo_beam_y = 92
+        self.menu_logo_letters = []
+        self._build_menu_logo_assets()
+        self._rebuild_stone_assets()
+        self._build_menu_buttons()
+        self.end_btns = []
+        self.win_overlay = pygame.Surface((WINDOW_W, WINDOW_H), pygame.SRCALPHA)
+
     def _rebuild_stone_assets(self):
         stone_sz = self.board.stone_size
         base = max(4, stone_sz // 4)
@@ -268,6 +319,16 @@ class GomokuMixin:
         # 淇锛氫富鑿滃崟涓嶅啀鏀炬鐩樺ぇ灏忛€夋嫨锛岄伩鍏嶆嫢鎸?
         start_y = 310
 
+        has_saved = self.save_data.get("progress", {}).get("gomoku", {}).get("run_active", False)
+        if has_saved:
+            btns.append({
+                "rect": pygame.Rect(cx - btn_w // 2, start_y, btn_w, btn_h),
+                "label": "CONTINUE",
+                "action": "continue",
+                "selected": False,
+            })
+            start_y += btn_h + gap
+
         if self.board.has_moves() and self.board.winner == 0:
             main_label = "RESUME"
             main_action = "resume"
@@ -361,6 +422,10 @@ class GomokuMixin:
         return btns
 
     def _handle_menu_event(self, event):
+        if self.prologue_active:
+            self._handle_prologue_event(event)
+            return
+
         if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
             self._go_desktop()
             return
@@ -380,6 +445,10 @@ class GomokuMixin:
 
                     if action == "start":
                         self._start_new_game()
+                        self._start_transition(self.PLAYING, "fade")
+                    elif action == "continue":
+                        state = self._pending_run_states.pop("gomoku", None)
+                        self._start_new_game(restore_state=state)
                         self._start_transition(self.PLAYING, "fade")
                     elif action == "resume":
                         self._start_transition(self.PLAYING, "fade")
@@ -503,9 +572,16 @@ class GomokuMixin:
 
             self.pressed_button_action = None
 
-    def _start_new_game(self):
-        # 浣跨敤璁剧疆椤典腑閫夋嫨鐨?board_size 寮€濮嬫柊灞€
+    def _start_new_game(self, restore_state=None):
         self.board = Board(self.board_size)
+        if restore_state:
+            self.board.grid = restore_state["grid"]
+            self.board.current_player = restore_state["current_player"]
+            self.board.move_history = restore_state["move_history"]
+            self.board.move_count = restore_state["move_count"]
+            self.board.last_move = restore_state.get("last_move")
+            self.board.winner = restore_state.get("winner", 0)
+            self.board.win_stones = restore_state.get("win_stones", [])
         self._rebuild_stone_assets()
         self.state = self.PLAYING
         self.hover_pos = None
@@ -547,6 +623,18 @@ class GomokuMixin:
         self.end_panel_anim_frame = 0
         self.end_text_flash_tick = 0
         self.end_overlay_alpha = 0
+        self._clear_run_state("gomoku")
+
+    def _capture_gomoku_run_state(self):
+        return {
+            "grid": [row[:] for row in self.board.grid],
+            "current_player": self.board.current_player,
+            "move_history": self.board.move_history[:],
+            "move_count": self.board.move_count,
+            "last_move": self.board.last_move,
+            "winner": self.board.winner,
+            "win_stones": self.board.win_stones[:],
+        }
 
     def _do_undo(self):
         # Can't undo during animations
@@ -809,6 +897,11 @@ class GomokuMixin:
         pygame.draw.rect(self.screen, C.GOLD_DARK, rect.inflate(-8, -8), 2)
 
     def _draw_menu(self):
+        # ── Prologue check ──
+        if self._check_and_show_prologue("gomoku"):
+            self._draw_prologue_screen()
+            return
+
         self._draw_stage_background()
 
         # Center card panel for 16:9 layout
@@ -937,7 +1030,7 @@ class GomokuMixin:
         self.screen.blit(title, (x, y))
 
     def _draw_menu_scores(self):
-        y = 470
+        y = 510
 
         # Section label
         lbl = render_pixel_text(self.font_status, "SCORES", C.GOLD, scale=2)

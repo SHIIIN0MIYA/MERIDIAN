@@ -1,4 +1,4 @@
-"""Versioned, crash-resistant persistence for HAO'S GAME DECK."""
+"""Versioned, crash-resistant persistence for MERIDIAN."""
 
 from copy import deepcopy
 from datetime import datetime
@@ -8,7 +8,7 @@ from pathlib import Path
 import shutil
 
 
-SCHEMA_VERSION = 3
+SCHEMA_VERSION = 4
 
 
 def default_settings():
@@ -28,6 +28,7 @@ def default_settings():
         "breakout_ball_skin": "yellow",
         "breakout_brick_skin": "purple",
         "breakout_paddle_skin": "orange",
+        "air_skin": "default",
         "mines_size": 9,
         "mines_count": 10,
     }
@@ -96,9 +97,18 @@ def default_statistics():
 
 def default_progress():
     return {
+        "gomoku": {"run_active": False, "run_state": None},
+        "snake": {"run_active": False, "run_state": None},
+        "breakout": {"run_active": False, "run_state": None},
+        "2048": {"run_active": False, "run_state": None},
+        "mines": {"run_active": False, "run_state": None},
+        "tetris": {"run_active": False, "run_state": None},
         "air": {
             "unlocked": 1,
             "completed": 0,
+            "skins_unlocked": ["default"],
+            "prologue_seen": False,
+            "stories_read": [],
             "challenge_unlocked": False,
             "campaign_complete": False,
             "challenge_complete": False,
@@ -112,7 +122,16 @@ def default_progress():
             "run_loadout": {
                 "cannon": 1, "spread": 0, "laser": 0, "active": "cannon",
             },
+            "run_state": None,
         },
+    }
+
+
+def default_lore():
+    return {
+        "prologues_seen": [],
+        "unlocked_entries": [],
+        "read_entries": [],
     }
 
 
@@ -124,6 +143,7 @@ def default_data():
         "statistics": default_statistics(),
         "achievements": {},
         "progress": default_progress(),
+        "lore": default_lore(),
     }
 
 
@@ -142,10 +162,10 @@ def _deep_merge(default, incoming):
 class SaveManager:
     def __init__(self, path=None):
         if path is None:
-            path = os.environ.get("HAOS_GAME_DECK_SAVE_PATH")
+            path = os.environ.get("MERIDIAN_SAVE_PATH")
         if path is None:
             root = Path(os.environ.get("APPDATA", Path.home()))
-            path = root / "HAOS_GAME_DECK" / "save.json"
+            path = root / "MERIDIAN" / "save.json"
         self.path = Path(path)
         self.backup_path = self.path.with_suffix(".json.bak")
 
@@ -163,6 +183,10 @@ class SaveManager:
                 key: value for key, value in achievements.items()
                 if not key.startswith("air_")
             }
+        if version < 4:
+            for game_id in ("gomoku", "snake", "breakout", "2048", "mines", "tetris"):
+                source.setdefault("progress", {}).setdefault(game_id, default_progress()[game_id])
+            source.setdefault("progress", {}).setdefault("air", {})["run_state"] = None
         migrated = _deep_merge(default_data(), source)
         migrated["schema_version"] = SCHEMA_VERSION
         return migrated

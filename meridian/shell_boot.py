@@ -3,11 +3,30 @@ from .localization import is_chinese, set_language
 
 
 class BootMixin:
+    def _init_boot(self):
+        self.boot_frame = 0
+        self.boot_visible_chars = 0
+        self.boot_next_char_delay = BOOT_TYPE_BASE_DELAY
+        self.boot_phase = "fade"
+        self.boot_fade_alpha = 0
+        self.boot_progress_frame = 0
+        self.boot_progress_value = 0.0
+        self.system_ready_pressed = False
+        self.shutdown_frame = 0
+        self.shutdown_visible_chars = len(SHUTDOWN_TEXT)
+        self.shutdown_phase = "show"
+        self.shutdown_delete_timer = 0
+        self.shutdown_fade_alpha = 0
+
     def _localized_boot_text(self):
-        return "\u6b22\u8fce\u6765\u5230 HAO'S GAME DECK" if is_chinese() else BOOT_TEXT
+        if is_chinese():
+            return "MERIDIAN OS v2.4 — \u6b63\u5728\u5efa\u7acb\u8fde\u63a5..."
+        return BOOT_TEXT_MERIDIAN
 
     def _localized_shutdown_text(self):
-        return "\u518d\u89c1\uff0c\u4e0b\u6b21\u518d\u6765\uff5e" if is_chinese() else SHUTDOWN_TEXT
+        if is_chinese():
+            return "\u6b63\u5728\u5173\u95ed\u8fde\u63a5\u2026\u2026\u8bf8\u754c\u91cd\u5f52\u6c89\u7720\u3002"
+        return SHUTDOWN_TEXT_MERIDIAN
 
     def _get_boot_type_delay(self, next_char_index):
         """
@@ -240,7 +259,17 @@ class BootMixin:
             )
 
         if self.boot_phase in ["loading", "done"]:
-            label = render_pixel_text(self.font_small, "STARTING SYSTEM...", C.DESK_ACCENT_LIGHT, scale=2)
+            # Rotate status messages during progress phases
+            if self.boot_progress_frame <= 90:
+                status_index = 0
+            elif self.boot_progress_frame <= 300:
+                status_index = 1
+            elif self.boot_progress_frame <= 480:
+                status_index = 2
+            else:
+                status_index = 3
+            status_text = BOOT_STATUS_MESSAGES[min(status_index, len(BOOT_STATUS_MESSAGES) - 1)]
+            label = render_pixel_text(self.font_small, status_text, C.DESK_ACCENT_LIGHT, scale=2)
             label_x = screen_rect.centerx - label.get_width() // 2
             label_y = y + text.get_height() + 24
             self.screen.blit(label, (label_x, label_y))
@@ -339,10 +368,11 @@ class BootMixin:
             pygame.draw.rect(self.screen, ring_color, rect, 2)
         pygame.draw.rect(self.screen, C.DESK_ACCENT_LIGHT, (inner.centerx - 8, inner.centery - 110, 16, 16))
         title = render_pixel_text(self.font_menu_title, "SYSTEM READY", C.DESK_ACCENT_LIGHT, scale=4)
-        subtitle = render_pixel_text(self.font_small, "ALL MODULES ONLINE", C.DESK_TEXT, scale=2)
+        subtitle = render_pixel_text(self.font_small, SYSTEM_READY_SUBTITLE, C.DESK_TEXT, scale=2)
         title_y = inner.centery - 74
         self.screen.blit(title, (inner.centerx - title.get_width() // 2, title_y))
-        self.screen.blit(subtitle, (inner.centerx - subtitle.get_width() // 2, title_y + title.get_height() + 12))
+        sub_y = title_y + title.get_height() + 12
+        self.screen.blit(subtitle, (inner.centerx - subtitle.get_width() // 2, sub_y))
         language_title = render_pixel_text(
             self.font_small, "LANGUAGE", C.DESK_MUTED, scale=2
         )

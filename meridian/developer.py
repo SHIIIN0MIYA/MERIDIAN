@@ -44,27 +44,52 @@ class DeveloperMixin:
             ("AIR: MISSILE READY", "air_missile"),
             ("AIR: STORY MESSAGE", "air_story"),
             ("AIR: S-RANK RESULT", "air_result"),
+            ("TRIGGER HOUR FX", "hour_fx"),
         ]
 
+    def _dev_action_rect(self, index):
+        """Return the screen rect for a dev action by index (matches draw layout)."""
+        col, row = index // 9, index % 9
+        return pygame.Rect(245 + col * 415, 170 + row * 49, 375, 38)
+
     def _handle_developer_event(self, event):
-        if not self.dev_mode or event.type != pygame.KEYDOWN:
+        if not self.dev_mode:
             return False
-        if event.key == pygame.K_F10:
-            self.dev_panel_open = not self.dev_panel_open
+
+        # Keyboard: F10 always toggles panel
+        if event.type == pygame.KEYDOWN:
+            if event.key == pygame.K_F10:
+                self.dev_panel_open = not self.dev_panel_open
+                return True
+            if not self.dev_panel_open:
+                return False
+            actions = self._dev_actions()
+            if event.key in (pygame.K_ESCAPE,):
+                self.dev_panel_open = False
+            elif event.key in (pygame.K_UP, pygame.K_w):
+                self.dev_menu_index = (self.dev_menu_index - 1) % len(actions)
+            elif event.key in (pygame.K_DOWN, pygame.K_s):
+                self.dev_menu_index = (self.dev_menu_index + 1) % len(actions)
+            elif event.key in (pygame.K_RETURN, pygame.K_SPACE, pygame.K_LEFT, pygame.K_RIGHT):
+                direction = -1 if event.key == pygame.K_LEFT else 1
+                self._activate_developer_action(actions[self.dev_menu_index][1], direction)
             return True
+
+        # Mouse: hover to highlight, click to activate
         if not self.dev_panel_open:
             return False
         actions = self._dev_actions()
-        if event.key in (pygame.K_ESCAPE,):
-            self.dev_panel_open = False
-        elif event.key in (pygame.K_UP, pygame.K_w):
-            self.dev_menu_index = (self.dev_menu_index - 1) % len(actions)
-        elif event.key in (pygame.K_DOWN, pygame.K_s):
-            self.dev_menu_index = (self.dev_menu_index + 1) % len(actions)
-        elif event.key in (pygame.K_RETURN, pygame.K_SPACE, pygame.K_LEFT, pygame.K_RIGHT):
-            direction = -1 if event.key == pygame.K_LEFT else 1
-            self._activate_developer_action(actions[self.dev_menu_index][1], direction)
-        return True
+        if event.type == pygame.MOUSEMOTION:
+            for index in range(len(actions)):
+                if self._dev_action_rect(index).collidepoint(event.pos):
+                    self.dev_menu_index = index
+                    return True
+        elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+            for index in range(len(actions)):
+                if self._dev_action_rect(index).collidepoint(event.pos):
+                    self._activate_developer_action(actions[index][1], direction=1)
+                    return True
+        return False
 
     def _activate_developer_action(self, action, direction=1):
         if action == "close":
@@ -90,6 +115,7 @@ class DeveloperMixin:
                 air["unlocked"] = 16
                 air["archive_unlocked"] = 8
                 air["challenge_unlocked"] = True
+                air["skins_unlocked"] = ["default", "crimson", "azure", "gold"]
         elif action == "win":
             self._dev_force_result(True)
         elif action == "fail":
@@ -99,6 +125,8 @@ class DeveloperMixin:
                 {"title": "DEV TEST // ACHIEVEMENT", "frame": 0}
             )
             self.audio.play("achievement", 0.75)
+        elif action == "hour_fx":
+            self.desktop_hour_fx_triggered = True
         elif action.startswith("air_"):
             self._activate_air_developer_action(action)
 
@@ -137,6 +165,8 @@ class DeveloperMixin:
             self.air_mission_value = self.air_mission_target
             self.air_health = 5
             self._finish_air(True)
+        elif action == "hour_fx":
+            self.desktop_hour_fx_triggered = True
 
     def _dev_force_result(self, won):
         if self.state == self.AIR_PLAYING:
@@ -228,8 +258,7 @@ class DeveloperMixin:
 
         actions = self._dev_actions()
         for index, (label, _) in enumerate(actions):
-            col, row = index // 9, index % 9
-            rect = pygame.Rect(245 + col * 415, 170 + row * 49, 375, 38)
+            rect = self._dev_action_rect(index)
             selected = index == self.dev_menu_index
             pygame.draw.rect(self.screen, (7, 15, 28), rect)
             pygame.draw.rect(

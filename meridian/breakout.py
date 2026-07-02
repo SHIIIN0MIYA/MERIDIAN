@@ -2,6 +2,33 @@ from .common import *
 
 
 class BreakoutMixin:
+    def _init_breakout(self):
+        self.breakout_bricks = []
+        self.breakout_ball = None
+        self.breakout_paddle = None
+        self.breakout_score = 0
+        self.breakout_best = 0
+        self.breakout_lives = 3
+        self.breakout_level = 1
+        self.breakout_particles = []
+        self.breakout_score_jump_frame = 0
+        self.breakout_shake_duration = 0
+        self.breakout_shake_x = 0
+        self.breakout_shake_y = 0
+        self.breakout_pressed_action = None
+        self.breakout_end_panel_frame = 0
+        self.breakout_control_mode = "keyboard"
+        self.breakout_difficulty = "normal"
+        self.breakout_ball_skin = "yellow"
+        self.breakout_brick_skin = "purple"
+        self.breakout_paddle_skin = "orange"
+        self.breakout_ball_color = C.BREAKOUT_BALL_YELLOW
+        self.breakout_brick_color = C.BREAKOUT_BRICK_PURPLE
+        self.breakout_paddle_color = C.BREAKOUT_PADDLE_ORANGE
+        self.breakout_ball_speed = 5.2
+        self.breakout_paddle_width = 126
+        self.breakout_paddle_speed = 9
+
     def _get_breakout_end_buttons(self):
         btn_w, btn_h, gap = 190, 50, 24
         total_w = btn_w * 2 + gap
@@ -18,13 +45,21 @@ class BreakoutMixin:
         btn_h = 50
         gap = 22
         start_y = 380
-        return [
+        buttons = []
+        if self.save_data["progress"]["breakout"]["run_active"]:
+            buttons.append({"rect": pygame.Rect(cx - btn_w // 2, start_y, btn_w, btn_h), "label": "CONTINUE", "action": "continue", "selected": False})
+            start_y += btn_h + gap
+        buttons.extend([
             {"rect": pygame.Rect(cx - btn_w // 2, start_y, btn_w, btn_h), "label": "START", "action": "breakout_start", "selected": False},
             {"rect": pygame.Rect(cx - btn_w // 2, start_y + btn_h + gap, btn_w, btn_h), "label": "SETTINGS", "action": "settings", "selected": False},
             {"rect": pygame.Rect(cx - btn_w // 2, start_y + (btn_h + gap) * 2, btn_w, btn_h), "label": "DESKTOP", "action": "desktop", "selected": False},
-        ]
+        ])
+        return buttons
 
     def _handle_breakout_menu_event(self, event):
+        if self.prologue_active:
+            self._handle_prologue_event(event)
+            return
         if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
             self._go_desktop()
             return
@@ -35,7 +70,8 @@ class BreakoutMixin:
             for b in self._get_breakout_menu_buttons():
                 if b["rect"].collidepoint(event.pos) and self.breakout_pressed_action == b["action"]:
                     a = b["action"]
-                    if a == "breakout_start": self._start_breakout_game()
+                    if a == "continue": self._start_breakout_game(restore_state=self.save_data["progress"]["breakout"]["run_state"])
+                    elif a == "breakout_start": self._start_breakout_game()
                     elif a == "settings": self.state = self.BREAKOUT_SETTINGS
                     elif a == "desktop": self._go_desktop()
                     self.breakout_pressed_action = None; return
@@ -105,7 +141,21 @@ class BreakoutMixin:
             self.breakout_paddle["width"] = self.breakout_paddle_width
             self.breakout_paddle["x"] = cx - self.breakout_paddle_width / 2
 
-    def _start_breakout_game(self):
+    def _start_breakout_game(self, restore_state=None):
+        if restore_state:
+            self._apply_breakout_difficulty()
+            self.breakout_bricks = restore_state["bricks"]
+            self.breakout_ball = restore_state["ball"]
+            self.breakout_paddle = restore_state["paddle"]
+            self.breakout_score = restore_state["score"]
+            self.breakout_lives = restore_state["lives"]
+            self.breakout_level = restore_state["level"]
+            self.breakout_particles.clear(); self.breakout_score_jump_frame = 0
+            self.breakout_shake_duration = 0; self.breakout_shake_x = 0; self.breakout_shake_y = 0
+            self.breakout_end_panel_frame = 0; self.breakout_pressed_action = None
+            self.state = self.BREAKOUT_PLAYING
+            self.breakout_level_start_lives = self.breakout_lives
+            return
         self._apply_breakout_difficulty()
         self.breakout_score = 0; self.breakout_lives = 3; self.breakout_level = 1
         self.breakout_particles.clear(); self.breakout_score_jump_frame = 0
@@ -117,6 +167,17 @@ class BreakoutMixin:
         self.state = self.BREAKOUT_PLAYING
         self.breakout_level_start_lives = self.breakout_lives
         self._record_stat("breakout", "games_started")
+        self._clear_run_state("breakout")
+
+    def _capture_breakout_run_state(self):
+        return {
+            "bricks": self.breakout_bricks,
+            "ball": self.breakout_ball,
+            "paddle": self.breakout_paddle,
+            "score": self.breakout_score,
+            "lives": self.breakout_lives,
+            "level": self.breakout_level,
+        }
 
     def _reset_breakout_ball(self):
         s = self.breakout_ball_speed + (self.breakout_level - 1) * 0.35
@@ -242,6 +303,7 @@ class BreakoutMixin:
                 self._record_stat("breakout", "games_completed")
                 self._record_stat("breakout", "best_score", self.breakout_score, mode="max")
                 self._record_stat("breakout", "highest_level", self.breakout_level, mode="max")
+                self._clear_run_state("breakout")
                 return
             self._reset_breakout_ball()
         if self.breakout_bricks and all(not b.get("alive", True) for b in self.breakout_bricks):
@@ -345,6 +407,10 @@ class BreakoutMixin:
         self.screen.blit(hint, (rect.centerx - hint.get_width() // 2, rect.y + 490))
 
     def _draw_breakout_menu(self):
+        if self._check_and_show_prologue("breakout"):
+            self._draw_prologue_screen()
+            return
+
         self.screen.fill(C.BREAKOUT_BG)
         outer = pygame.Rect(90, 54, WINDOW_W - 180, WINDOW_H - 108)
         pygame.draw.rect(self.screen, C.OUTLINE, outer, 5)

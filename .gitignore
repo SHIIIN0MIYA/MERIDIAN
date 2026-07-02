@@ -10,3 +10,7 @@ dist/
 .codex_write_test.txt
 _render_verification.py
 verification-*.png
+.agents/
+tests/.tmp/
+*.exe
+*.manifest

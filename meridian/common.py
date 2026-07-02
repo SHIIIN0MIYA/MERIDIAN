@@ -111,7 +111,7 @@ GAME_LIBRARY = [
 #  Desktop / Handheld UI Config
 # ============================================================
 
-DECK_TITLE = "HAO'S GAME DECK"
+DECK_TITLE = "MERIDIAN"
 
 # 閹哄本婧€婢舵牗顢?/ 鐏炲繐绠烽崠鍝勭厵
 HANDHELD_RECT = pygame.Rect(36, 22, WINDOW_W - 72, WINDOW_H - 44)
@@ -133,7 +133,17 @@ BATTERY_DRAIN_MS = 40 * 60 * 1000
 # ============================================================
 
 BOOT_TEXT = "WELCOME TO HAO'S GAME DECK"
+BOOT_TEXT_MERIDIAN = "MERIDIAN OS v2.4 — NEXUS LINK ESTABLISHING"
+BOOT_STATUS_MESSAGES = [
+    "CALIBRATING RESONANCE CRYSTAL...",
+    "SCANNING DIMENSIONAL FOLDS...",
+    "STABILIZING WORLD ANCHORS...",
+    "ESTABLISHING NEXUS LINK...",
+]
 SHUTDOWN_TEXT = "BYE BYE SEE U NEXT TIME~"
+SHUTDOWN_TEXT_MERIDIAN = "NEXUS CLOSING... WORLDS RETURN TO SLUMBER."
+SYSTEM_READY_SUBTITLE = "ALL REALMS STABLE"
+SYSTEM_READY_FLAVOR = "Seven windows into seven worlds. MERIDIAN sees them all."
 
 # 瀵偓閺堣櫣鏅棃銏＄瑤娴滎喗妞傞梹?
 BOOT_FADE_IN_FRAMES = 42
@@ -401,6 +411,85 @@ class C:
     PASSWORD_BTN_BORDER = (95, 170, 185)
     PASSWORD_ERROR_TEXT = (235, 70, 70)
     PASSWORD_SUCCESS_TEXT = (140, 220, 220)
+
+    # Air Raid palette
+    AIR_BG = (4, 11, 26)
+    AIR_PANEL = (12, 31, 54)
+    AIR_PANEL_DARK = (4, 15, 29)
+    AIR_ACCENT = (55, 180, 225)
+    AIR_ACCENT_LIGHT = (165, 242, 255)
+    AIR_TEXT = (225, 245, 250)
+    AIR_MUTED = (100, 145, 165)
+    AIR_HOVER = (28, 76, 105)
+
+    # Air Raid weapon cores
+    AIR_CANNON = (255, 218, 92)
+    AIR_SPREAD = (255, 135, 70)
+    AIR_LASER = (120, 245, 215)
+
+    # Air Raid enemy types
+    AIR_ENEMY_SCOUT = (225, 90, 100)
+    AIR_ENEMY_STRIKER = (245, 115, 85)
+    AIR_ENEMY_BOMBER = (195, 75, 125)
+    AIR_ENEMY_SNIPER = (220, 80, 185)
+    AIR_ENEMY_LAYER = (160, 80, 210)
+    AIR_ENEMY_SHIELD = (115, 100, 225)
+    AIR_ENEMY_CARRIER = (210, 75, 75)
+    AIR_ENEMY_COMMANDER = (245, 75, 145)
+
+    # Air Raid VFX
+    AIR_SHIELD_HIT = (100, 230, 255)
+    AIR_HULL_HIT = (255, 90, 75)
+    AIR_DEATH_FALLBACK = (255, 90, 120)
+    AIR_POWERUP_COLLECT = (170, 245, 255)
+    AIR_WEAPON_SLOT = (30, 88, 115)
+    AIR_MISSILE_LOCK = (255, 240, 160)
+    AIR_BOSS_SIGNAL = (255, 105, 120)
+    AIR_RADAR_RING = (25, 90, 110)
+    AIR_DEPLOY_STATUS = (255, 105, 130)
+    AIR_RANK_S = (255, 220, 80)
+    AIR_RANK_A = (110, 245, 210)
+    AIR_RANK_B = (110, 185, 255)
+    AIR_RANK_C = (190, 150, 160)
+    AIR_ENEMY_WARN = (255, 145, 55)
+    AIR_BOSS_CORE = (255, 220, 120)
+    AIR_BOSS_SHIELD = (150, 180, 220)
+
+    # Air Raid ship skins (ship, engine, shield)
+    AIR_SKIN_DEFAULT_SHIP = (165, 242, 255)
+    AIR_SKIN_DEFAULT_ENGINE = (255, 145, 55)
+    AIR_SKIN_DEFAULT_SHIELD = (100, 230, 255)
+    AIR_SKIN_CRIMSON_SHIP = (255, 80, 90)
+    AIR_SKIN_CRIMSON_ENGINE = (255, 185, 50)
+    AIR_SKIN_CRIMSON_SHIELD = (255, 120, 150)
+    AIR_SKIN_AZURE_SHIP = (80, 160, 255)
+    AIR_SKIN_AZURE_ENGINE = (200, 235, 255)
+    AIR_SKIN_AZURE_SHIELD = (80, 220, 255)
+    AIR_SKIN_GOLD_SHIP = (255, 220, 80)
+    AIR_SKIN_GOLD_ENGINE = (255, 255, 210)
+    AIR_SKIN_GOLD_SHIELD = (255, 240, 140)
+
+    # Snake alternate skins
+    SNAKE_LIME_BODY = (150, 255, 90)
+    SNAKE_LIME_HEAD = (205, 255, 130)
+    SNAKE_RED_BODY = (255, 95, 120)
+    SNAKE_RED_HEAD = (255, 160, 170)
+
+    # Overlay alpha shades
+    OVERLAY_PAUSE = (0, 0, 0, 175)
+    OVERLAY_END = (0, 0, 0, 205)
+
+    # Lore / World-building palette
+    LORE_BG = (10, 18, 36)
+    LORE_PANEL = (16, 28, 52)
+    LORE_PANEL_DARK = (8, 14, 26)
+    LORE_ACCENT = (180, 160, 100)
+    LORE_ACCENT_LIGHT = (235, 215, 140)
+    LORE_TEXT = (235, 232, 215)
+    LORE_MUTED = (140, 135, 120)
+    LORE_TITLE = (245, 210, 80)
+    LORE_LOCKED = (80, 78, 65)
+    LORE_NEW = (255, 195, 60)
 
 
 # ============================================================

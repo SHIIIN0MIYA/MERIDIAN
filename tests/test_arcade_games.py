@@ -5,13 +5,10 @@ import unittest
 from unittest.mock import patch
 
 
-os.environ.setdefault("SDL_VIDEODRIVER", "dummy")
-os.environ.setdefault("SDL_AUDIODRIVER", "dummy")
-
 import pygame
 
-from haos_game_deck import Game
-from haos_game_deck.arcade_levels import (
+from meridian import Game
+from meridian.arcade_levels import (
     AIR_CHAPTERS, AIR_ENEMY_TYPES, AIR_LEVELS,
 )
 
@@ -26,15 +23,15 @@ class AirRaidReworkTests(unittest.TestCase):
     def setUpClass(cls):
         pygame.init()
         cls.temp = tempfile.TemporaryDirectory()
-        cls.previous_save = os.environ.get("HAOS_GAME_DECK_SAVE_PATH")
-        os.environ["HAOS_GAME_DECK_SAVE_PATH"] = str(Path(cls.temp.name) / "save.json")
+        cls.previous_save = os.environ.get("MERIDIAN_SAVE_PATH")
+        os.environ["MERIDIAN_SAVE_PATH"] = str(Path(cls.temp.name) / "save.json")
 
     @classmethod
     def tearDownClass(cls):
         if cls.previous_save is None:
-            os.environ.pop("HAOS_GAME_DECK_SAVE_PATH", None)
+            os.environ.pop("MERIDIAN_SAVE_PATH", None)
         else:
-            os.environ["HAOS_GAME_DECK_SAVE_PATH"] = cls.previous_save
+            os.environ["MERIDIAN_SAVE_PATH"] = cls.previous_save
         cls.temp.cleanup()
 
     def make_game(self, level=0):
@@ -138,7 +135,7 @@ class AirRaidReworkTests(unittest.TestCase):
             "vx": 0, "vy": 0, "r": 4, "graze": False, "warning": False, "life": 20,
         }]
         keys = _Keys({pygame.K_LSHIFT: True})
-        with patch("haos_game_deck.air_raid.pygame.key.get_pressed", return_value=keys):
+        with patch("meridian.air_raid.pygame.key.get_pressed", return_value=keys):
             game._update_air_projectiles()
             game._update_air_projectiles()
         self.assertEqual(game.air_grazes, 1)

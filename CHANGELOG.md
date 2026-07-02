@@ -1,5 +1,52 @@
 # Changelog
 
+## V3.1.0 (2026-07-02) — 「MERIDIAN」
+
+### 🌌 Worldview System — MERIDIAN
+
+- **Frame Narrative**: 掌机真名揭示——**MERIDIAN（子午线）**，一台连接七个异界的神秘器物。它的屏幕是一面「共鸣透镜」，每个游戏模块是通向一个独立世界的稳定门户。
+- **Seven Worlds**: 每个游戏获得独立世界观设定：
+  - **GOMOKU** → 阴阳棋境：混沌与秩序两位古神的宇宙棋局
+  - **SNAKE** → 噬码渊：数字深渊中以代码为食的灵蛇
+  - **BREAKOUT** → 星穹壁垒：失落太空文明的能量图书馆
+  - **2048** → 数灵海：纯粹数字生命体的融合进化之海
+  - **MINES** → 雷原遗迹：大战争百年后焦土上的排雷工程师
+  - **TETRIS** → 筑天塔：异星建筑矩阵与通天塔的建造
+  - **AIR RAID** → 守望者战线：WARDEN 对自主战争网络的最终战役（已有完整故事）
+- **Prologue System**: 首次进入每个游戏时展示 3-5 行世界观序章画面，按 Enter/Space/点击跳过，自动保存已读状态。
+- **Menu Flavor Text**: 每个游戏菜单页在标题与按钮之间展示一行世界观风味文字（中英双语）。
+- **Lore Archive**: 桌面第二页新增 **LORE** 图标，打开全屏档案阅读器。包含：
+  - 8 个分类标签（器物 + 七界）
+  - 设备背景 lore（器物起源 / 连接之核 / 持器者）
+  - 每界 1-2 条深层故事，通过统计数据或成就解锁
+  - 分类导航、条目列表、全屏阅读视图
+- **Boot Sequence**: 开机动画注入 MERIDIAN 世界观——进度条四阶段轮换显示共鸣校准/维度扫描/锚点稳定/核心连接信息；SYSTEM READY 界面副标题改为「ALL REALMS STABLE」并添加风味文字。
+- **Password Screen**: 标题改为「NEXUS AUTHENTICATION」，错误提示改为「RESONANCE MISMATCH」。
+- **Desktop Polish**: 状态栏标题改为「MERIDIAN」；所有游戏图标获得英文副标题（如 GOMOKU → "TACTICAL BOARD"）。
+- **Bilingual**: 全部世界观文本（序章、风味文字、lore 条目）完整中英双语，通过 `localization.py` 统一管理。
+
+### 🔌 Extensibility API — New Game Integration
+
+为未来新游戏加入留好接口，新游戏开发者只需调用以下函数即可完成全部集成：
+
+| 函数 | 位置 | 用途 |
+|------|------|------|
+| `register_game_world(game_id, ...)` | `lore.py` | 注册新游戏世界（名称、序章、风味文字、深层 lore） |
+| `register_desktop_icon(label, action, ...)` | `shell_desktop.py` | 注册桌面图标（含双语副标题） |
+| `_register_game_states(state_name, ...)` | `app.py` | 动态 dispatch 表注册（无需修改 app.py） |
+| `_check_and_show_prologue(game_id)` | `arcade_common.py` | 通用序章系统（ArcadeHubMixin） |
+| `register_game_translations(game_id, dict)` | `localization.py` | 翻译条目批量注册 |
+
+详见各模块的 docstring。
+
+### 📁 File Changes
+
+- **New**: `haos_game_deck/lore.py` — 世界观文本数据 + 注册 API（~350 lines）
+- **Modified**: 17 files — `common.py`, `persistence.py`, `localization.py`, `arcade_common.py`, `app.py`, `shell_boot.py`, `shell_password.py`, `shell_desktop.py`, `system.py`, `gomoku.py`, `snake.py`, `breakout.py`, `g2048.py`, `mines.py`, `tetris.py`, `air_raid.py`, `CHANGELOG.md`
+- **Lines**: ~1,200 added
+
+---
+
 ## V3.0.0 (2026-07-02)
 
 ### 🏗 Architecture Refactor

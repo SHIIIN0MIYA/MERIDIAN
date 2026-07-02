@@ -88,32 +88,65 @@ class TetrisMixin:
             random.shuffle(self.tetris_bag)
         return self.tetris_bag.pop()
 
-    def _start_tetris_game(self):
-        self.tetris_grid = [[None for _ in range(TETRIS_COLS)] for _ in range(TETRIS_ROWS)]
-        self.tetris_bag = []
-        self.tetris_next = self._take_tetris_bag_piece()
-        self.tetris_hold = None
-        self.tetris_can_hold = True
-        self.tetris_score = 0
-        self.tetris_lines = 0
-        self.tetris_level = 1
-        self.tetris_fall_tick = 0
-        self.tetris_lock_tick = 0
+    def _start_tetris_game(self, restore_state=None):
+        if restore_state:
+            self.tetris_grid = [[None if cell is None else cell for cell in row] for row in restore_state["grid"]]
+            self.tetris_bag = restore_state["bag"][:]
+            self.tetris_next = restore_state["next"]
+            self.tetris_hold = restore_state["hold"]
+            self.tetris_can_hold = restore_state["can_hold"]
+            self.tetris_current = restore_state["current"].copy() if restore_state["current"] else None
+            self.tetris_score = restore_state["score"]
+            self.tetris_lines = restore_state["lines"]
+            self.tetris_level = restore_state["level"]
+            self.tetris_fall_tick = restore_state["fall_tick"]
+            self.tetris_lock_tick = restore_state["lock_tick"]
+        else:
+            self.tetris_grid = [[None for _ in range(TETRIS_COLS)] for _ in range(TETRIS_ROWS)]
+            self.tetris_bag = []
+            self.tetris_next = self._take_tetris_bag_piece()
+            self.tetris_hold = None
+            self.tetris_can_hold = True
+            self.tetris_score = 0
+            self.tetris_lines = 0
+            self.tetris_level = 1
+            self.tetris_fall_tick = 0
+            self.tetris_lock_tick = 0
+            self._spawn_tetris_piece()
         self.tetris_paused = False
         self.tetris_pressed_action = None
         self.tetris_end_frame = 0
         self.tetris_particles = []
         self.tetris_clear_flash = []
         self.tetris_repeat = {}
-        self._spawn_tetris_piece()
         self.state = self.TETRIS_PLAYING
         self.tetris_stats_completed = False
         self._record_stat("tetris", "games_started")
+        self._clear_run_state("tetris")
+
+    def _capture_tetris_run_state(self):
+        grid_data = []
+        for row in self.tetris_grid:
+            grid_data.append([cell if cell is None else str(cell) for cell in row])
+        return {
+            "grid": grid_data,
+            "bag": self.tetris_bag[:],
+            "next": self.tetris_next,
+            "hold": self.tetris_hold,
+            "can_hold": self.tetris_can_hold,
+            "current": self.tetris_current.copy() if self.tetris_current else None,
+            "score": self.tetris_score,
+            "lines": self.tetris_lines,
+            "level": self.tetris_level,
+            "fall_tick": self.tetris_fall_tick,
+            "lock_tick": self.tetris_lock_tick,
+        }
 
     def _finish_tetris_game(self):
         self.tetris_end_frame = 0
         self.audio.play_gameover("tetris")
         self.state = self.TETRIS_END
+        self._clear_run_state("tetris")
         if not getattr(self, "tetris_stats_completed", False):
             self.tetris_stats_completed = True
             self._record_stat("tetris", "games_completed")
@@ -251,10 +284,16 @@ class TetrisMixin:
             })
 
     def _get_tetris_menu_buttons(self):
-        return [
-            {"rect": pygame.Rect(820, 350, 260, 54), "label": "START", "action": "start"},
-            {"rect": pygame.Rect(820, 426, 260, 54), "label": "DESKTOP", "action": "desktop"},
-        ]
+        buttons = []
+        y = 350
+        has_saved = self.save_data.get("progress", {}).get("tetris", {}).get("run_active", False)
+        if has_saved:
+            buttons.append({"rect": pygame.Rect(820, y, 260, 54), "label": "CONTINUE", "action": "continue"})
+            y += 76
+        buttons.append({"rect": pygame.Rect(820, y, 260, 54), "label": "START", "action": "start"})
+        y += 76
+        buttons.append({"rect": pygame.Rect(820, y, 260, 54), "label": "DESKTOP", "action": "desktop"})
+        return buttons
 
     def _get_tetris_end_buttons(self):
         return [
@@ -269,10 +308,14 @@ class TetrisMixin:
         ]
 
     def _handle_tetris_menu_event(self, event):
+        if self.prologue_active:
+            self._handle_prologue_event(event)
+            return
         if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
             self._go_desktop()
             return
         self._handle_tetris_buttons(event, self._get_tetris_menu_buttons(), {
+            "continue": lambda: self._start_tetris_game(restore_state=self._pending_run_states.pop("tetris", None)),
             "start": self._start_tetris_game,
             "desktop": self._go_desktop,
         })
@@ -494,6 +537,10 @@ class TetrisMixin:
         pygame.draw.rect(target, dark, (rect.x + 4, rect.bottom - 7, rect.width - 8, 3))
 
     def _draw_tetris_menu(self):
+        if self._check_and_show_prologue("tetris"):
+            self._draw_prologue_screen()
+            return
+
         self._draw_tetris_background()
         panel = pygame.Rect(100, 54, WINDOW_W - 200, WINDOW_H - 108)
         self._draw_tetris_panel(panel)

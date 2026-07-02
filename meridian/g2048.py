@@ -2,12 +2,35 @@ from .common import *
 
 
 class Game2048Mixin:
+    def _init_2048(self):
+        self.g2048_grid = [[0 for _ in range(G2048_SIZE)] for _ in range(G2048_SIZE)]
+        self.g2048_score = 0
+        self.g2048_best = 0
+        self.g2048_moves = 0
+        self.g2048_won = False
+        self.g2048_game_over = False
+        self.g2048_pressed_action = None
+        self.g2048_spawn_anims = []
+        self.g2048_merge_anims = []
+        self.g2048_slide_anims = []
+        self.g2048_score_floaters = []
+        self.g2048_particles = []
+        self.g2048_invalid_shake = 0
+        self.g2048_invalid_shake_dir = "x"
+        self.g2048_end_panel_frame = 0
+        self.g2048_win_flash_frame = 0
+
     def _get_2048_menu_buttons(self):
         cx = WINDOW_W // 2; btn_w = 220; btn_h = 50; gap = 22; start_y = 365
-        return [
+        buttons = []
+        if self.save_data["progress"]["2048"]["run_active"]:
+            buttons.append({"rect": pygame.Rect(cx - btn_w // 2, start_y, btn_w, btn_h), "label": "CONTINUE", "action": "continue", "selected": False})
+            start_y += btn_h + gap
+        buttons.extend([
             {"rect": pygame.Rect(cx - btn_w // 2, start_y, btn_w, btn_h), "label": "START", "action": "g2048_start", "selected": False},
             {"rect": pygame.Rect(cx - btn_w // 2, start_y + btn_h + gap, btn_w, btn_h), "label": "DESKTOP", "action": "desktop", "selected": False},
-        ]
+        ])
+        return buttons
 
     def _get_2048_end_buttons(self):
         btn_w = 210; btn_h = 44; gap = 14
@@ -89,7 +112,19 @@ class Game2048Mixin:
                         self.g2048_slide_anims.append({"from_r": oc[i][0], "from_c": c, "to_r": nc[i][0], "to_c": c,
                                                          "value": oc[i][1], "frame": 0, "max_frames": G2048_SLIDE_FRAMES})
 
-    def _start_2048_game(self):
+    def _start_2048_game(self, restore_state=None):
+        if restore_state:
+            self.g2048_grid = restore_state["grid"]
+            self.g2048_score = restore_state["score"]
+            self.g2048_moves = restore_state["moves"]
+            self.g2048_won = False; self.g2048_game_over = False
+            self.g2048_spawn_anims.clear(); self.g2048_merge_anims.clear(); self.g2048_slide_anims.clear()
+            self.g2048_score_floaters.clear(); self.g2048_particles.clear()
+            self.g2048_invalid_shake = 0; self.g2048_invalid_shake_dir = "x"
+            self.g2048_end_panel_frame = 0; self.g2048_win_flash_frame = 0; self.g2048_pressed_action = None
+            self.state = self.G2048_PLAYING
+            self.g2048_stats_completed = False
+            return
         self.g2048_grid = [[0]*G2048_SIZE for _ in range(G2048_SIZE)]
         self.g2048_score = 0; self.g2048_moves = 0; self.g2048_won = False; self.g2048_game_over = False
         self.g2048_spawn_anims.clear(); self.g2048_merge_anims.clear(); self.g2048_slide_anims.clear()
@@ -100,6 +135,14 @@ class Game2048Mixin:
         self.state = self.G2048_PLAYING
         self.g2048_stats_completed = False
         self._record_stat("2048", "games_started")
+        self._clear_run_state("2048")
+
+    def _capture_2048_run_state(self):
+        return {
+            "grid": self.g2048_grid,
+            "score": self.g2048_score,
+            "moves": self.g2048_moves,
+        }
 
     def _spawn_2048_tile(self):
         empty = [(r, c) for r in range(G2048_SIZE) for c in range(G2048_SIZE) if self.g2048_grid[r][c] == 0]
@@ -160,6 +203,7 @@ class Game2048Mixin:
                 if not self.g2048_stats_completed:
                     self.g2048_stats_completed = True
                     self._record_stat("2048", "games_completed")
+                self._clear_run_state("2048")
         self._spawn_2048_tile()
         if self._is_2048_game_over():
             self.g2048_game_over = True
@@ -169,6 +213,7 @@ class Game2048Mixin:
             if not self.g2048_stats_completed:
                 self.g2048_stats_completed = True
                 self._record_stat("2048", "games_completed")
+            self._clear_run_state("2048")
         self._record_stat("2048", "best_score", self.g2048_score, mode="max")
         return True
 
@@ -181,6 +226,9 @@ class Game2048Mixin:
         return True
 
     def _handle_2048_menu_event(self, event):
+        if self.prologue_active:
+            self._handle_prologue_event(event)
+            return
         if event.type == pygame.KEYDOWN:
             if event.key == pygame.K_ESCAPE: self._go_desktop()
             elif event.key in [pygame.K_RETURN, pygame.K_SPACE]: self._start_2048_game()
@@ -192,7 +240,8 @@ class Game2048Mixin:
             for b in self._get_2048_menu_buttons():
                 if b["rect"].collidepoint(event.pos) and self.g2048_pressed_action == b["action"]:
                     a = b["action"]
-                    if a == "g2048_start": self._start_2048_game()
+                    if a == "continue": self._start_2048_game(restore_state=self.save_data["progress"]["2048"]["run_state"])
+                    elif a == "g2048_start": self._start_2048_game()
                     elif a == "desktop": self._go_desktop()
                     self.g2048_pressed_action = None; return
             self.g2048_pressed_action = None
@@ -379,6 +428,10 @@ class Game2048Mixin:
             flash.fill((*C.G2048_ACCENT_LIGHT, alpha)); self.screen.blit(flash, (0, 0))
 
     def _draw_2048_menu(self):
+        if self._check_and_show_prologue("2048"):
+            self._draw_prologue_screen()
+            return
+
         self.screen.fill(C.G2048_BG)
         outer = pygame.Rect(90, 54, WINDOW_W - 180, WINDOW_H - 108)
         pygame.draw.rect(self.screen, C.OUTLINE, outer, 5); pygame.draw.rect(self.screen, C.G2048_PANEL, outer.inflate(-10, -10))

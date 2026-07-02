@@ -12,6 +12,23 @@ from .tetris import TetrisMixin
 from .system import SystemMixin
 from .developer import DeveloperMixin
 
+# ── Dynamic Game State Registry ──────────────────────────────
+# New games register their states here without modifying app.py.
+# Each entry: (state_attr_name, event_handler, update_methods, draw_handler)
+_GAME_STATE_REGISTRY = []
+
+
+def _register_game_states(state_name, event_handler, update_methods, draw_handler):
+    """Register dispatch entries for a new game.
+
+    Args:
+        state_name: The state string constant (e.g. "pacman_menu")
+        event_handler: Method name string for event handling
+        update_methods: List of method name strings for update (empty list = no update)
+        draw_handler: Method name string for draw
+    """
+    _GAME_STATE_REGISTRY.append((state_name, event_handler, update_methods, draw_handler))
+
 
 class Game(
     ShellMixin,
@@ -66,8 +83,13 @@ class Game(
             s.AIR_SUPPLY: "_handle_air_event",
             s.AIR_PLAYING: "_handle_air_event",
             s.AIR_END: "_handle_air_event",
+            s.AIR_SKINS: "_handle_air_skins_event",
+            s.AIR_STORY: "_handle_air_story_event",
             s.SYSTEM_SETTINGS: "_handle_system_settings_event",
             s.PROFILE: "_handle_profile_event",
+            s.ACHIEVEMENT_WALL: "_handle_achievement_wall_event",
+            s.LORE_READER: "_handle_lore_reader_event",
+            s.LORE_STORY: "_handle_lore_story_event",
         }
         self._UPDATE_DISPATCH = {
             s.BOOT: (True, ["_update_boot"]),
@@ -129,10 +151,24 @@ class Game(
             s.AIR_SUPPLY: "_draw_air_raid",
             s.AIR_PLAYING: "_draw_air_raid",
             s.AIR_END: "_draw_air_raid",
+            s.AIR_SKINS: "_draw_air_skins",
+            s.AIR_STORY: "_draw_air_story",
             s.SYSTEM_SETTINGS: "_draw_system_settings",
             s.PROFILE: "_draw_profile",
+            s.ACHIEVEMENT_WALL: "_draw_achievement_wall",
+            s.LORE_READER: "_draw_lore_reader",
+            s.LORE_STORY: "_draw_lore_story",
             s.SHUTDOWN: "_draw_shutdown_screen",
         }
+        # Merge dynamically registered game states
+        for state_name, evt, upd, drw in _GAME_STATE_REGISTRY:
+            state_attr = getattr(s, state_name, state_name)
+            if evt is not None:
+                self._EVENT_DISPATCH[state_attr] = evt
+            if upd is not None:
+                self._UPDATE_DISPATCH[state_attr] = (True, list(upd))
+            if drw is not None:
+                self._DRAW_DISPATCH[state_attr] = drw
     SYSTEM_READY = "system_ready"
     PASSWORD = "password"
     DESKTOP = "desktop"
@@ -167,361 +203,49 @@ class Game(
     AIR_SUPPLY = "air_supply"
     AIR_PLAYING = "air_playing"
     AIR_END = "air_end"
+    AIR_SKINS = "air_skins"
+    AIR_STORY = "air_story"
     SYSTEM_SETTINGS = "system_settings"
     PROFILE = "profile"
+    ACHIEVEMENT_WALL = "achievement_wall"
+    LORE_READER = "lore_reader"
+    LORE_STORY = "lore_story"
     SHUTDOWN = "shutdown"
 
     def __init__(self):
+        # === 核心基础设施 ===
         self.display_surface = pygame.display.set_mode((WINDOW_W, WINDOW_H))
         self.screen = pygame.Surface((WINDOW_W, WINDOW_H))
-        pygame.display.set_caption("HAO'S GAME DECK")
+        pygame.display.set_caption("MERIDIAN")
         self.clock = pygame.time.Clock()
         self.running = True
         self.audio = AudioManager()
-
-        # Global page transition state
-        self.transition_active = False
-        self.transition_type = "fade"
-        self.transition_target_state = None
-        self.transition_frame = 0
-        self.transition_max_frames = 24
-        self.transition_phase = "out"
-        self.transition_alpha = 0
-
-        # 褰撳墠閫変腑鐨勫皬娓告垙锛屾湭鏉ュ皬娓告垙鍚堥泦浼氱敤鍒?
-        self.current_game_id = "gomoku"
-        self.current_game_name = "GOMOKU"
-
-        # 鍚姩鍏堣繘鍏ュ紑鏈哄姩鐢伙紝鍔ㄧ敾缁撴潫鍚庡啀杩涘叆妗岄潰
         self.state = self.BOOT
-
-        # 褰撳墠娓告垙閰嶇疆
-        self.board_size = DEFAULT_SIZE
-        self.board = Board(self.board_size)
-
-        # ============================================================
-        #  Desktop / handheld shell state
-        # ============================================================
-
-        # 鍚姩鏃堕棿锛岀敤浜庢闈㈢數閲忎粠 100% 缂撴參涓嬮檷鍒?0%
-        self.app_start_ticks = pygame.time.get_ticks()
-
-        # 妗岄潰鍥炬爣鎸変笅鐘舵€?
-        self.desktop_pressed_action = None
-        self.desktop_volume_open = False
-        self.desktop_volume_dragging = False
-        self.shutdown_confirm_open = False
-        self.shutdown_confirm_pressed = None
-
-        # 闃叉浠庢父鎴?/ 鑿滃崟杩斿洖妗岄潰鏃讹紝鍚屼竴娆?ESC 缁х画瑙﹀彂鍏虫満
-        self.desktop_esc_lock_frames = 0
-
-        # ============================================================
-        #  Boot / Shutdown animation state
-        # ============================================================
-
-        # 寮€鏈哄姩鐢?
-        self.boot_frame = 0
-        self.boot_visible_chars = 0
-        self.boot_next_char_delay = BOOT_TYPE_BASE_DELAY
-        self.boot_phase = "fade"   # fade / typing / enter / loading / done
-        self.boot_fade_alpha = 0
-        self.boot_progress_frame = 0
-        self.boot_progress_value = 0.0
-        self.system_ready_pressed = False
-
-        # ============================================================
-        #  Password screen state
-        # ============================================================
-        self.password_input = []
-        self.password_target = PASSWORD_TARGET
-        self.password_max_length = PASSWORD_MAX_LENGTH
-        self.password_error = False
-        self.password_error_frame = 0
-        self.password_pressed_action = None
-        self.password_buttons = self._build_password_buttons()
-
-        # 鍏虫満鍔ㄧ敾
-        self.shutdown_frame = 0
-        self.shutdown_visible_chars = len(SHUTDOWN_TEXT)
-        self.shutdown_phase = "show"  # show / deleting / fade / done
-        self.shutdown_delete_timer = 0
-        self.shutdown_fade_alpha = 0
-
-        # 妗岄潰鍥炬爣瀹氫箟
-        self.desktop_page = 0
-
-        # Desktop page slide animation
-        self.desktop_slide_active = False
-        self.desktop_slide_from_page = 0
-        self.desktop_slide_to_page = 0
-        self.desktop_slide_direction = 0
-        self.desktop_slide_frame = 0
-        self.desktop_slide_max_frames = 36
-
-        self.desktop_pages = [
-            [
-                {"label": "GOMOKU", "action": "open_gomoku", "enabled": True},
-                {"label": "SNAKE", "action": "open_snake", "enabled": True},
-                {"label": "BREAKOUT", "action": "open_breakout", "enabled": True},
-                {"label": "2048", "action": "open_2048", "enabled": True},
-                {"label": "MINES", "action": "open_mines", "enabled": True},
-                {"label": "TETRIS", "action": "open_tetris", "enabled": True},
-            ],
-            [
-                {"label": "AIR RAID", "action": "open_air", "enabled": True},
-                {"label": "SETTINGS", "action": "open_system_settings", "enabled": True},
-                {"label": "PROFILE", "action": "open_profile", "enabled": True},
-            ],
-        ]
-
-        # ============================================================
-        #  Snake game state
-        # ============================================================
-
-        self.snake = []
-        self.snake_dir = (1, 0)
-        self.snake_next_dir = (1, 0)
-        self.snake_food = (0, 0)
-        self.snake_score = 0
-        self.snake_best = 0
-        self.snake_move_timer = 0
-        self.snake_game_over = False
-        self.snake_pressed_action = None
-
-        # 璐悆铔囪缃?
-        self.snake_speed_mode = "normal"
-        self.snake_skin = "green"
-        self.snake_body_color = C.SNAKE_BODY
-        self.snake_head_color = C.SNAKE_HEAD
-        self.snake_base_interval = SNAKE_MOVE_INTERVAL_FRAMES
-
-        # 璐悆铔囩矑瀛愶紙鍚冮鐗╋級
-        self.snake_particles = []
-
-        # 姝讳骸鎶栧睆
-        self.snake_dead = False
-        self.snake_shake_duration = 0
-        self.snake_shake_x = 0
-        self.snake_shake_y = 0
-
-        # 鍒嗘暟璺冲姩
-        self.snake_score_jump = 0
-        self.snake_score_jump_frame = 0
-
-        # 褰撳墠鏍煎瓙澶у皬锛屽厛淇濈暀鎺ュ彛
-        self.snake_cell_size = SNAKE_CELL_SIZE
-
-        # ============================================================
-        #  Breakout game state
-        # ============================================================
-
-        self.breakout_bricks = []
-        self.breakout_ball = None
-        self.breakout_paddle = None
-
-        self.breakout_score = 0
-        self.breakout_best = 0
-        self.breakout_lives = 3
-        self.breakout_level = 1
-
-        self.breakout_particles = []
-        self.breakout_score_jump_frame = 0
-        self.breakout_shake_duration = 0
-        self.breakout_shake_x = 0
-        self.breakout_shake_y = 0
-        self.breakout_pressed_action = None
-        self.breakout_end_panel_frame = 0
-
-        #  Breakout settings
-        self.breakout_control_mode = "keyboard"
-        self.breakout_difficulty = "normal"
-        self.breakout_ball_skin = "yellow"
-        self.breakout_brick_skin = "purple"
-        self.breakout_paddle_skin = "orange"
-
-        self.breakout_ball_color = C.BREAKOUT_BALL_YELLOW
-        self.breakout_brick_color = C.BREAKOUT_BRICK_PURPLE
-        self.breakout_paddle_color = C.BREAKOUT_PADDLE_ORANGE
-
-        self.breakout_ball_speed = 5.2
-        self.breakout_paddle_width = 126
-        self.breakout_paddle_speed = 9
-
-        # 2048 game state
-        self.g2048_grid = [[0 for _ in range(G2048_SIZE)] for _ in range(G2048_SIZE)]
-        self.g2048_score = 0
-        self.g2048_best = 0
-        self.g2048_moves = 0
-        self.g2048_won = False
-        self.g2048_game_over = False
-        self.g2048_pressed_action = None
-        self.g2048_spawn_anims = []
-        self.g2048_merge_anims = []
-        self.g2048_slide_anims = []
-        self.g2048_score_floaters = []
-        self.g2048_particles = []
-
-        self.g2048_invalid_shake = 0
-        self.g2048_invalid_shake_dir = "x"
-
-        self.g2048_end_panel_frame = 0
-        self.g2048_win_flash_frame = 0
-
-        # Minesweeper game state
-        self.mines_size = DEFAULT_MINES_SIZE
-        self.mines_count = DEFAULT_MINES_COUNT
-        self.mines_grid = [[0 for _ in range(self.mines_size)] for _ in range(self.mines_size)]
-        self.mines_revealed = [[False for _ in range(self.mines_size)] for _ in range(self.mines_size)]
-        self.mines_flags = [[False for _ in range(self.mines_size)] for _ in range(self.mines_size)]
-        self.mines_started = False
-        self.mines_game_over = False
-        self.mines_win = False
-        self.mines_revealed_count = 0
-        self.mines_flags_count = 0
-        self.mines_pressed_action = None
-        self.mines_start_ticks = 0
-        self.mines_elapsed_ms = 0
-        self.mines_best_times = {(9, 10): None, (9, 15): None, (9, 20): None, (16, 40): None, (16, 50): None, (16, 60): None}
-        self.mines_last_click_cell = None
-        self.mines_last_click_ticks = 0
-        self.mines_reveal_anims = []
-        self.mines_flag_anims = []
-        self.mines_particles = []
-        self.mines_shake = 0
-        self.mines_end_panel_frame = 0
-
-        # death/hint
-        self.mines_death_anim_active = False
-        self.mines_death_phase = "none"   # none / flash / explode / reveal / fade
-        self.mines_death_frame = 0
-        self.mines_exploded_cell = None
-        self.mines_death_fade_alpha = 0
-        self.mines_last_open_cell = None
-        self.mines_hint_cell = None
-        self.mines_hint_flash_frame = 0
-        self.mines_hint_cooldown = 0
-        self.hover_pos = None
-
-        self._init_tetris_state()
-        self._init_air_raid()
-
         self.anim_tick = 0
-        self.win_alpha = 0
-        self.shake_duration = 0
-        self.shake_x = 0
-        self.shake_y = 0
 
-        # ============================================================
-        #  Animation states
-        # ============================================================
-
-        # 纾佸惛棰勮妫嬪瓙鐘舵€?
-        self.preview_active = False
-        self.preview_cell = None
-        self.preview_x = 0.0
-        self.preview_y = 0.0
-        self.preview_target_x = 0.0
-        self.preview_target_y = 0.0
-        self.preview_player = 1
-
-        # 钀藉瓙娉㈢汗鍒楄〃
-        # 姣忛」鏍煎紡锛歿"r": r, "c": c, "frame": 0, "max_frames": RIPPLE_MAX_FRAMES}
-        self.ripples = []
-
-        # 闈炴硶钀藉瓙鍙嶉
-        # 姣忛」鏍煎紡锛歿"r": r, "c": c, "frame": 0, "max_frames": INVALID_MARK_MAX_FRAMES}
-        self.invalid_marks = []
-
-        # 鎮仠鍦ㄥ凡鏈夋瀛愪笂鐨勪綅缃?
-        self.occupied_hover_pos = None
-
-        # 鎮旀鍔ㄧ敾
-        # 姣忛」鏍煎紡锛歿"r": r, "c": c, "player": player, "frame": 0, "max_frames": UNDO_ANIM_MAX_FRAMES}
-        self.undo_animations = []
-
-        # 鑳滃埄杩炵嚎鍔ㄧ敾
-        self.win_line_frame = 0
-        self.win_line_active = False
-
-        # 鑳滃埄妫嬪瓙渚濇闂儊
-        self.win_stone_flash_frame = 0
-        self.win_stone_flash_active = False
-
-        # 渚濇鐖嗙矑瀛愮殑绱㈠紩锛屼繚璇佷簲棰楁瀛愭寜椤哄簭鍠峰彂
-        self.win_particle_burst_index = -1
-
-        # 鎸夐挳鐐瑰嚮鐘舵€?
-        self.pressed_button_action = None
-
-        # 鑳滃埄鍚庡欢杩熻繘鍏ョ粨鏉熼〉
-        self.end_page_delay = 0
-
-        # 缁撴潫椤靛叆鍦哄姩鐢?
-        self.end_panel_anim_frame = 0
-        self.end_text_flash_tick = 0
-        self.end_overlay_alpha = 0
-
-        # Animations: list of {type, r, c, player, frame, max_frames}
-        self.animations = []
-        # Particles
-        self.particles = []
-        # Score tracking
-        self.black_wins = 0
-        self.white_wins = 0
-        self.draws = 0
-        self._win_scored = False  # prevent double-counting on undo + re-win
-
-        # Pre-render background
-        self.wood_bg = create_wood_texture(WINDOW_W, WINDOW_H)
-
-        # Fonts
+        # 字体
         self.font_title = pygame.font.Font(None, 28)
         self.font_menu_title = pygame.font.Font(None, 32)
         self.font_status = pygame.font.Font(None, 18)
         self.font_btn = pygame.font.Font(None, 20)
         self.font_small = pygame.font.Font(None, 14)
 
-        # ============================================================
-        #  Menu hanging-logo settings
-        # ============================================================
-        self.menu_logo_text = "GOMOKU"
-
-        # 淇锛氬師鏉?scale=4 澶ぇ锛屽叚涓悐鐗屾€诲搴︿細瓒呭嚭绐楀彛
-        self.menu_logo_scale = 3
-
-        # 姣忎釜鍚婄墝鐙珛鎽嗗姩鍙傛暟
-        # 鎽嗗箙鎺у埗寰楁洿灏忥紝閬垮厤鍚婄墝鐢╁嚭杈圭晫
-        self.menu_logo_phase = [0.00, 0.87, 1.76, 2.43, 3.39, 4.12]
-        self.menu_logo_swing_amp = [4.8, 4.2, 5.0, 4.4, 4.7, 4.1]
-        self.menu_logo_micro_amp = [0.22, 0.18, 0.24, 0.20, 0.22, 0.18]
-
-        # 淇锛氱怀瀛愬彉鐭紝鍚婄墝鏁翠綋涓婄Щ锛屽噺灏戝崰鐢ㄧ┖闂?
-        self.menu_logo_rope_len = [22, 21, 23, 22, 22, 21]
-
-        # 淇锛氬悐鐗岄棿璺濈缉灏忥紝閬垮厤 GOMOKU 瓒呭嚭宸﹀彸杈圭晫
-        self.menu_logo_gap = 6
-
-        # 椤堕儴妯浣嶇疆
-        self.menu_logo_beam_y = 92
-
-        # 缂撳瓨灏侀潰鍚婄墝绱犳潗
-        self.menu_logo_letters = []
-        self._build_menu_logo_assets()
-
-        # Stone assets (regenerated when board_size changes)
-        self._rebuild_stone_assets()
-
-        # Menu buttons
-        self._build_menu_buttons()
-
-        # End page buttons
-        self.end_btns = []
-
-        # Win overlay surface
-        self.win_overlay = pygame.Surface((WINDOW_W, WINDOW_H), pygame.SRCALPHA)
+        # === Mixin 初始化 ===
+        # SystemMixin 必须最后调用，因为 _apply_loaded_data() 会覆盖持久化状态
+        self._init_transition()
+        self._init_boot()
+        self._init_desktop()
+        self._init_password()
+        self._init_prologue()
+        self._init_gomoku()
+        self._init_snake()
+        self._init_breakout()
+        self._init_2048()
+        self._init_mines()
+        self._init_tetris_state()
+        self._init_air_raid()
         self._init_developer()
-        self._init_system()
+        self._init_system()          # ← 最后调用，覆盖已加载的持久化数据
         self._build_dispatch()
 
     def handle_events(self):

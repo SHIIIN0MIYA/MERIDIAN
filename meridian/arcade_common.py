@@ -1,6 +1,8 @@
 """Shared presentation helpers for the second-page arcade games."""
 
 from .common import *
+from .localization import get_chinese_font, is_chinese
+from . import lore as _lore
 
 
 def arcade_button(rect, label, action, selected=False):
@@ -92,7 +94,7 @@ def end_buttons():
 
 def draw_pause_overlay(game, palette):
     shade = pygame.Surface((WINDOW_W, WINDOW_H), pygame.SRCALPHA)
-    shade.fill((0, 0, 0, 175))
+    shade.fill(C.OVERLAY_PAUSE)
     game.screen.blit(shade, (0, 0))
     panel = pygame.Rect(WINDOW_W // 2 - 230, WINDOW_H // 2 - 90, 460, 180)
     pygame.draw.rect(game.screen, C.OUTLINE, panel, 5)
@@ -104,6 +106,125 @@ def draw_pause_overlay(game, palette):
 
 
 class ArcadeHubMixin:
+    # ── Prologue System ──────────────────────────────────────
+
+    def _init_prologue(self):
+        self.prologue_active = False
+        self.prologue_game_id = None
+        self.prologue_lines = []
+        self.prologue_title = ""
+        self.prologue_page = 0
+        self.prologue_dismiss_action = None  # callable to run on dismiss
+
+    def _check_and_show_prologue(self, game_id):
+        """Return True if a prologue is being shown (menu should skip rendering)."""
+        if self.prologue_active:
+            return True
+        seen = self.save_data.get("lore", {}).get("prologues_seen", [])
+        if game_id in seen:
+            return False
+        world = _lore.get_world(game_id)
+        if world is None:
+            return False
+        lines = world["prologue_zh"] if is_chinese() else world["prologue_en"]
+        self.prologue_active = True
+        self.prologue_game_id = game_id
+        self.prologue_lines = list(lines)
+        self.prologue_title = world["world_name_zh"] if is_chinese() else world["world_name_en"]
+        self.prologue_page = 0
+        return True
+
+    def _handle_prologue_event(self, event, on_dismiss=None):
+        """Handle events while prologue is showing. CALLER must check prologue_active first."""
+        if not self.prologue_active:
+            return False
+        if event.type == pygame.KEYDOWN:
+            if event.key in (pygame.K_RETURN, pygame.K_SPACE, pygame.K_ESCAPE):
+                self._dismiss_prologue(on_dismiss)
+                return True
+            if event.key in (pygame.K_RIGHT, pygame.K_d):
+                lines_per_page = 5
+                max_page = max(0, (len(self.prologue_lines) - 1) // lines_per_page)
+                self.prologue_page = min(self.prologue_page + 1, max_page)
+                return True
+            if event.key in (pygame.K_LEFT, pygame.K_a):
+                self.prologue_page = max(0, self.prologue_page - 1)
+                return True
+        if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+            self._dismiss_prologue(on_dismiss)
+            return True
+        return False
+
+    def _dismiss_prologue(self, on_dismiss):
+        self.prologue_active = False
+        game_id = self.prologue_game_id
+        self.prologue_game_id = None
+        self.prologue_lines = []
+        # Mark as seen
+        lore_data = self.save_data.setdefault("lore", {})
+        seen = lore_data.setdefault("prologues_seen", [])
+        if game_id and game_id not in seen:
+            seen.append(game_id)
+        self._save_now()
+        if on_dismiss:
+            on_dismiss()
+
+    def _draw_prologue_screen(self):
+        """Draw the prologue overlay. Only call when prologue_active is True."""
+        if not self.prologue_active:
+            return
+
+        # Darken background
+        shade = pygame.Surface((WINDOW_W, WINDOW_H), pygame.SRCALPHA)
+        shade.fill((0, 0, 0, 220))
+        self.screen.blit(shade, (0, 0))
+
+        # Panel
+        panel = pygame.Rect(140, 60, WINDOW_W - 280, WINDOW_H - 120)
+        pygame.draw.rect(self.screen, C.OUTLINE, panel, 4)
+        pygame.draw.rect(self.screen, C.LORE_PANEL, panel.inflate(-8, -8))
+        pygame.draw.rect(self.screen, C.LORE_ACCENT, panel.inflate(-16, -16), 2)
+
+        # Title
+        title_text = render_pixel_text(
+            self.font_menu_title, self.prologue_title, C.LORE_TITLE, scale=3)
+        self.screen.blit(
+            title_text,
+            (panel.centerx - title_text.get_width() // 2, panel.y + 28),
+        )
+
+        # Lines (paginated)
+        lines_per_page = 5
+        start = self.prologue_page * lines_per_page
+        page_lines = self.prologue_lines[start:start + lines_per_page]
+        max_page = max(0, (len(self.prologue_lines) - 1) // lines_per_page)
+
+        story_font = get_chinese_font(16)
+        for li, line in enumerate(page_lines):
+            y = panel.y + 100 + li * 72
+            txt = render_pixel_text(story_font, line, C.LORE_TEXT, scale=1)
+            self.screen.blit(txt, (panel.x + 50, y))
+
+        # Page indicator (if multi-page)
+        if max_page > 0:
+            page_indicator = f"{self.prologue_page + 1} / {max_page + 1}"
+            pi = render_pixel_text(self.font_small, page_indicator, C.LORE_MUTED, scale=1)
+            self.screen.blit(
+                pi,
+                (panel.centerx - pi.get_width() // 2, panel.bottom - 70),
+            )
+
+        # Hint
+        hint_text = "ENTER / CLICK TO CONTINUE"
+        hint = render_pixel_text(
+            self.font_small, hint_text, C.LORE_ACCENT_LIGHT, scale=2)
+        self.screen.blit(
+            hint,
+            (panel.centerx - hint.get_width() // 2, panel.bottom - 48),
+        )
+
+    # ── Existing methods ─────────────────────────────────────
+
     def _handle_level_select(self, event, game_key, count, start_level, menu_state):
         page_attr = f"{game_key}_select_page"
         pressed_attr = f"{game_key}_pressed"
@@ -157,7 +278,7 @@ class ArcadeHubMixin:
 
     def _draw_simple_end(self, title, detail, palette, pressed=None):
         shade = pygame.Surface((WINDOW_W, WINDOW_H), pygame.SRCALPHA)
-        shade.fill((0, 0, 0, 205))
+        shade.fill(C.OVERLAY_END)
         self.screen.blit(shade, (0, 0))
         panel = pygame.Rect(335, 155, 610, 460)
         pygame.draw.rect(self.screen, C.OUTLINE, panel, 6)

@@ -1,4 +1,4 @@
-"""HAO'S GAME DECK package."""
+"""MERIDIAN package."""
 
 from .app import Game
 from .common import Board, C, Particle

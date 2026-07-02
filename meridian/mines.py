@@ -2,6 +2,38 @@ from .common import *
 
 
 class MinesMixin:
+    def _init_mines(self):
+        self.mines_size = DEFAULT_MINES_SIZE
+        self.mines_count = DEFAULT_MINES_COUNT
+        self.mines_grid = [[0 for _ in range(self.mines_size)] for _ in range(self.mines_size)]
+        self.mines_revealed = [[False for _ in range(self.mines_size)] for _ in range(self.mines_size)]
+        self.mines_flags = [[False for _ in range(self.mines_size)] for _ in range(self.mines_size)]
+        self.mines_started = False
+        self.mines_game_over = False
+        self.mines_win = False
+        self.mines_revealed_count = 0
+        self.mines_flags_count = 0
+        self.mines_pressed_action = None
+        self.mines_start_ticks = 0
+        self.mines_elapsed_ms = 0
+        self.mines_best_times = {(9, 10): None, (9, 15): None, (9, 20): None, (16, 40): None, (16, 50): None, (16, 60): None}
+        self.mines_last_click_cell = None
+        self.mines_last_click_ticks = 0
+        self.mines_reveal_anims = []
+        self.mines_flag_anims = []
+        self.mines_particles = []
+        self.mines_shake = 0
+        self.mines_end_panel_frame = 0
+        self.mines_death_anim_active = False
+        self.mines_death_phase = "none"
+        self.mines_death_frame = 0
+        self.mines_exploded_cell = None
+        self.mines_death_fade_alpha = 0
+        self.mines_last_open_cell = None
+        self.mines_hint_cell = None
+        self.mines_hint_flash_frame = 0
+        self.mines_hint_cooldown = 0
+
     def _get_mines_gap(self):
         return 4 if self.mines_size <= 9 else 2
 
@@ -11,9 +43,14 @@ class MinesMixin:
 
     def _get_mines_menu_buttons(self):
         cx = WINDOW_W // 2; btn_w = 220; btn_h = 50; gap = 22; start_y = 345
-        return [{"rect": pygame.Rect(cx - btn_w // 2, start_y, btn_w, btn_h), "label": "START", "action": "mines_start", "selected": False},
+        buttons = []
+        if self.save_data["progress"]["mines"]["run_active"]:
+            buttons.append({"rect": pygame.Rect(cx - btn_w // 2, start_y, btn_w, btn_h), "label": "CONTINUE", "action": "continue", "selected": False})
+            start_y += btn_h + gap
+        buttons.extend([{"rect": pygame.Rect(cx - btn_w // 2, start_y, btn_w, btn_h), "label": "START", "action": "mines_start", "selected": False},
                 {"rect": pygame.Rect(cx - btn_w // 2, start_y + btn_h + gap, btn_w, btn_h), "label": "SETTINGS", "action": "settings", "selected": False},
-                {"rect": pygame.Rect(cx - btn_w // 2, start_y + (btn_h + gap) * 2, btn_w, btn_h), "label": "DESKTOP", "action": "desktop", "selected": False}]
+                {"rect": pygame.Rect(cx - btn_w // 2, start_y + (btn_h + gap) * 2, btn_w, btn_h), "label": "DESKTOP", "action": "desktop", "selected": False}])
+        return buttons
 
     def _get_mines_end_buttons(self):
         btn_w = 210; btn_h = 44; gap = 14
@@ -54,7 +91,27 @@ class MinesMixin:
         if label.get_width() > rect.width - 24: label = render_pixel_text(self.font_btn, btn["label"], tc, scale=1)
         self.screen.blit(label, (rect.centerx - label.get_width() // 2, rect.centery - label.get_height() // 2))
 
-    def _start_mines_game(self, track=True):
+    def _start_mines_game(self, restore_state=None, track=True):
+        if restore_state:
+            self.mines_grid = restore_state["grid"]
+            self.mines_revealed = restore_state["revealed"]
+            self.mines_flags = restore_state["flags"]
+            self.mines_started = restore_state["started"]
+            self.mines_start_ticks = restore_state.get("start_ticks", 0)
+            self.mines_elapsed_ms = restore_state.get("elapsed_ms", 0)
+            self.mines_game_over = False; self.mines_win = False
+            self.mines_revealed_count = restore_state.get("revealed_count", 0)
+            self.mines_flags_count = restore_state.get("flags_count", 0)
+            self.mines_pressed_action = None
+            self.mines_last_click_cell = None; self.mines_last_click_ticks = 0
+            self.mines_reveal_anims.clear(); self.mines_flag_anims.clear(); self.mines_particles.clear()
+            self.mines_shake = 0; self.mines_end_panel_frame = 0
+            self.mines_death_anim_active = False; self.mines_death_phase = "none"; self.mines_death_frame = 0
+            self.mines_exploded_cell = None; self.mines_death_fade_alpha = 0; self.mines_last_open_cell = None
+            self.mines_hint_cell = None; self.mines_hint_flash_frame = 0; self.mines_hint_cooldown = 0
+            self.state = self.MINES_PLAYING
+            self.mines_stats_completed = False
+            return
         self.mines_grid = [[0]*self.mines_size for _ in range(self.mines_size)]
         self.mines_revealed = [[False]*self.mines_size for _ in range(self.mines_size)]
         self.mines_flags = [[False]*self.mines_size for _ in range(self.mines_size)]
@@ -71,6 +128,19 @@ class MinesMixin:
         self.mines_stats_completed = False
         if track:
             self._record_stat("mines", "games_started")
+        self._clear_run_state("mines")
+
+    def _capture_mines_run_state(self):
+        return {
+            "grid": self.mines_grid,
+            "revealed": self.mines_revealed,
+            "flags": self.mines_flags,
+            "started": self.mines_started,
+            "start_ticks": self.mines_start_ticks,
+            "elapsed_ms": self.mines_elapsed_ms,
+            "revealed_count": self.mines_revealed_count,
+            "flags_count": self.mines_flags_count,
+        }
 
     def _generate_mines_board(self, safe_r, safe_c):
         positions = [(r, c) for r in range(self.mines_size) for c in range(self.mines_size) if not (abs(r - safe_r) <= 1 and abs(c - safe_c) <= 1)]
@@ -112,6 +182,7 @@ class MinesMixin:
                 self.mines_stats_completed = True
                 self._record_stat("mines", "losses")
                 self._record_stat("mines", "games_completed")
+            self._clear_run_state("mines")
             self.mines_exploded_cell = (r, c)
             self.mines_death_anim_active = True; self.mines_death_phase = "flash"; self.mines_death_frame = 0
             self.mines_shake = MINES_SHAKE_FRAMES
@@ -164,6 +235,7 @@ class MinesMixin:
                 modes = self.save_data["statistics"]["mines"]["wins_by_mode"]
                 modes[mode] = modes.get(mode, 0) + 1
                 self._check_achievements()
+            self._clear_run_state("mines")
 
     def _spawn_mines_flag_particles(self, r, c):
         rect = self._get_mines_cell_rect(r, c)
@@ -199,6 +271,9 @@ class MinesMixin:
         s = max(0, ms // 1000); return f"{s//60:02d}:{s%60:02d}"
 
     def _handle_mines_menu_event(self, event):
+        if self.prologue_active:
+            self._handle_prologue_event(event)
+            return
         if event.type == pygame.KEYDOWN:
             if event.key == pygame.K_ESCAPE: self._go_desktop()
             elif event.key in [pygame.K_RETURN, pygame.K_SPACE]: self._start_mines_game()
@@ -210,7 +285,8 @@ class MinesMixin:
             for b in self._get_mines_menu_buttons():
                 if b["rect"].collidepoint(event.pos) and self.mines_pressed_action == b["action"]:
                     a = b["action"]
-                    if a == "mines_start": self._start_mines_game()
+                    if a == "continue": self._start_mines_game(restore_state=self.save_data["progress"]["mines"]["run_state"])
+                    elif a == "mines_start": self._start_mines_game()
                     elif a == "settings": self.state = self.MINES_SETTINGS
                     elif a == "desktop": self._go_desktop()
                     self.mines_pressed_action = None; return
@@ -536,6 +612,10 @@ class MinesMixin:
                 self.screen.blit(t, (WINDOW_W//2 - s.get_width()//2 + xxo, WINDOW_H//2 - s.get_height()//2 + yyo))
 
     def _draw_mines_menu(self):
+        if self._check_and_show_prologue("mines"):
+            self._draw_prologue_screen()
+            return
+
         self.screen.fill(C.MINES_BG)
         outer = pygame.Rect(90, 54, WINDOW_W - 180, WINDOW_H - 108)
         pygame.draw.rect(self.screen, C.OUTLINE, outer, 5); pygame.draw.rect(self.screen, C.MINES_PANEL, outer.inflate(-10, -10))

@@ -3,23 +3,24 @@
 from .common import *
 from .arcade_common import *
 from .arcade_levels import (
-    AIR_ARCHIVE, AIR_CHAPTERS, AIR_ENEMY_TYPES, AIR_LEVELS, AIR_STANDARD_LOADOUTS,
+    AIR_ARCHIVE, AIR_CHAPTERS, AIR_CHAPTER_STORIES, AIR_ENEMY_TYPES,
+    AIR_LEVELS, AIR_PROLOGUE, AIR_STANDARD_LOADOUTS,
 )
 
 
 AIR_PALETTE = {
-    "bg": (4, 11, 26), "panel": (12, 31, 54), "panel_dark": (4, 15, 29),
-    "accent": (55, 180, 225), "accent_light": (165, 242, 255),
-    "text": (225, 245, 250), "muted": (100, 145, 165), "hover": (28, 76, 105),
+    "bg": C.AIR_BG, "panel": C.AIR_PANEL, "panel_dark": C.AIR_PANEL_DARK,
+    "accent": C.AIR_ACCENT, "accent_light": C.AIR_ACCENT_LIGHT,
+    "text": C.AIR_TEXT, "muted": C.AIR_MUTED, "hover": C.AIR_HOVER,
 }
 AIR_WEAPON_COLORS = {
-    "cannon": (255, 218, 92), "spread": (255, 135, 70), "laser": (120, 245, 215),
+    "cannon": C.AIR_CANNON, "spread": C.AIR_SPREAD, "laser": C.AIR_LASER,
 }
 AIR_ENEMY_COLORS = {
-    "scout": (225, 90, 100), "striker": (245, 115, 85),
-    "bomber": (195, 75, 125), "sniper": (220, 80, 185),
-    "layer": (160, 80, 210), "shield": (115, 100, 225),
-    "carrier": (210, 75, 75), "commander": (245, 75, 145),
+    "scout": C.AIR_ENEMY_SCOUT, "striker": C.AIR_ENEMY_STRIKER,
+    "bomber": C.AIR_ENEMY_BOMBER, "sniper": C.AIR_ENEMY_SNIPER,
+    "layer": C.AIR_ENEMY_LAYER, "shield": C.AIR_ENEMY_SHIELD,
+    "carrier": C.AIR_ENEMY_CARRIER, "commander": C.AIR_ENEMY_COMMANDER,
 }
 AIR_RANK_ORDER = {"C": 0, "B": 1, "A": 2, "S": 3}
 AIR_PLAY_RECT = pygame.Rect(330, 42, 620, 636)
@@ -80,10 +81,59 @@ class AirRaidMixin:
         self.air_demo_scene_tick = 0
         self.air_story_message = None
         self.air_story_timer = 0
+        self.air_ship_color = C.AIR_SKIN_DEFAULT_SHIP
+        self.air_engine_color = C.AIR_SKIN_DEFAULT_ENGINE
+        self.air_shield_color = C.AIR_SKIN_DEFAULT_SHIELD
         self.air_stage_rng = random.Random(0)
+        self.air_story_lines = []
+        self.air_story_page = 0
+        self.air_story_source = ""
 
     def _air_progress(self):
         return self.save_data["progress"]["air"]
+
+    def _check_air_prologue(self):
+        if getattr(self, "dev_mode", False):
+            return False
+        progress = self._air_progress()
+        if not progress.get("prologue_seen", False):
+            self.air_story_lines = list(AIR_PROLOGUE)
+            self.air_story_page = 0
+            self.air_story_source = "prologue"
+            progress["prologue_seen"] = True
+            # Sync with MERIDIAN lore
+            lore_data = self.save_data.setdefault("lore", {})
+            seen = lore_data.setdefault("prologues_seen", [])
+            if "air" not in seen:
+                seen.append("air")
+            self._save_now()
+            self.state = self.AIR_STORY
+            return True
+        return False
+
+    def _check_air_chapter_story(self, chapter_index):
+        if not getattr(self, "air_campaign_active", False):
+            return False
+        chapter_num = chapter_index + 1
+        progress = self._air_progress()
+        stories_read = progress.get("stories_read", [])
+        if chapter_num not in stories_read and chapter_num in AIR_CHAPTER_STORIES:
+            self.air_story_lines = list(AIR_CHAPTER_STORIES[chapter_num])
+            self.air_story_page = 0
+            self.air_story_source = f"chapter_{chapter_num}"
+            stories_read.append(chapter_num)
+            progress["stories_read"] = stories_read
+            self._save_now()
+            self.state = self.AIR_STORY
+            self._pending_brief_level = chapter_index
+            return True
+        return False
+
+    def _open_air_story_archive(self):
+        self.air_story_lines = ["STORY ARCHIVE", "Select a chapter to read."]
+        self.air_story_page = 0
+        self.air_story_source = "archive_index"
+        self.state = self.AIR_STORY
 
     def _air_menu_items(self):
         progress = self._air_progress()
@@ -95,6 +145,8 @@ class AirRaidMixin:
             ("BOSS RUSH", "boss_rush", progress.get("challenge_unlocked", False)),
             ("CAMPAIGN ARCHIVE", "archive", True),
             ("CONTROLS", "controls", True),
+            ("SKINS", "skins", True),
+            ("STORY ARCHIVE", "story_archive", True),
             ("DESKTOP", "desktop", True),
         ]
         return items
@@ -145,6 +197,7 @@ class AirRaidMixin:
         self.air_mode = progress.get("run_mode", "standard")
         self.air_campaign_active = True
         self.air_loadout = dict(progress.get("run_loadout", AIR_STANDARD_LOADOUTS[0]))
+        self._air_restore_state = progress.get("run_state")
         self._prepare_air_level(progress.get("run_level", 0), preserve_loadout=True)
 
     def _start_air_boss_rush(self):
@@ -164,6 +217,9 @@ class AirRaidMixin:
         self._prepare_air_level(index, preserve_loadout=True)
 
     def _prepare_air_level(self, level, preserve_loadout=False):
+        chapter_index = AIR_LEVELS[level]["chapter"] - 1
+        if self._check_air_chapter_story(chapter_index):
+            return
         self.air_level = max(0, min(15, int(level)))
         if not preserve_loadout:
             self.air_loadout = dict(AIR_STANDARD_LOADOUTS[self.air_level])
@@ -174,6 +230,49 @@ class AirRaidMixin:
 
     def _begin_air_combat(self):
         cfg = AIR_LEVELS[self.air_level]
+        restore_state = getattr(self, "_air_restore_state", None)
+        if restore_state:
+            self.air_player = restore_state["player"]
+            self.air_enemies = restore_state["enemies"]
+            self.air_bullets = restore_state["bullets"]
+            self.air_enemy_bullets = restore_state.get("enemy_bullets", [])
+            self.air_powerups = restore_state.get("powerups", [])
+            self.air_particles = []
+            self.air_missiles = restore_state.get("missiles", [])
+            self.air_warnings = []
+            self.air_wave = restore_state.get("wave", 0)
+            self.air_spawn_tick = restore_state.get("spawn_tick", 0)
+            self.air_stage_tick = restore_state.get("stage_tick", 0)
+            self.air_score = restore_state["score"]
+            self.air_health = restore_state["health"]
+            self.air_hits = restore_state.get("hits", 0)
+            self.air_threat = restore_state.get("threat", 1.0)
+            self.air_combo = restore_state.get("combo", 0)
+            self.air_combo_timer = restore_state.get("combo_timer", 0)
+            self.air_multiplier = restore_state.get("multiplier", 1.0)
+            self.air_grazes = restore_state.get("grazes", 0)
+            self.air_destroyed = restore_state.get("destroyed", 0)
+            self.air_spawned = restore_state.get("spawned", 0)
+            self.air_mission_value = restore_state.get("mission_value", 0)
+            self.air_mission_target = cfg["target"]
+            self.air_missile_charge = restore_state["missile_charge"]
+            self.air_missile_ready = restore_state.get("missile_ready", False)
+            self.air_best_missile_kills = restore_state.get("best_missile_kills", 0)
+            self.air_loadout = restore_state["loadout"]
+            self.air_boss_phase = restore_state.get("boss_phase", 1)
+            self.air_boss_phase_flash = restore_state.get("boss_phase_flash", 0)
+            self.air_bullet_serial = restore_state.get("bullet_serial", 0)
+            self.air_paused = False
+            self.air_result = ""
+            self.air_rank = "C"
+            self.air_stage_rng = random.Random(9000 + self.air_level * 101 + (37 if self.air_mode == "challenge" else 0))
+            self.air_entry_snapshot = {
+                "loadout": dict(self.air_loadout), "missile_charge": self.air_missile_charge,
+                "missile_ready": self.air_missile_ready, "health": self.air_health,
+            }
+            self._air_restore_state = None
+            self.state = self.AIR_PLAYING
+            return
         self.air_player = {
             "x": float(AIR_PLAY_RECT.centerx), "y": float(AIR_PLAY_RECT.bottom - 60),
             "r": 5, "cool": 0, "shield": 0, "invuln": 90, "hit_flash": 0,
@@ -222,6 +321,37 @@ class AirRaidMixin:
         self.state = self.AIR_PLAYING
         self._record_stat("air", "games_started")
         self._show_air_story(cfg["story"][0], 180)
+
+    def _capture_air_run_state(self):
+        return {
+            "player": self.air_player,
+            "enemies": self.air_enemies,
+            "bullets": self.air_bullets,
+            "enemy_bullets": self.air_enemy_bullets,
+            "powerups": self.air_powerups,
+            "missiles": self.air_missiles,
+            "wave": self.air_wave,
+            "spawn_tick": self.air_spawn_tick,
+            "stage_tick": self.air_stage_tick,
+            "score": self.air_score,
+            "health": self.air_health,
+            "hits": self.air_hits,
+            "threat": self.air_threat,
+            "combo": self.air_combo,
+            "combo_timer": self.air_combo_timer,
+            "multiplier": self.air_multiplier,
+            "grazes": self.air_grazes,
+            "destroyed": self.air_destroyed,
+            "spawned": self.air_spawned,
+            "mission_value": self.air_mission_value,
+            "missile_charge": self.air_missile_charge,
+            "missile_ready": self.air_missile_ready,
+            "best_missile_kills": self.air_best_missile_kills,
+            "loadout": self.air_loadout,
+            "boss_phase": self.air_boss_phase,
+            "boss_phase_flash": self.air_boss_phase_flash,
+            "bullet_serial": self.air_bullet_serial,
+        }
 
     def _retry_air_level(self):
         if self.air_entry_snapshot:
@@ -789,6 +919,7 @@ class AirRaidMixin:
             if self.air_campaign_active:
                 if self.air_level >= 15:
                     progress["run_active"] = False
+                    self._clear_run_state("air")
                     if self.air_mode == "standard":
                         progress["challenge_unlocked"] = True
                         progress["campaign_complete"] = True
@@ -806,6 +937,18 @@ class AirRaidMixin:
         else:
             self._record_stat("air", "deaths")
             self.audio.play_gameover("air")
+            self._clear_run_state("air")
+        # Unlock skins based on newly earned achievements
+        unlocked_achievements = self.save_data.get("achievements", {})
+        progress = self._air_progress()
+        skins = list(progress.get("skins_unlocked", ["default"]))
+        if "air_cannon_five" in unlocked_achievements and "crimson" not in skins:
+            skins.append("crimson")
+        if "air_first_s" in unlocked_achievements and "azure" not in skins:
+            skins.append("azure")
+        if "air_all_s" in unlocked_achievements and "gold" not in skins:
+            skins.append("gold")
+        progress["skins_unlocked"] = skins
         self._save_now()
 
     def _complete_air_boss_rush_stage(self):
@@ -819,6 +962,7 @@ class AirRaidMixin:
             self._record_stat("air", "boss_rush_clears")
             self.air_result = "BOSS RUSH CLEAR"
             self.state = self.AIR_END
+            self._clear_run_state("air")
         else:
             self.air_boss_rush_health = min(5, self.air_health + 1)
             self.air_supply_index = 0
@@ -869,6 +1013,8 @@ class AirRaidMixin:
             "boss_rush": self._start_air_boss_rush,
             "archive": lambda: setattr(self, "state", self.AIR_ARCHIVE),
             "controls": lambda: setattr(self, "state", self.AIR_CONTROLS),
+            "skins": lambda: self._start_transition(self.AIR_SKINS, "fade", frames=28),
+            "story_archive": self._open_air_story_archive,
             "desktop": self._go_desktop,
         }
         actions[action]()
@@ -983,10 +1129,18 @@ class AirRaidMixin:
             self._draw_air_combat()
 
     def _draw_air_menu(self):
+        if self._check_air_prologue():
+            return
+        from .lore import get_world
+        world = get_world("air")
+        sub_en = "WARDEN FLIGHT / AUTONOMOUS WAR NETWORK"
+        sub_zh = "空袭行动 · 守望者飞行队 / 自主战争网络"
+        if world:
+            sub_en = world["desktop_subtitle_en"]
+            sub_zh = world["desktop_subtitle_zh"]
         draw_arcade_frame(
             self, "AIR RAID",
-            "空袭行动 · 守望者飞行队 / 自主战争网络"
-            if is_chinese() else "WARDEN FLIGHT / AUTONOMOUS WAR NETWORK",
+            sub_zh if is_chinese() else sub_en,
             AIR_PALETTE)
         self._draw_air_cinematic_demo()
         mouse = self._logical_mouse_pos()
@@ -1018,7 +1172,7 @@ class AirRaidMixin:
             pygame.draw.rect(self.screen, (30, 88, 115), (x, y, 2, 5))
         player_x = area.x + 150 + int(math.sin(tick * .025) * 70)
         player_y = area.bottom - 35
-        self._draw_air_ship(player_x, player_y, AIR_PALETTE["accent_light"], 1.0)
+        self._draw_air_ship(player_x, player_y, 1.0)
         if scene == 0:
             for index in range(5):
                 ex = area.x + 470 + index * 80
@@ -1215,10 +1369,10 @@ class AirRaidMixin:
                  particle["size"], particle["size"]))
         player = self.air_player
         if player.get("invuln", 0) % 8 < 4:
-            self._draw_air_ship(player["x"], player["y"], AIR_PALETTE["accent_light"])
+            self._draw_air_ship(player["x"], player["y"])
         if player.get("shield"):
             pygame.draw.circle(
-                self.screen, (100, 230, 255),
+                self.screen, self.air_shield_color,
                 (int(player["x"]), int(player["y"])), 27, 2)
         keys = pygame.key.get_pressed()
         if keys[pygame.K_LSHIFT] or keys[pygame.K_RSHIFT]:
@@ -1264,7 +1418,7 @@ class AirRaidMixin:
                     self.screen, (*accent,), (AIR_PLAY_RECT.left, y),
                     (AIR_PLAY_RECT.right, y + 30), 1)
 
-    def _draw_air_ship(self, x, y, color, scale=1.0):
+    def _draw_air_ship(self, x, y, scale=1.0):
         x, y = int(x), int(y)
         wing = int(18 * scale)
         nose = int(23 * scale)
@@ -1273,12 +1427,12 @@ class AirRaidMixin:
             [(x, y - nose - 3), (x - wing - 3, y + wing + 3),
              (x, y + 9), (x + wing + 3, y + wing + 3)])
         pygame.draw.polygon(
-            self.screen, color,
+            self.screen, self.air_ship_color,
             [(x, y - nose), (x - wing, y + wing),
              (x, y + 7), (x + wing, y + wing)])
         flame = 7 + (self.anim_tick % 4) * 2
         pygame.draw.polygon(
-            self.screen, (255, 145, 55),
+            self.screen, self.air_engine_color,
             [(x - 5, y + 13), (x, y + 13 + flame), (x + 5, y + 13)])
 
     def _draw_air_enemy_shape(self, enemy, scale=1.0):
@@ -1504,3 +1658,220 @@ class AirRaidMixin:
                 button["rect"].collidepoint(mouse),
                 self.air_pressed == button["action"],
             )
+
+    def _handle_air_story_event(self, event):
+        if event.type == pygame.KEYDOWN:
+            if event.key in (pygame.K_ESCAPE, pygame.K_RETURN, pygame.K_SPACE):
+                if hasattr(self, '_pending_brief_level') and self._pending_brief_level is not None:
+                    level = self._pending_brief_level
+                    self._pending_brief_level = None
+                    self._prepare_air_level(level)
+                else:
+                    self.state = self.AIR_MENU
+                return
+            if self.air_story_source == "archive_index":
+                if event.key in (pygame.K_UP, pygame.K_w, pygame.K_DOWN, pygame.K_s):
+                    dir = -1 if event.key in (pygame.K_UP, pygame.K_w) else 1
+                    max_stories = 9  # prologue + 8 chapters
+                    self.air_story_page = (self.air_story_page + dir) % max_stories
+                    return
+                if event.key in (pygame.K_RETURN, pygame.K_SPACE):
+                    sel = self.air_story_page
+                    if sel == 0:
+                        self.air_story_lines = list(AIR_PROLOGUE)
+                        self.air_story_source = "prologue"
+                    elif 1 <= sel <= 8 and sel <= self._air_progress().get("completed", 0) // 2 + 1:
+                        self.air_story_lines = list(AIR_CHAPTER_STORIES[sel])
+                        self.air_story_source = f"chapter_{sel}"
+                    else:
+                        return
+                    self.air_story_page = 0
+                    return
+            else:
+                if event.key in (pygame.K_RIGHT, pygame.K_d):
+                    lines_per_page = 4
+                    max_page = max(0, (len(self.air_story_lines) - 1) // lines_per_page)
+                    self.air_story_page = min(self.air_story_page + 1, max_page)
+                elif event.key in (pygame.K_LEFT, pygame.K_a):
+                    self.air_story_page = max(0, self.air_story_page - 1)
+        if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+            if self.air_story_source == "archive_index":
+                panel = pygame.Rect(100, 50, WINDOW_W - 200, WINDOW_H - 100)
+                completed_ch = self._air_progress().get("completed", 0) // 2 + 1
+                for i in range(9):
+                    rect = pygame.Rect(panel.x + 40, panel.y + 70 + i * 45, panel.width - 80, 36)
+                    if rect.collidepoint(event.pos):
+                        unlocked = (i == 0) or (1 <= i <= 8 and i <= completed_ch)
+                        if unlocked:
+                            if i == 0:
+                                self.air_story_lines = list(AIR_PROLOGUE)
+                                self.air_story_source = "prologue"
+                            else:
+                                self.air_story_lines = list(AIR_CHAPTER_STORIES[i])
+                                self.air_story_source = f"chapter_{i}"
+                            self.air_story_page = 0
+                        return
+            else:
+                self._handle_air_story_event(pygame.event.Event(pygame.KEYDOWN, key=pygame.K_RETURN))
+
+    def _draw_air_story(self):
+        self.screen.fill((6, 14, 32))
+        panel = pygame.Rect(100, 50, WINDOW_W - 200, WINDOW_H - 100)
+        pygame.draw.rect(self.screen, C.OUTLINE, panel, 4)
+        pygame.draw.rect(self.screen, (10, 22, 44), panel.inflate(-8, -8))
+        pygame.draw.rect(self.screen, C.AIR_ACCENT, panel.inflate(-16, -16), 2)
+
+        if self.air_story_source == "archive_index":
+            title = render_pixel_text(self.font_status, translate("STORY ARCHIVE"), C.AIR_ACCENT_LIGHT, scale=3)
+            self.screen.blit(title, (panel.centerx - title.get_width() // 2, panel.y + 18))
+            all_ids = ["prologue"] + [i for i in range(1, 9)]
+            names = ["PROLOGUE"] + [f"CHAPTER {i}" for i in range(1, 9)]
+            completed_ch = self._air_progress().get("completed", 0) // 2 + 1
+            for i, ch_id in enumerate(all_ids):
+                rect = pygame.Rect(panel.x + 40, panel.y + 70 + i * 45, panel.width - 80, 36)
+                unlocked = (i == 0) or (1 <= i <= 8 and i <= completed_ch)
+                sel = self.air_story_page == i
+                fill = (15, 35, 60) if sel else (8, 18, 35)
+                border = C.AIR_ACCENT_LIGHT if sel else (C.AIR_MUTED if unlocked else (30, 30, 45))
+                pygame.draw.rect(self.screen, C.OUTLINE, rect)
+                pygame.draw.rect(self.screen, fill, rect.inflate(-2, -2))
+                pygame.draw.rect(self.screen, border, rect.inflate(-6, -6), 1)
+                label = translate(names[i]) if unlocked else "??? (LOCKED)"
+                story_font = get_chinese_font(12)
+                txt = render_pixel_text(story_font, label, C.AIR_ACCENT_LIGHT if unlocked else C.AIR_MUTED, scale=1)
+                self.screen.blit(txt, (rect.x + 16, rect.centery - txt.get_height() // 2))
+            hint = render_pixel_text(story_font, translate("UP/DOWN SELECT   ENTER READ   ESC BACK"), C.AIR_MUTED, scale=1)
+            self.screen.blit(hint, (panel.centerx - hint.get_width() // 2, panel.bottom - 36))
+            return
+
+        # Story text display
+        lines_per_page = 4
+        start = self.air_story_page * lines_per_page
+        page_lines = self.air_story_lines[start:start + lines_per_page]
+        max_page = max(0, (len(self.air_story_lines) - 1) // lines_per_page)
+
+        # Source label
+        if self.air_story_source == "prologue":
+            source_label = translate("PROLOGUE")
+        else:
+            ch_num = self.air_story_source.replace("chapter_", "")
+            chapter_names = {1:"COAST WATCH",2:"IRON CLOUD",3:"NIGHT VECTOR",4:"RED SQUALL",5:"SKY FORT",6:"DEEP STATIC",7:"BLACK AURORA",8:"LAST HORIZON"}
+            ch_name = chapter_names.get(int(ch_num), f"CHAPTER {ch_num}")
+            source_label = f"CHAPTER {ch_num}: {translate(ch_name) if ch_name else ''}"
+        src = render_pixel_text(self.font_status, source_label, C.AIR_ACCENT_LIGHT, scale=2)
+        self.screen.blit(src, (panel.centerx - src.get_width() // 2, panel.y + 18))
+
+        story_font = get_chinese_font(14)
+        for li, line in enumerate(page_lines):
+            y = panel.y + 70 + li * 90
+            txt = render_pixel_text(story_font, line, C.AIR_TEXT, scale=1)
+            self.screen.blit(txt, (panel.x + 50, y))
+
+        # Page indicator
+        page_text = f"PAGE {self.air_story_page + 1} / {max_page + 1}"
+        pg = render_pixel_text(story_font, page_text, C.AIR_MUTED, scale=1)
+        self.screen.blit(pg, (panel.right - pg.get_width() - 28, panel.bottom - 34))
+
+        nav = render_pixel_text(story_font, "A/D  PAGE   ENTER  CLOSE", C.AIR_MUTED, scale=1)
+        self.screen.blit(nav, (panel.x + 24, panel.bottom - 34))
+
+    def _handle_air_skins_event(self, event):
+        if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
+            self._start_transition(self.AIR_MENU, "fade", frames=28)
+            return
+        if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+            skins = self._air_progress().get("skins_unlocked", ["default"])
+            all_skins = ["default", "crimson", "azure", "gold"]
+            for i, skin_id in enumerate(all_skins):
+                col, row = i % 2, i // 2
+                card = pygame.Rect(180 + col * 470, 190 + row * 240, 430, 210)
+                if card.collidepoint(event.pos) and skin_id in skins:
+                    self.air_skin = skin_id
+                    self._apply_air_preferences()
+                    self._save_now()
+                    return
+
+    def _draw_air_skins(self):
+        self.screen.fill(C.AIR_BG)
+        panel = pygame.Rect(80, 60, WINDOW_W - 160, WINDOW_H - 120)
+        pygame.draw.rect(self.screen, C.AIR_PANEL_DARK, panel)
+        pygame.draw.rect(self.screen, C.OUTLINE, panel, 3)
+        pygame.draw.rect(self.screen, C.AIR_ACCENT, panel.inflate(-10, -10), 2)
+
+        title = render_pixel_text(self.font_status, translate("SHIP SKINS"), C.AIR_ACCENT_LIGHT, scale=3)
+        self.screen.blit(title, (panel.centerx - title.get_width() // 2, panel.y + 14))
+
+        all_skins = ["default", "crimson", "azure", "gold"]
+        skins = self._air_progress().get("skins_unlocked", ["default"])
+        names = {"default": "DEFAULT", "crimson": "CRIMSON", "azure": "AZURE", "gold": "GOLD"}
+        ship_colors = {
+            "default": C.AIR_SKIN_DEFAULT_SHIP, "crimson": C.AIR_SKIN_CRIMSON_SHIP,
+            "azure": C.AIR_SKIN_AZURE_SHIP, "gold": C.AIR_SKIN_GOLD_SHIP,
+        }
+        req_achievements = {
+            "crimson": "GUNLINE", "azure": "PERFECT VECTOR", "gold": "WARDEN PRIME",
+        }
+
+        for i, skin_id in enumerate(all_skins):
+            col, row = i % 2, i // 2
+            card = pygame.Rect(180 + col * 470, 190 + row * 240, 430, 210)
+            unlocked = skin_id in skins
+            selected = self.air_skin == skin_id
+
+            # Card background
+            pygame.draw.rect(self.screen, C.OUTLINE, card)
+            if selected:
+                pygame.draw.rect(self.screen, (20, 55, 85), card.inflate(-4, -4))
+                pygame.draw.rect(self.screen, C.GOLD_LIGHT, card.inflate(-8, -8), 2)
+            else:
+                pygame.draw.rect(self.screen, C.AIR_PANEL if unlocked else (10, 20, 35), card.inflate(-4, -4))
+
+            # Ship preview — large, centered in the upper portion of the card
+            saved_ship = self.air_ship_color
+            saved_engine = self.air_engine_color
+            if unlocked:
+                self.air_ship_color = ship_colors[skin_id]
+                self.air_engine_color = {
+                    "default": C.AIR_SKIN_DEFAULT_ENGINE, "crimson": C.AIR_SKIN_CRIMSON_ENGINE,
+                    "azure": C.AIR_SKIN_AZURE_ENGINE, "gold": C.AIR_SKIN_GOLD_ENGINE,
+                }[skin_id]
+            else:
+                self.air_ship_color = (50, 55, 70)
+                self.air_engine_color = (35, 38, 48)
+            self._draw_air_ship(card.centerx, card.y + 65, scale=1.3)
+            # Shield ring for unlocked, selected
+            if unlocked:
+                shield_c = {
+                    "default": C.AIR_SKIN_DEFAULT_SHIELD, "crimson": C.AIR_SKIN_CRIMSON_SHIELD,
+                    "azure": C.AIR_SKIN_AZURE_SHIELD, "gold": C.AIR_SKIN_GOLD_SHIELD,
+                }[skin_id]
+                pygame.draw.circle(self.screen, shield_c, (card.centerx, card.y + 65), 28, 1)
+            self.air_ship_color = saved_ship
+            self.air_engine_color = saved_engine
+
+            # Skin name
+            display_name = translate(names[skin_id]) if unlocked else "???"
+            name_color = ship_colors[skin_id] if unlocked else C.AIR_MUTED
+            txt = render_pixel_text(self.font_status, display_name, name_color, scale=2)
+            self.screen.blit(txt, (card.x + 24, card.y + 108))
+
+            # Selected / locked indicator
+            if selected:
+                sel = render_pixel_text(self.font_small, translate("SELECTED"), C.GOLD_LIGHT, scale=1)
+                self.screen.blit(sel, (card.right - sel.get_width() - 20, card.y + 112))
+            elif not unlocked:
+                req_name = req_achievements.get(skin_id, "")
+                req_zh = translate(req_name) if req_name else req_name
+                lock_line = f"{translate('REQUIRES')}: {req_zh}"
+                hint = render_pixel_text(self.font_small, lock_line, C.AIR_MUTED, scale=1)
+                self.screen.blit(hint, (card.x + 24, card.y + 145))
+                # Small lock icon (pixel-art)
+                lx, ly = card.x + 24, card.y + 168
+                for dx, dy in [(1,0),(2,0),(3,0),(0,1),(4,1),(0,2),(1,2),(2,2),(3,2),(4,2),(2,3)]:
+                    pygame.draw.rect(self.screen, C.AIR_MUTED, (lx + dx * 3, ly + dy * 3, 3, 3))
+
+            # Skin color swatch (bottom-right)
+            if unlocked:
+                swatch = pygame.Rect(card.right - 36, card.bottom - 28, 20, 12)
+                pygame.draw.rect(self.screen, C.OUTLINE, swatch)
+                pygame.draw.rect(self.screen, ship_colors[skin_id], swatch.inflate(-2, -2))

@@ -1,13 +1,11 @@
 import os
 import unittest
+from unittest.mock import patch
 
 
-os.environ.setdefault("SDL_VIDEODRIVER", "dummy")
-os.environ.setdefault("SDL_AUDIODRIVER", "dummy")
-
-import HAOS_GAME_DECK as legacy
-from haos_game_deck import Board, Game
-from haos_game_deck.common import WINDOW_H, WINDOW_W, pygame
+import MERIDIAN as legacy
+from meridian import Board, Game
+from meridian.common import WINDOW_H, WINDOW_W, pygame
 
 
 class ArchitectureSmokeTests(unittest.TestCase):
@@ -112,6 +110,9 @@ class ArchitectureSmokeTests(unittest.TestCase):
             game.AIR_ARCHIVE,
             game.AIR_SUPPLY,
             game.SHUTDOWN,
+            game.SYSTEM_SETTINGS,
+            game.PROFILE,
+            game.ACHIEVEMENT_WALL,
         ]
 
         for state in states:
@@ -174,13 +175,15 @@ class ArchitectureSmokeTests(unittest.TestCase):
             {
                 "open_gomoku", "open_snake", "open_breakout", "open_2048",
                 "open_mines", "open_tetris", "open_air",
-                "open_system_settings", "open_profile",
+                "open_system_settings", "open_profile", "open_achievement_wall",
+                "open_lore",
             },
         )
         self.assertEqual(
             [item["action"] for item in game.desktop_pages[1]],
             ["open_air",
-             "open_system_settings", "open_profile"],
+             "open_system_settings", "open_profile", "open_achievement_wall",
+             "open_lore"],
         )
 
     def test_password_keypad_does_not_cover_bottom_hint(self):
@@ -284,6 +287,32 @@ class ArchitectureSmokeTests(unittest.TestCase):
             pygame.event.Event(pygame.MOUSEBUTTONUP, button=1, pos=shutdown["rect"].center)
         )
         self.assertEqual(game.state, game.SHUTDOWN)
+
+    def test_system_pages_return_to_desktop_with_fade_transition(self):
+        with patch("meridian.persistence.SaveManager.save", return_value=None):
+            game = Game()
+        for state in (game.SYSTEM_SETTINGS, game.PROFILE, game.LORE_READER):
+            game.state = state
+            game._desktop_return_effect = "tetris_drop"
+            game._go_desktop()
+            self.assertEqual(game.transition_target_state, game.DESKTOP)
+            self.assertEqual(game.transition_type, "fade")
+            game.transition_active = False
+            game.transition_target_state = None
+
+    def test_chinese_mines_best_statistics_titles_are_localized(self):
+        with patch("meridian.persistence.SaveManager.save", return_value=None):
+            game = Game()
+        game.language = "zh_hans"
+        from meridian.localization import set_language
+        set_language("zh_hans")
+
+        titles = [title for title, _ in game._profile_statistics_sections()]
+
+        self.assertIn("扫雷最佳 9 x 9", titles)
+        self.assertIn("扫雷最佳 16 x 16", titles)
+        self.assertNotIn("MINES BEST 9 x 9", titles)
+        self.assertNotIn("MINES BEST 16 x 16", titles)
 
     def test_tetris_hold_is_limited_to_once_per_piece(self):
         game = Game()

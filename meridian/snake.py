@@ -2,6 +2,30 @@ from .common import *
 
 
 class SnakeMixin:
+    def _init_snake(self):
+        self.snake = []
+        self.snake_dir = (1, 0)
+        self.snake_next_dir = (1, 0)
+        self.snake_food = (0, 0)
+        self.snake_score = 0
+        self.snake_best = 0
+        self.snake_move_timer = 0
+        self.snake_game_over = False
+        self.snake_pressed_action = None
+        self.snake_speed_mode = "normal"
+        self.snake_skin = "green"
+        self.snake_body_color = C.SNAKE_BODY
+        self.snake_head_color = C.SNAKE_HEAD
+        self.snake_base_interval = SNAKE_MOVE_INTERVAL_FRAMES
+        self.snake_particles = []
+        self.snake_dead = False
+        self.snake_shake_duration = 0
+        self.snake_shake_x = 0
+        self.snake_shake_y = 0
+        self.snake_score_jump = 0
+        self.snake_score_jump_frame = 0
+        self.snake_cell_size = SNAKE_CELL_SIZE
+
     def _get_snake_menu_buttons(self):
         cx = WINDOW_W // 2
         btn_w = 210
@@ -9,7 +33,19 @@ class SnakeMixin:
         gap = 20
         start_y = 330
 
-        return [
+        has_saved = self.save_data.get("progress", {}).get("snake", {}).get("run_active", False)
+
+        buttons = []
+        if has_saved:
+            buttons.append({
+                "rect": pygame.Rect(cx - btn_w // 2, start_y, btn_w, btn_h),
+                "label": "CONTINUE",
+                "action": "continue",
+                "selected": False,
+            })
+            start_y += btn_h + gap
+
+        buttons.extend([
             {
                 "rect": pygame.Rect(cx - btn_w // 2, start_y, btn_w, btn_h),
                 "label": "START",
@@ -28,9 +64,14 @@ class SnakeMixin:
                 "action": "desktop",
                 "selected": False,
             },
-        ]
+        ])
+
+        return buttons
 
     def _handle_snake_menu_event(self, event):
+        if self.prologue_active:
+            self._handle_prologue_event(event)
+            return
         if event.type == pygame.KEYDOWN:
             if event.key == pygame.K_ESCAPE:
                 self._go_desktop()
@@ -51,6 +92,10 @@ class SnakeMixin:
 
                     if action == "snake_start":
                         self._start_snake_game()
+                    elif action == "continue":
+                        state = self._pending_run_states.pop("snake", None)
+                        self._start_snake_game(restore_state=state)
+                        self.state = self.SNAKE_PLAYING
                     elif action == "settings":
                         self.state = self.SNAKE_SETTINGS
                     elif action == "desktop":
@@ -244,11 +289,11 @@ class SnakeMixin:
                             self.snake_body_color = C.SNAKE_BODY
                             self.snake_head_color = C.SNAKE_HEAD
                         elif skin == "lime":
-                            self.snake_body_color = (150, 255, 90)
-                            self.snake_head_color = (205, 255, 130)
+                            self.snake_body_color = C.SNAKE_LIME_BODY
+                            self.snake_head_color = C.SNAKE_LIME_HEAD
                         elif skin == "red":
-                            self.snake_body_color = (255, 95, 120)
-                            self.snake_head_color = (255, 160, 170)
+                            self.snake_body_color = C.SNAKE_RED_BODY
+                            self.snake_head_color = C.SNAKE_RED_HEAD
 
                     self.snake_pressed_action = None
                     return
@@ -364,19 +409,22 @@ class SnakeMixin:
             },
         ]
 
-    def _start_snake_game(self):
+    def _start_snake_game(self, restore_state=None):
         mid = SNAKE_GRID_COUNT // 2
-
-        self.snake = [
-            (mid, mid - 2),
-            (mid, mid - 1),
-            (mid, mid),
-        ]
-
-        self.snake_dir = (1, 0)
-        self.snake_next_dir = (1, 0)
-        self.snake_score = 0
-        self.snake_move_timer = 0
+        if restore_state:
+            self.snake = restore_state["body"]
+            self.snake_dir = tuple(restore_state["dir"])
+            self.snake_next_dir = tuple(restore_state["next_dir"])
+            self.snake_food = tuple(restore_state["food"]) if restore_state.get("food") else (0, 0)
+            self.snake_score = restore_state["score"]
+            self.snake_move_timer = restore_state.get("move_timer", 0)
+        else:
+            self.snake = [(mid, mid-2), (mid, mid-1), (mid, mid)]
+            self.snake_dir = (1, 0)
+            self.snake_next_dir = (1, 0)
+            self.snake_food = (0, 0)
+            self.snake_score = 0
+            self.snake_move_timer = 0
         self.snake_game_over = False
         self.snake_dead = False
         self.snake_particles.clear()
@@ -387,6 +435,17 @@ class SnakeMixin:
 
         self.state = self.SNAKE_PLAYING
         self._record_stat("snake", "games_started")
+        self._clear_run_state("snake")
+
+    def _capture_snake_run_state(self):
+        return {
+            "body": self.snake[:],
+            "dir": self.snake_dir,
+            "next_dir": self.snake_next_dir,
+            "food": self.snake_food,
+            "score": self.snake_score,
+            "move_timer": self.snake_move_timer,
+        }
 
     def _spawn_snake_food(self):
         empty = []
@@ -513,6 +572,7 @@ class SnakeMixin:
         self.snake_shake_y = 0
 
         self.state = self.SNAKE_END
+        self._clear_run_state("snake")
 
     def _draw_snake_left_title_panel(self):
         rect = pygame.Rect(LEFT_BAR_X, LEFT_BAR_Y, LEFT_BAR_W, LEFT_BAR_H)
@@ -672,6 +732,10 @@ class SnakeMixin:
             )
 
     def _draw_snake_menu(self):
+        if self._check_and_show_prologue("snake"):
+            self._draw_prologue_screen()
+            return
+
         self.screen.fill(C.SNAKE_BG)
 
         outer = pygame.Rect(90, 54, WINDOW_W - 180, WINDOW_H - 108)

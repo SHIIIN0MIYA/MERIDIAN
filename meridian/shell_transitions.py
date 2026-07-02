@@ -3,6 +3,18 @@ from .localization import is_chinese
 
 
 class TransitionMixin:
+    def _init_transition(self):
+        self.transition_active = False
+        self.transition_type = "fade"
+        self.transition_target_state = None
+        self.transition_frame = 0
+        self.transition_max_frames = 24
+        self.transition_phase = "out"
+        self.transition_alpha = 0
+        self.current_game_id = "gomoku"
+        self.current_game_name = "GOMOKU"
+        self._desktop_return_effect = "fade"
+
     def _select_game(self, game_id):
         """Switch current game for the future game hub."""
         for game in GAME_LIBRARY:
@@ -66,15 +78,37 @@ class TransitionMixin:
         t = min(1.0, self.transition_frame / half)
         if self.transition_phase == "in":
             t = 1.0 - t
-        bg, accent = (5, 14, 32), (65, 175, 230)
+
+        # Dark overlay
         shade = pygame.Surface((WINDOW_W, WINDOW_H), pygame.SRCALPHA)
-        shade.fill((*bg, int(190 * t)))
+        shade.fill((4, 11, 26, int(200 * t)))
         self.screen.blit(shade, (0, 0))
-        beam_y = int(-80 + (WINDOW_H + 160) * t)
-        pygame.draw.polygon(
-            self.screen, accent,
-            [(0, beam_y - 80), (WINDOW_W, beam_y - 20),
-             (WINDOW_W, beam_y + 30), (0, beam_y + 90)])
+
+        # Expanding radar rings from center
+        cx, cy = WINDOW_W // 2, WINDOW_H // 2
+        max_radius = int(math.hypot(WINDOW_W, WINDOW_H) * 0.6)
+        for ring in range(3):
+            delay = ring * 0.12
+            ring_t = min(1.0, max(0.0, (t - delay) / (1.0 - delay)))
+            radius = int(max_radius * ring_t)
+            alpha = int(140 * ring_t)
+            if alpha > 0:
+                pygame.draw.circle(self.screen, (55, 180, 225, alpha), (cx, cy), radius, 2)
+
+        # Bullet curtain — horizontal streams from both sides
+        rng = random.Random(91)
+        bullet_t = min(1.0, t * 1.3)
+        for row in range(24):
+            y = 30 + row * 29 + rng.randint(-4, 4)
+            for col in range(22):
+                base_x = col * 58 + rng.randint(-8, 8)
+                offset = rng.randint(0, 58)
+                x = (base_x + offset + int(bullet_t * 700)) % (WINDOW_W + 80) - 40
+                if 20 < x < WINDOW_W - 20:
+                    alpha = int(180 * bullet_t * rng.uniform(0.5, 1.0))
+                    color = (255, 218, 92, alpha) if rng.random() < 0.6 else (120, 245, 215, alpha)
+                    pygame.draw.rect(self.screen, color, (x, y, 4, 4))
+                    pygame.draw.rect(self.screen, (255, 255, 255, alpha // 3), (x + 1, y + 1, 2, 2))
 
     def _draw_transition_system_unlock(self):
         half = max(1, self.transition_max_frames // 2)
@@ -265,7 +299,15 @@ class TransitionMixin:
             if blink: pygame.draw.rect(self.screen, C.MINES_FLAG, (x - sz, y - sz, sz * 2, sz * 2), 2)
 
     def _go_desktop(self):
-        """Return to desktop UI with fade transition."""
+        """Return to desktop UI with the game's entry transition effect."""
+        system_states = {
+            getattr(self, "SYSTEM_SETTINGS", None),
+            getattr(self, "PROFILE", None),
+            getattr(self, "ACHIEVEMENT_WALL", None),
+            getattr(self, "LORE_READER", None),
+            getattr(self, "LORE_STORY", None),
+        }
+        transition_type = "fade" if self.state in system_states else self._desktop_return_effect
         self.animations.clear()
         self.particles.clear()
         self.ripples.clear()
@@ -276,4 +318,4 @@ class TransitionMixin:
         self.occupied_hover_pos = None
         self.pressed_button_action = None; self.desktop_pressed_action = None
         self.desktop_esc_lock_frames = 15
-        self._start_transition(self.DESKTOP, "fade")
+        self._start_transition(self.DESKTOP, transition_type)

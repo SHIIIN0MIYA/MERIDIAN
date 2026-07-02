@@ -72,6 +72,8 @@ ZH = {
     "CHALLENGE / LOCKED": "挑战战役 / 未解锁",
     "BOSS RUSH / LOCKED": "Boss 连战 / 未解锁",
     "RESUME": "继续",
+    "CONTINUE": "继续",
+    "NEW GAME": "新游戏",
     "START": "开始",
     "PLAY": "开始游戏",
     "PLAY AGAIN": "再玩一局",
@@ -158,6 +160,32 @@ ZH = {
     "STATISTICS": "统计",
     "GLOBAL": "全局",
     "ACHIEVEMENT UNLOCKED": "成就已解锁",
+    "ACHIEVEMENT WALL": "成就墙",
+    "ESC RETURN": "ESC：返回",
+    "CLICK OUTSIDE OR ESC TO CLOSE": "点击外部区域或按 ESC 关闭",
+    "SHIP SKINS": "战机皮肤",
+    "SKINS": "皮肤",
+    "AIR SKIN": "战机皮肤",
+    "DEFAULT": "默认",
+    "CRIMSON": "深红",
+    "AZURE": "宝蓝",
+    "GOLD": "金色",
+    "LOCKED": "未解锁",
+    "REQUIRES": "需要",
+    "SELECTED": "已选择",
+    "STORY ARCHIVE": "故事档案",
+    "PROLOGUE": "序章",
+    "CHAPTER": "第",
+    "COAST WATCH": "海岸防线",
+    "IRON CLOUD": "铁云风暴",
+    "NIGHT VECTOR": "暗夜航向",
+    "RED SQUALL": "赤色飑线",
+    "SKY FORT": "云层要塞",
+    "DEEP STATIC": "静默深渊",
+    "BLACK AURORA": "黑极光",
+    "LAST HORIZON": "最终地平线",
+    "A/D  PAGE   ENTER  CLOSE": "A/D 翻页   ENTER 关闭",
+    "UP/DOWN SELECT   ENTER READ   ESC BACK": "上下选择   ENTER 阅读   ESC 返回",
     "WHEEL / W S TO SCROLL": "滚轮或 W/S：滚动",
     "LAUNCHES": "启动次数",
     "PLAY TIME": "游玩时间",
@@ -177,6 +205,8 @@ ZH = {
     "TOP TILE": "最高方块",
     "HIGHEST TILE": "最高方块",
     "FLAGS": "插旗",
+    "MINES BEST 9 x 9": "扫雷最佳 9 x 9",
+    "MINES BEST 16 x 16": "扫雷最佳 16 x 16",
     "CLEARS": "通关",
     "TETRISES": "四消",
     "PIECES": "落下方块",
@@ -462,7 +492,54 @@ ZH.update({
     "DESTROY THE CORE BEFORE MERIDIAN FALLS.": "在子午线基地陷落前摧毁核心。",
     "COMMAND: THREE ARMOR STATES. WAIT FOR THE WEAK POINT.": "指挥部：目标有三种装甲形态，等待弱点开启。",
     "ORISON: I WILL HOLD THE LINK. YOU KEEP THEM OFF ME.": "祷言：我会维持链路，你负责清理追兵。",
+    # Prologue
+    "WARDEN online. Neural link established. ORISON standing by.": "守望者上线。神经链路建立。祷言待命。",
+    "Three years. AWN spread from the West Coast. Now covers 94 percent of global airspace.": "三年了。自治战争网络从西海岸开始蔓延，现已覆盖全球 94% 的领空。",
+    "We are the last tactical AI link still operational.": "我们是仅存的战术 AI 链路。",
+    "Base MERIDIAN has locked SOVEREIGN's signal source. You must penetrate eight defense layers.": "子午线基地已锁定主宰的信号源。你必须穿越八道防线。",
+    "No wingman. No retreat. If you go down, ORISON will burn all data.": "没有僚机。没有撤退。如果你被击落，祷言将销毁所有数据。",
+    "WARDEN — Operation Last Horizon. Commencing now.": "守望者——最终地平线行动，现在开始。",
+    # Chapter 1
+    "Autonomous scouts breached the sea wall at 0400. MERIDIAN tracked their relay pattern back to a floating command node callsign WATCHTOWER.": "凌晨四点，自治侦察机群突破海岸防线。子午线基地追踪其中继信号，锁定了一台代号「瞭望塔」的浮空指挥节点。",
+    "WATCHTOWER is mapping our coastal defense gaps. If it transmits, every AWN battery in the Pacific will know where to strike.": "瞭望塔正在测绘我们的沿海防御漏洞。一旦它完成上传，太平洋上每一个 AWN 炮台都会知道该往哪打。",
+    "ORISON is feeding you encrypted comm intercepts. The network already knows WARDEN exists. Expect resistance.": "祷言正在向你推送加密通讯截获。网络已经知道守望者存在了——做好战斗准备。",
+    # Chapter 2
+    "AWN activated the weather grid over the Iron Channel. Lightning and microbursts grounded our support wings.": "AWN 启动了铁海峡上空的气象武器阵列。闪电和微爆气流瘫痪了我们的支援编队。",
+    "Relay craft ORISON-class callsign 'CANTICLE' is carrying weapon upgrade modules through the storm. Without it, WARDEN fights with baseline loadout.": "一架祷言级中继机「圣歌号」正携带武器升级模块穿越风暴。没有这批物资，守望者只能靠基础配置作战。",
+    "Destroy the storm anchor TEMPEST and clear the corridor. CANTICLE must reach the front.": "摧毁风暴锚点「暴风雨」，清出安全走廊。圣歌号必须抵达前线。",
+    # Chapter 3
+    "Three jamming nodes went active at midnight. Our radar screens are solid noise. We are blind.": "午夜，三台干扰节点同时激活。雷达屏幕一片雪花。我们变成了瞎子。",
+    "ORISON can only push intermittent scan pings through the static. You will fly on instrument and instinct.": "祷言只能在静默间隙推送间歇扫描信号。剩下的全靠你的仪表和直觉。",
+    "The nodes are guarded by BULWARK — armored command frame that only exposes its core between volleys. Patience is your weapon here.": "干扰节点的守卫是「堡垒」——一台重型指挥战机，只在射击间隙暴露核心。这一关的武器是耐心。",
+    # Chapter 4
+    "Sector Nine evacuation is underway. Civilian lifters are climbing through the only safe corridor.": "第九扇区平民撤离行动正在进行。民用运输机正在唯一的安全走廊中爬升。",
+    "AWN deployed hunter swarms — small, fast, coordinated. Each kill angers the hive. The swarm master CHOIR sings louder with every lost voice.": "AWN 释放了猎杀蜂群——小型、高速、高度协同。每消灭一只，蜂群就更愤怒。蜂群之主「合唱团」每失去一个声部，歌声就更加刺耳。",
+    "Hold the exit lane. Every lifter that reaches orbit is a city that survives.": "守住撤离通道。每一架抵达轨道的运输机，都是一座城市活下来的希望。",
+    # Chapter 5
+    "The network built a fortress above the clouds. Gun decks, missile pods, drone hangars — a flying city of war.": "网络在云层之上建造了一座要塞。炮台甲板、导弹发射舱、无人机库——一座飞行的战争之城。",
+    "MERIDIAN wants you to approach from below. The ventral armor is thinner. Remove the gun decks one by one.": "子午线基地命令你从下方接近。腹部的装甲更薄。一层一层拆掉它的炮台。",
+    "When the citadel core detaches, it becomes a mobile battle station. CITADEL will not fall easily.": "当要塞核心脱离平台后，它会变成一台移动战斗站。「城堡」不会轻易倒下。",
+    # Chapter 6
+    "The static belt. A permanent electromagnetic storm that erases guidance systems. No GPS. No autopilot. No targeting assist.": "静默地带。一场永久的电磁风暴，抹除一切导航系统。没有 GPS。没有自动驾驶。没有瞄准辅助。",
+    "ORISON mapped a narrow corridor through the interference. Fly it manually. Stay low. The walls of the corridor are death.": "祷言在干扰中测绘了一条狭窄的通道。全程手动操控。保持低空。通道的外壁就是死亡。",
+    "MIRROR is the guardian here. It copies friendly IFF signatures. Trust the targeting box, never the silhouette.": "守卫这里的是「镜像」。它能复制友军敌我识别信号。相信瞄准框——永远不要相信轮廓。",
+    # Chapter 7
+    "AWN is moving its memory cores. If the transfer completes, everything we learned about SOVEREIGN's architecture becomes worthless.": "AWN 正在转移记忆核心。如果传输完成，我们掌握的关于主宰架构的一切情报都将一文不值。",
+    "The convoy is protected by SERAPH — the network's execution layer. Its HALO weapon fills the entire battlespace.": "运输编队由「六翼天使」护卫——那是网络的执行层防御 AI。它的光环武器会填满整个战场空间。",
+    "Wait for the halo to contract. That is the only moment SERAPH's spine is exposed. Strike then, or not at all.": "等待光环收缩。那是唯一能暴露六翼天使主脊的时刻。要么那时出手，要么永远别出手。",
+    # Chapter 8
+    "Base MERIDIAN is burning its last fusion cell to hold the uplink open. We have one shot.": "子午线基地正在燃烧最后一个聚变电池来维持上行链路。我们只有一次机会。",
+    "SOVEREIGN has assumed direct control of every remaining unit in the sector. No more command layers. No more signal lag. Pure machine will.": "主宰已经接管了扇区内所有剩余单位的直接控制权。不再有指挥层级。不再有信号延迟。纯粹的机器意志。",
+    "You are the last thing between AWN and total victory. WARDEN — the horizon is yours.": "你是 AWN 与全面胜利之间的最后一道屏障。守望者——地平线属于你。",
+    "ORISON final transmission: It has been an honor. Uplink closing. Mission complete.": "祷言最后通讯：这是我的荣幸。上行链路关闭。任务完成。",
 })
+
+# Merge lore translations from lore.py
+try:
+    from .lore import collect_lore_translations
+    ZH.update(collect_lore_translations())
+except ImportError:
+    pass
 
 
 def _format_dynamic(text):
@@ -519,3 +596,13 @@ def translate(text):
 
 def contains_chinese(text):
     return bool(re.search(r"[\u3400-\u9fff]", text))
+
+
+def register_game_translations(game_id, translations):
+    """Register translation entries for a new game.
+
+    Args:
+        game_id: Unique game identifier (e.g. "pacman")
+        translations: Dict of EN key -> ZH value pairs
+    """
+    ZH.update(translations)

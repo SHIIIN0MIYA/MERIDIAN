@@ -1,8 +1,108 @@
 ﻿from .common import *
-from .localization import is_chinese
+from .localization import is_chinese, GAME_SUBTITLES
+
+
+# ── Desktop Icon Registry ────────────────────────────────────
+# New games call register_desktop_icon() to appear on the desktop.
+DESKTOP_ICON_REGISTRY = []
+
+
+def register_desktop_icon(label, action, page=0, enabled=True,
+                          subtitle_en=None, subtitle_zh=None):
+    """Register a desktop icon for a new game or feature.
+
+    Args:
+        label: Icon label (uppercase, max 12 chars)
+        action: Action string handled in _handle_desktop_event
+        page: Which desktop page (0 or 1), 6 icons per page max
+        enabled: Whether the icon is clickable
+        subtitle_en/zh: Subtitle shown below the label
+    """
+    DESKTOP_ICON_REGISTRY.append({
+        "label": label,
+        "action": action,
+        "enabled": enabled,
+        "page": int(page),
+        "subtitle_en": subtitle_en,
+        "subtitle_zh": subtitle_zh,
+    })
 
 
 class DesktopMixin:
+    def _init_desktop(self):
+        self.app_start_ticks = pygame.time.get_ticks()
+        self.desktop_pressed_action = None
+        self.desktop_volume_open = False
+        self.desktop_volume_dragging = False
+        self.shutdown_confirm_open = False
+        self.shutdown_confirm_pressed = None
+        self.desktop_esc_lock_frames = 0
+        self.desktop_page = 0
+        self.desktop_particles = []
+        self._last_mouse_pos = (0, 0)
+        self._last_clock_minute = -1
+        self.desktop_hour_fx_triggered = False
+        self.desktop_hour_fx_frame = 0
+        self.desktop_hour_fx_x = 0
+        self.desktop_hour_fx_y = 0
+        self.desktop_slide_active = False
+        self.desktop_slide_from_page = 0
+        self.desktop_slide_to_page = 0
+        self.desktop_slide_direction = 0
+        self.desktop_slide_frame = 0
+        self.desktop_slide_max_frames = 36
+
+        # Build pages from registry (if empty, use defaults)
+        if not DESKTOP_ICON_REGISTRY:
+            self._register_builtin_icons()
+        self.desktop_pages = self._build_desktop_pages()
+
+    def _register_builtin_icons(self):
+        """Register all built-in desktop icons."""
+        from . import lore as _lore
+        # Page 0: six games
+        for gid in ("gomoku", "snake", "breakout", "2048", "mines", "tetris"):
+            world = _lore.get_world(gid)
+            sub_en = world["desktop_subtitle_en"] if world else None
+            sub_zh = world["desktop_subtitle_zh"] if world else None
+            register_desktop_icon(
+                gid.upper().replace("2048", "2048"),
+                f"open_{gid}",
+                page=0, enabled=True,
+                subtitle_en=sub_en, subtitle_zh=sub_zh,
+            )
+        # Page 1: Air Raid + system icons + LORE
+        air_world = _lore.get_world("air")
+        register_desktop_icon(
+            "AIR RAID", "open_air", page=1, enabled=True,
+            subtitle_en=air_world["desktop_subtitle_en"] if air_world else "SHOOT 'EM UP",
+            subtitle_zh=air_world["desktop_subtitle_zh"] if air_world else "弹幕射击",
+        )
+        register_desktop_icon("SETTINGS", "open_system_settings", page=1, enabled=True)
+        register_desktop_icon("PROFILE", "open_profile", page=1, enabled=True)
+        register_desktop_icon("WALL", "open_achievement_wall", page=1, enabled=True)
+        register_desktop_icon("LORE", "open_lore", page=1, enabled=True,
+                              subtitle_en="CHRONICLE", subtitle_zh="编年史")
+
+    def _build_desktop_pages(self):
+        """Build page list from registry. 6 icons per page max."""
+        max_pages = max((icon["page"] for icon in DESKTOP_ICON_REGISTRY), default=0) + 1
+        pages = [[] for _ in range(max_pages)]
+        for icon in DESKTOP_ICON_REGISTRY:
+            page = icon["page"]
+            entry = {
+                "label": icon["label"],
+                "action": icon["action"],
+                "enabled": icon["enabled"],
+            }
+            sub_en = icon.get("subtitle_en")
+            sub_zh = icon.get("subtitle_zh")
+            if sub_en or sub_zh:
+                entry["subtitle_en"] = sub_en
+                entry["subtitle_zh"] = sub_zh
+            pages[page].append(entry)
+        return pages
+
     def _get_desktop_volume_tab_rect(self):
         return pygame.Rect(
             DESKTOP_SCREEN_RECT.left + 8,
@@ -97,15 +197,17 @@ class DesktopMixin:
             for b in all_btn:
                 if b["rect"].collidepoint(event.pos) and self.desktop_pressed_action == b["action"]:
                     action = b["action"]
-                    if action == "open_gomoku": self._start_transition(self.MENU, "gomoku_grid", frames=44)
-                    elif action == "open_snake": self._start_transition(self.SNAKE_MENU, "snake_scan", frames=50)
-                    elif action == "open_breakout": self._start_transition(self.BREAKOUT_MENU, "breakout_bricks", frames=48)
-                    elif action == "open_2048": self._start_transition(self.G2048_MENU, "g2048_tiles", frames=44)
-                    elif action == "open_mines": self._start_transition(self.MINES_MENU, "mines_radar", frames=50)
-                    elif action == "open_tetris": self._start_transition(self.TETRIS_MENU, "tetris_drop", frames=58)
-                    elif action == "open_air": self._start_transition(self.AIR_MENU, "air_sweep", frames=46)
+                    if action == "open_gomoku": self._desktop_return_effect = "gomoku_grid"; self._start_transition(self.MENU, "gomoku_grid", frames=44)
+                    elif action == "open_snake": self._desktop_return_effect = "snake_scan"; self._start_transition(self.SNAKE_MENU, "snake_scan", frames=50)
+                    elif action == "open_breakout": self._desktop_return_effect = "breakout_bricks"; self._start_transition(self.BREAKOUT_MENU, "breakout_bricks", frames=48)
+                    elif action == "open_2048": self._desktop_return_effect = "g2048_tiles"; self._start_transition(self.G2048_MENU, "g2048_tiles", frames=44)
+                    elif action == "open_mines": self._desktop_return_effect = "mines_radar"; self._start_transition(self.MINES_MENU, "mines_radar", frames=50)
+                    elif action == "open_tetris": self._desktop_return_effect = "tetris_drop"; self._start_transition(self.TETRIS_MENU, "tetris_drop", frames=58)
+                    elif action == "open_air": self._desktop_return_effect = "air_sweep"; self._start_transition(self.AIR_MENU, "air_sweep", frames=46)
                     elif action == "open_system_settings": self._start_transition(self.SYSTEM_SETTINGS, "fade", frames=28)
                     elif action == "open_profile": self._start_transition(self.PROFILE, "fade", frames=28)
+                    elif action == "open_achievement_wall": self._start_transition(self.ACHIEVEMENT_WALL, "fade", frames=28)
+                    elif action == "open_lore": self._start_transition(self.LORE_READER, "fade", frames=28)
                     elif action == "desktop_next_page" and b.get("enabled", True): self._start_desktop_page_slide(self.desktop_page + 1)
                     elif action == "desktop_prev_page" and b.get("enabled", True): self._start_desktop_page_slide(self.desktop_page - 1)
                     self.desktop_pressed_action = None; return
@@ -248,13 +350,59 @@ class DesktopMixin:
         center_text = DECK_TITLE
         right_text = self._get_battery_text()
 
-        left = render_pixel_text(self.font_small, left_text, C.DESK_TEXT, scale=2)
+        # Clock pulse during hour celebration
+        clock_color = C.DESK_TEXT
+        clock_scale = 2
+        if 0 < self.desktop_hour_fx_frame <= 35:
+            pulse = self.desktop_hour_fx_frame / 35.0
+            clock_color = (
+                int(C.DESK_TEXT[0] + (C.GOLD_LIGHT[0] - C.DESK_TEXT[0]) * pulse),
+                int(C.DESK_TEXT[1] + (C.GOLD_LIGHT[1] - C.DESK_TEXT[1]) * pulse),
+                int(C.DESK_TEXT[2] + (C.GOLD_LIGHT[2] - C.DESK_TEXT[2]) * pulse),
+            )
+            clock_scale = int(2 + pulse * 2)
+
+        left = render_pixel_text(self.font_small, left_text, clock_color, scale=clock_scale)
         center = render_pixel_text(self.font_small, center_text, C.DESK_ACCENT_LIGHT, scale=2)
         right = render_pixel_text(self.font_small, right_text, C.DESK_TEXT, scale=2)
 
         self.screen.blit(left, (bar_rect.x + 10, bar_rect.y + (bar_rect.height - left.get_height()) // 2))
         self.screen.blit(center, (bar_rect.centerx - center.get_width() // 2, bar_rect.y + (bar_rect.height - center.get_height()) // 2))
         self.screen.blit(right, (bar_rect.right - right.get_width() - 10, bar_rect.y + (bar_rect.height - right.get_height()) // 2))
+
+        # Hourly celebration animation (or dev-triggered)
+        now = datetime.datetime.now()
+        current_minute = now.minute
+        triggered = self.desktop_hour_fx_triggered
+        if (current_minute == 0 and self._last_clock_minute == 59) or triggered:
+            if triggered:
+                self.desktop_hour_fx_triggered = False
+            burst_x = bar_rect.x + 10 + left.get_width() + 14
+            burst_y = bar_rect.centery
+            self.desktop_hour_fx_frame = 90
+            self.desktop_hour_fx_x = burst_x
+            self.desktop_hour_fx_y = burst_y
+            # Ring-pattern particles
+            for i in range(60):
+                angle = i * math.pi * 2 / 60
+                speed = random.uniform(2.0, 5.0)
+                self.desktop_particles.append(Particle(
+                    burst_x, burst_y,
+                    C.GOLD if i % 3 == 0 else C.DESK_ACCENT_LIGHT,
+                    math.cos(angle) * speed, math.sin(angle) * speed,
+                    random.randint(30, 55),
+                ))
+            # Golden "star" sparkles — larger, longer life
+            for _ in range(12):
+                angle = random.uniform(0, math.pi * 2)
+                speed = random.uniform(3.5, 7.0)
+                self.desktop_particles.append(Particle(
+                    burst_x + random.randint(-4, 4), burst_y + random.randint(-4, 4),
+                    C.GOLD_LIGHT,
+                    math.cos(angle) * speed, math.sin(angle) * speed,
+                    random.randint(50, 70),
+                ))
+        self._last_clock_minute = current_minute
 
     def _draw_desktop_icon_button(self, button, hovered=False, pressed=False):
         rect = button["rect"].copy()
@@ -445,6 +593,62 @@ class DesktopMixin:
             for row in range(3):
                 pygame.draw.rect(self.screen, C.GOLD, (card.x + 12, card.y + 72 + row * 7, card.width - 24, 3))
 
+        elif button["action"] == "open_achievement_wall":
+            wall_icon = icon_box.inflate(-12, -12)
+            pygame.draw.rect(self.screen, C.DESK_PANEL_DARK, wall_icon)
+            pygame.draw.rect(self.screen, C.OUTLINE, wall_icon, 2)
+            cols = 8
+            rows = 6
+            margin = 6
+            dot_gap = 2
+            dot_w = (wall_icon.width - margin * 2 - dot_gap * (cols - 1)) // cols
+            dot_h = (wall_icon.height - margin * 2 - dot_gap * (rows - 1)) // rows
+            for r in range(rows):
+                for c in range(cols):
+                    dx = wall_icon.x + margin + c * (dot_w + dot_gap)
+                    dy = wall_icon.y + margin + r * (dot_h + dot_gap)
+                    unlocked = (r * cols + c) < 7
+                    col = C.GOLD_LIGHT if unlocked else C.DESK_MUTED
+                    if (r, c) == (2, 3):
+                        col = C.DESK_ACCENT_LIGHT
+                    pygame.draw.rect(self.screen, C.OUTLINE, (dx, dy, dot_w, dot_h))
+                    pygame.draw.rect(self.screen, col, (dx + 1, dy + 1, dot_w - 2, dot_h - 2))
+
+        elif button["action"] == "open_lore":
+            # Pixel-art book icon
+            book_icon = icon_box.inflate(-16, -16)
+            bx, by = book_icon.x, book_icon.y
+            bw, bh = book_icon.width, book_icon.height
+            # Book cover
+            pygame.draw.rect(self.screen, C.OUTLINE, book_icon)
+            pygame.draw.rect(self.screen, C.LORE_PANEL_DARK, book_icon.inflate(-2, -2))
+            # Spine
+            spine_w = 6
+            pygame.draw.rect(self.screen, C.LORE_ACCENT,
+                             (bx + 6, by + 4, spine_w, bh - 8))
+            # Pages (left and right)
+            page_margin = 4
+            left_page = pygame.Rect(bx + 6 + spine_w + 4, by + 8,
+                                    (bw - spine_w - 20) // 2, bh - 16)
+            right_page = pygame.Rect(left_page.right + 4, by + 8,
+                                     (bw - spine_w - 20) // 2, bh - 16)
+            pygame.draw.rect(self.screen, C.LORE_PANEL, left_page)
+            pygame.draw.rect(self.screen, C.LORE_PANEL, right_page)
+            pygame.draw.rect(self.screen, C.LORE_MUTED, left_page, 1)
+            pygame.draw.rect(self.screen, C.LORE_MUTED, right_page, 1)
+            # Text lines on pages
+            for li in range(3):
+                ly = left_page.y + 6 + li * 8
+                pygame.draw.rect(self.screen, C.LORE_MUTED,
+                                 (left_page.x + 4, ly, left_page.width - 8, 2))
+            for li in range(3):
+                ly = right_page.y + 6 + li * 8
+                pygame.draw.rect(self.screen, C.LORE_MUTED,
+                                 (right_page.x + 4, ly, right_page.width - 8, 2))
+            # Bookmark ribbon
+            pygame.draw.rect(self.screen, C.LORE_TITLE,
+                             (bx + bw - 18, by, 4, 18))
+
         else:
             # COMING SOON 鍥炬爣锛氬儚绱犻攣 / 鍗犱綅鍥炬
             lock_w = 34
@@ -469,12 +673,29 @@ class DesktopMixin:
 
         if is_chinese() and text in GAME_SUBTITLES:
             txt_scale = 1
+
+        # Check for per-icon subtitle from registry
+        icon_sub_en = button.get("subtitle_en")
+        icon_sub_zh = button.get("subtitle_zh")
+        has_icon_sub = bool(icon_sub_en or icon_sub_zh)
+        if has_icon_sub:
+            txt_scale = 1
+
         txt = render_pixel_text(self.font_small, text, text_col, scale=txt_scale)
         tx = rect.centerx - txt.get_width() // 2
-        ty = rect.bottom - txt.get_height() - (24 if is_chinese() and text in GAME_SUBTITLES else 8)
+        ty = rect.bottom - txt.get_height() - (24 if has_icon_sub or (is_chinese() and text in GAME_SUBTITLES) else 8)
 
         self.screen.blit(txt, (tx, ty))
-        if is_chinese() and text in GAME_SUBTITLES:
+        if has_icon_sub:
+            sub_text = icon_sub_zh if is_chinese() else icon_sub_en
+            subtitle = render_pixel_text(
+                self.font_small, sub_text, text_col, scale=1
+            )
+            self.screen.blit(
+                subtitle,
+                (rect.centerx - subtitle.get_width() // 2, rect.bottom - subtitle.get_height() - 7),
+            )
+        elif is_chinese() and text in GAME_SUBTITLES:
             subtitle = render_pixel_text(
                 self.font_small, GAME_SUBTITLES[text], text_col, scale=1
             )
@@ -528,6 +749,16 @@ class DesktopMixin:
                 not self.desktop_slide_active
                 and self.desktop_pressed_action == b["action"]
             )
+
+            if hovered and self.anim_tick % 6 == 0:
+                icon_rect = b["rect"]
+                self.desktop_particles.append(Particle(
+                    icon_rect.x + random.randint(0, icon_rect.width),
+                    icon_rect.y + random.randint(0, icon_rect.height),
+                    C.GOLD_LIGHT,
+                    random.uniform(-1.0, 1.0), random.uniform(-2.5, -0.5),
+                    random.randint(8, 15),
+                ))
 
             self._draw_desktop_icon_button(b, hovered=hovered, pressed=pressed)
 
@@ -622,6 +853,19 @@ class DesktopMixin:
             self._draw_desktop_page_icons(self.desktop_page)
         self.screen.set_clip(old_clip)
         mp = self._logical_mouse_pos()
+        # Mouse trail particles
+        dx = mp[0] - self._last_mouse_pos[0]
+        dy = mp[1] - self._last_mouse_pos[1]
+        if abs(dx) > 3 or abs(dy) > 3:
+            if self.anim_tick % 2 == 0:
+                for _ in range(2):
+                    self.desktop_particles.append(Particle(
+                        mp[0] + random.randint(-4, 4), mp[1] + random.randint(-4, 4),
+                        C.DESK_ACCENT_LIGHT,
+                        random.uniform(-0.4, 0.4), random.uniform(-0.8, -0.1),
+                        random.randint(12, 20),
+                    ))
+            self._last_mouse_pos = mp
         for b in self._get_desktop_page_buttons():
             h = (not self.desktop_slide_active and b["rect"].collidepoint(mp) and b.get("enabled", True))
             p = (not self.desktop_slide_active and self.desktop_pressed_action == b["action"])
@@ -631,6 +875,30 @@ class DesktopMixin:
         hint = render_pixel_text(self.font_small, 'ESC to Quit', C.DESK_MUTED, scale=1 if is_chinese() else 2)
         hint_y = DESKTOP_SCREEN_RECT.bottom - hint.get_height() - 14
         self.screen.blit(hint, (DESKTOP_SCREEN_RECT.centerx - hint.get_width() // 2, hint_y))
+        # Draw expanding rings for hour celebration
+        if self.desktop_hour_fx_frame > 0:
+            fx_t = self.desktop_hour_fx_frame / 90.0
+            # Three expanding rings
+            for ring_idx in range(3):
+                ring_delay = ring_idx * 8
+                ring_frame = self.desktop_hour_fx_frame - ring_delay
+                if ring_frame <= 0:
+                    continue
+                radius = int((90 - ring_frame) * 3.5)
+                alpha = int(180 * ring_frame / 90.0)
+                ring_surf = pygame.Surface((radius * 2 + 4, radius * 2 + 4), pygame.SRCALPHA)
+                pygame.draw.circle(ring_surf, (*C.GOLD, alpha), (radius + 2, radius + 2), radius, 2)
+                if ring_idx == 0:
+                    pygame.draw.circle(ring_surf, (*C.GOLD_LIGHT, alpha // 2), (radius + 2, radius + 2), radius - 4, 1)
+                self.screen.blit(ring_surf, (self.desktop_hour_fx_x - radius - 2, self.desktop_hour_fx_y - radius - 2))
+            self.desktop_hour_fx_frame -= 1
+
+        # Update and draw desktop particles
+        for p in self.desktop_particles[:]:
+            if not p.update():
+                self.desktop_particles.remove(p)
+            else:
+                p.draw(self.screen)
         if self.shutdown_confirm_open:
             self._draw_shutdown_confirm()
 
