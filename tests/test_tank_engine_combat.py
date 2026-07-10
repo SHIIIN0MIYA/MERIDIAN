@@ -1,3 +1,5 @@
+from itertools import permutations
+
 import pytest
 
 from meridian.tank_engine import BulletState, PlayerCommand, TankBattleEngine
@@ -47,6 +49,38 @@ def test_opposing_bullets_cancel_each_other():
 
     assert engine.bullets == []
     assert [event.kind for event in events] == ["bullet_clash"]
+
+
+def test_same_owner_bullets_do_not_clash():
+    engine = open_arena_engine()
+    engine.bullets = [
+        BulletState("red", 10.0, 6.0, 0.0, 0.0),
+        BulletState("red", 10.0, 6.0, 0.0, 0.0),
+    ]
+
+    events = engine.update(16, commands())
+
+    assert len(engine.bullets) == 2
+    assert all(event.kind != "bullet_clash" for event in events)
+
+
+def test_three_bullet_clashes_are_independent_of_list_order():
+    bullet_specs = (
+        ("red", 10.0),
+        ("red", 10.1),
+        ("blue", 10.05),
+    )
+
+    for ordering in permutations(bullet_specs):
+        engine = open_arena_engine()
+        engine.bullets = [
+            BulletState(owner, x, 6.0, 0.0, 0.0) for owner, x in ordering
+        ]
+
+        events = engine.update(16, commands())
+
+        assert engine.bullets == []
+        assert sum(event.kind == "bullet_clash" for event in events) == 2
 
 
 def test_brick_is_destroyed_by_a_bullet():

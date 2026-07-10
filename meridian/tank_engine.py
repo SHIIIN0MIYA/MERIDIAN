@@ -183,19 +183,18 @@ class TankBattleEngine:
 
     def _collect_bullet_clashes(self, removed: set[int]) -> list[EngineEvent]:
         events: list[EngineEvent] = []
+        participants: set[int] = set()
         for first_index, first in enumerate(self.bullets):
-            if first_index in removed:
-                continue
             for second_index in range(first_index + 1, len(self.bullets)):
-                if second_index in removed:
-                    continue
                 second = self.bullets[second_index]
-                if math.dist((first.x, first.y), (second.x, second.y)) <= (
+                if first.owner != second.owner and math.dist(
+                    (first.x, first.y), (second.x, second.y)
+                ) <= (
                     self.BULLET_CLASH_DISTANCE
                 ):
-                    removed.update((first_index, second_index))
+                    participants.update((first_index, second_index))
                     events.append(EngineEvent("bullet_clash"))
-                    break
+        removed.update(participants)
         return events
 
     def _collect_bullet_impacts(
