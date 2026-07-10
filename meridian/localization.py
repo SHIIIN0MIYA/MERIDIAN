@@ -1,5 +1,7 @@
 """Runtime localization and bundled Simplified Chinese pixel-font support."""
 
+from __future__ import annotations
+
 from pathlib import Path
 import re
 import sys
@@ -7,29 +9,29 @@ import sys
 import pygame
 
 
-_language = "en"
-_font_cache = {}
+_language: str = "en"
+_font_cache: dict[int, pygame.font.Font] = {}
 
 
-def set_language(language):
+def set_language(language: str) -> None:
     global _language
     _language = "zh_hans" if language == "zh_hans" else "en"
 
 
-def get_language():
+def get_language() -> str:
     return _language
 
 
-def is_chinese():
+def is_chinese() -> bool:
     return _language == "zh_hans"
 
 
-def resource_path(*parts):
+def resource_path(*parts: str) -> Path:
     root = Path(getattr(sys, "_MEIPASS", Path(__file__).resolve().parent.parent))
     return root.joinpath(*parts)
 
 
-def get_chinese_font(size=12):
+def get_chinese_font(size: int = 12) -> pygame.font.Font:
     size = max(8, int(size))
     if size not in _font_cache:
         path = resource_path(
@@ -39,7 +41,7 @@ def get_chinese_font(size=12):
     return _font_cache[size]
 
 
-GAME_SUBTITLES = {
+GAME_SUBTITLES: dict[str, str] = {
     "GOMOKU": "五子棋",
     "SNAKE": "贪吃蛇",
     "BREAKOUT": "打砖块",
@@ -52,13 +54,26 @@ GAME_SUBTITLES = {
 }
 
 
-ZH = {
+ZH: dict[str, str] = {
     # Shell and common controls
     "SYSTEM READY": "系统已就绪",
     "ALL MODULES ONLINE": "全部模块运行正常",
     "ENTER SYSTEM": "进入系统",
     "ENTER / CLICK TO CONTINUE": "按回车或点击继续",
     "PRESSING ENTER...": "正在确认...",
+
+    # Game names
+    "GOMOKU": "五子棋",
+    "SNAKE": "贪吃蛇",
+    "BREAKOUT": "打砖块",
+    "MINES": "扫雷",
+    "TETRIS": "俄罗斯方块",
+    "AIR RAID": "空袭行动",
+    "ALL REALMS STABLE": "所有位面已稳定",
+    "BLACK_WINS_RESULT": "黑方胜利",
+    "WHITE_WINS_RESULT": "白方胜利",
+    "BOOM": "爆炸",
+    "UNLOCKED": "已解锁",
     "STARTING SYSTEM...": "正在启动系统...",
     "ENTER PASSWORD": "输入密码",
     "PASSWORD INCORRECT": "密码错误",
@@ -72,7 +87,6 @@ ZH = {
     "CHALLENGE / LOCKED": "挑战战役 / 未解锁",
     "BOSS RUSH / LOCKED": "Boss 连战 / 未解锁",
     "RESUME": "继续",
-    "CONTINUE": "继续",
     "NEW GAME": "新游戏",
     "START": "开始",
     "PLAY": "开始游戏",
@@ -80,7 +94,6 @@ ZH = {
     "RESTART": "重新开始",
     "RETRY": "重试",
     "MENU": "菜单",
-    "SETTINGS": "设置",
     "SNAKE SETTINGS": "贪吃蛇设置",
     "BREAKOUT SETTINGS": "打砖块设置",
     "MINES SETTINGS": "扫雷设置",
@@ -161,6 +174,8 @@ ZH = {
     "GLOBAL": "全局",
     "ACHIEVEMENT UNLOCKED": "成就已解锁",
     "ACHIEVEMENT WALL": "成就墙",
+    "WALL": "成就墙",
+    "LORE": "档案",
     "ESC RETURN": "ESC：返回",
     "CLICK OUTSIDE OR ESC TO CLOSE": "点击外部区域或按 ESC 关闭",
     "SHIP SKINS": "战机皮肤",
@@ -170,7 +185,6 @@ ZH = {
     "CRIMSON": "深红",
     "AZURE": "宝蓝",
     "GOLD": "金色",
-    "LOCKED": "未解锁",
     "REQUIRES": "需要",
     "SELECTED": "已选择",
     "STORY ARCHIVE": "故事档案",
@@ -215,6 +229,7 @@ ZH = {
     "KILLS": "击破数",
     "S RANKS": "S 评价",
     "HINT": "提示",
+    "OPENED": "已翻开",
 
     # Shared game options
     "SLOW": "慢速",
@@ -259,7 +274,6 @@ ZH = {
     "R: Restart    ESC: Menu": "R：重新开始　ESC：菜单",
     "R: Restart  ESC: Menu": "R：重新开始　ESC：菜单",
     "U: Undo    R: Restart": "U：悔棋　R：重新开始",
-    "ESC: Menu": "ESC：菜单",
     "LEFT: Open": "左键：翻开",
     "RIGHT: Flag": "右键：插旗",
     "DOUBLE: Auto": "双击：自动展开",
@@ -279,8 +293,6 @@ ZH = {
     "HOLD": "暂存",
 
     # Results
-    "BLACK WINS": "黑方胜利",
-    "WHITE WINS": "白方胜利",
     "BLACK TAKES THE ROUND": "本局黑方获胜",
     "WHITE TAKES THE ROUND": "本局白方获胜",
     "MISSION CLEAR": "任务完成",
@@ -446,7 +458,6 @@ ZH.update({
     "Destroy 8 targets with one missile launch": "一次导弹齐射击毁 8 个目标",
     "PERFECT VECTOR": "完美航线",
     "Earn one S rating": "首次获得 S 评价",
-    "LAST HORIZON": "最后地平线",
     "Complete the standard campaign": "完成标准战役",
     "WARDEN PRIME": "首席守望者",
     "Earn S on all 16 standard missions": "标准战役全部 16 关获得 S",
@@ -542,7 +553,7 @@ except ImportError:
     pass
 
 
-def _format_dynamic(text):
+def _format_dynamic(text: str) -> str:
     patterns = (
         (r"^SCORE (\d+)$", r"得分 \1"),
         (r"^BEST (\d+)$", r"最高 \1"),
@@ -578,6 +589,7 @@ def _format_dynamic(text):
         (r"^(.+)'S TURN$", r"轮到\1"),
         (r"^FPS (.+)$", r"帧率 \1"),
         (r"^INDEX (\d+)$", r"指数 \1"),
+        (r"^UNLOCKED (\d+) / (\d+)$", r"已解锁 \1 / \2"),
     )
     for pattern, replacement in patterns:
         if re.match(pattern, text):
@@ -585,7 +597,7 @@ def _format_dynamic(text):
     return text
 
 
-def translate(text):
+def translate(text: str) -> str:
     if not is_chinese() or not isinstance(text, str):
         return text
     translated = ZH.get(text)
@@ -594,11 +606,11 @@ def translate(text):
     return _format_dynamic(text)
 
 
-def contains_chinese(text):
+def contains_chinese(text: str) -> bool:
     return bool(re.search(r"[\u3400-\u9fff]", text))
 
 
-def register_game_translations(game_id, translations):
+def register_game_translations(game_id: str, translations: dict[str, str]) -> None:
     """Register translation entries for a new game.
 
     Args:

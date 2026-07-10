@@ -925,7 +925,7 @@ class GomokuMixin:
         self._draw_menu_logo()
         if is_chinese():
             subtitle = render_pixel_text(
-                self.font_small, "五子棋 · 连成五子即可获胜", C.CREAM, scale=2
+                self.font_small, "连成五子即可获胜", C.CREAM, scale=2
             )
             self.screen.blit(
                 subtitle, (panel_rect.centerx - subtitle.get_width() // 2, 255)
@@ -1120,10 +1120,10 @@ class GomokuMixin:
             result_text = "DRAW"
             sub_text = "NO WINNER THIS ROUND"
         elif self.board.winner == 1:
-            result_text = "BLACK WINS"
+            result_text = "BLACK_WINS_RESULT"
             sub_text = "BLACK TAKES THE ROUND"
         else:
-            result_text = "WHITE WINS"
+            result_text = "WHITE_WINS_RESULT"
             sub_text = "WHITE TAKES THE ROUND"
 
         title = render_pixel_text(self.font_menu_title, result_text, C.GOLD_LIGHT, scale=3)
@@ -1444,23 +1444,23 @@ class GomokuMixin:
         col = (*C.RED_LIGHT, OCCUPIED_HINT_ALPHA)
 
         # 鍥涗釜瑙掞紝涓嶈鏁村湀鍖呬綇锛岄伩鍏嶅お鎶㈢溂
-        l = 7
+        leg_len = 7
 
         # 宸︿笂
-        pygame.draw.line(hint_surf, col, (3, 3), (3 + l, 3), 2)
-        pygame.draw.line(hint_surf, col, (3, 3), (3, 3 + l), 2)
+        pygame.draw.line(hint_surf, col, (3, 3), (3 + leg_len, 3), 2)
+        pygame.draw.line(hint_surf, col, (3, 3), (3, 3 + leg_len), 2)
 
         # 鍙充笂
-        pygame.draw.line(hint_surf, col, (size * 2 + 3, 3), (size * 2 + 3 - l, 3), 2)
-        pygame.draw.line(hint_surf, col, (size * 2 + 3, 3), (size * 2 + 3, 3 + l), 2)
+        pygame.draw.line(hint_surf, col, (size * 2 + 3, 3), (size * 2 + 3 - leg_len, 3), 2)
+        pygame.draw.line(hint_surf, col, (size * 2 + 3, 3), (size * 2 + 3, 3 + leg_len), 2)
 
         # 宸︿笅
-        pygame.draw.line(hint_surf, col, (3, size * 2 + 3), (3 + l, size * 2 + 3), 2)
-        pygame.draw.line(hint_surf, col, (3, size * 2 + 3), (3, size * 2 + 3 - l), 2)
+        pygame.draw.line(hint_surf, col, (3, size * 2 + 3), (3 + leg_len, size * 2 + 3), 2)
+        pygame.draw.line(hint_surf, col, (3, size * 2 + 3), (3, size * 2 + 3 - leg_len), 2)
 
         # 鍙充笅
-        pygame.draw.line(hint_surf, col, (size * 2 + 3, size * 2 + 3), (size * 2 + 3 - l, size * 2 + 3), 2)
-        pygame.draw.line(hint_surf, col, (size * 2 + 3, size * 2 + 3), (size * 2 + 3, size * 2 + 3 - l), 2)
+        pygame.draw.line(hint_surf, col, (size * 2 + 3, size * 2 + 3), (size * 2 + 3 - leg_len, size * 2 + 3), 2)
+        pygame.draw.line(hint_surf, col, (size * 2 + 3, size * 2 + 3), (size * 2 + 3, size * 2 + 3 - leg_len), 2)
 
         self.screen.blit(
             hint_surf,

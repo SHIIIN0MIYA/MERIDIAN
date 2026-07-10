@@ -1,5 +1,4 @@
 from .common import *
-from .localization import is_chinese
 
 
 class TransitionMixin:

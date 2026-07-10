@@ -1,5 +1,5 @@
 ﻿from .common import *
-from .localization import is_chinese, GAME_SUBTITLES
+from .localization import is_chinese
 
 
 # ── Desktop Icon Registry ────────────────────────────────────
@@ -627,7 +627,6 @@ class DesktopMixin:
             pygame.draw.rect(self.screen, C.LORE_ACCENT,
                              (bx + 6, by + 4, spine_w, bh - 8))
             # Pages (left and right)
-            page_margin = 4
             left_page = pygame.Rect(bx + 6 + spine_w + 4, by + 8,
                                     (bw - spine_w - 20) // 2, bh - 16)
             right_page = pygame.Rect(left_page.right + 4, by + 8,
@@ -671,9 +670,6 @@ class DesktopMixin:
         txt_scale = 2 if len(text) <= 8 else 1
         text_col = C.DESK_TEXT if enabled else C.DESK_MUTED
 
-        if is_chinese() and text in GAME_SUBTITLES:
-            txt_scale = 1
-
         # Check for per-icon subtitle from registry
         icon_sub_en = button.get("subtitle_en")
         icon_sub_zh = button.get("subtitle_zh")
@@ -683,21 +679,13 @@ class DesktopMixin:
 
         txt = render_pixel_text(self.font_small, text, text_col, scale=txt_scale)
         tx = rect.centerx - txt.get_width() // 2
-        ty = rect.bottom - txt.get_height() - (24 if has_icon_sub or (is_chinese() and text in GAME_SUBTITLES) else 8)
+        ty = rect.bottom - txt.get_height() - (24 if has_icon_sub else 8)
 
         self.screen.blit(txt, (tx, ty))
         if has_icon_sub:
             sub_text = icon_sub_zh if is_chinese() else icon_sub_en
             subtitle = render_pixel_text(
                 self.font_small, sub_text, text_col, scale=1
-            )
-            self.screen.blit(
-                subtitle,
-                (rect.centerx - subtitle.get_width() // 2, rect.bottom - subtitle.get_height() - 7),
-            )
-        elif is_chinese() and text in GAME_SUBTITLES:
-            subtitle = render_pixel_text(
-                self.font_small, GAME_SUBTITLES[text], text_col, scale=1
             )
             self.screen.blit(
                 subtitle,
@@ -877,7 +865,6 @@ class DesktopMixin:
         self.screen.blit(hint, (DESKTOP_SCREEN_RECT.centerx - hint.get_width() // 2, hint_y))
         # Draw expanding rings for hour celebration
         if self.desktop_hour_fx_frame > 0:
-            fx_t = self.desktop_hour_fx_frame / 90.0
             # Three expanding rings
             for ring_idx in range(3):
                 ring_delay = ring_idx * 8

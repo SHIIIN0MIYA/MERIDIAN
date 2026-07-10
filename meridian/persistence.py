@@ -1,17 +1,19 @@
 """Versioned, crash-resistant persistence for MERIDIAN."""
 
+from __future__ import annotations
+
 from copy import deepcopy
 from datetime import datetime
 import json
 import os
 from pathlib import Path
 import shutil
+from typing import Any
+
+SCHEMA_VERSION: int = 4
 
 
-SCHEMA_VERSION = 4
-
-
-def default_settings():
+def default_settings() -> dict[str, Any]:
     return {
         "language": "en",
         "music_volume": 0.55,
@@ -34,7 +36,7 @@ def default_settings():
     }
 
 
-def default_records():
+def default_records() -> dict[str, Any]:
     return {
         "gomoku": {"black_wins": 0, "white_wins": 0, "draws": 0},
         "snake": {"best_score": 0},
@@ -49,7 +51,7 @@ def default_records():
     }
 
 
-def default_statistics():
+def default_statistics() -> dict[str, Any]:
     base = {"play_time_ms": 0, "games_started": 0, "games_completed": 0}
     return {
         "global": {
@@ -95,7 +97,7 @@ def default_statistics():
     }
 
 
-def default_progress():
+def default_progress() -> dict[str, Any]:
     return {
         "gomoku": {"run_active": False, "run_state": None},
         "snake": {"run_active": False, "run_state": None},
@@ -127,7 +129,7 @@ def default_progress():
     }
 
 
-def default_lore():
+def default_lore() -> dict[str, Any]:
     return {
         "prologues_seen": [],
         "unlocked_entries": [],
@@ -135,7 +137,7 @@ def default_lore():
     }
 
 
-def default_data():
+def default_data() -> dict[str, Any]:
     return {
         "schema_version": SCHEMA_VERSION,
         "settings": default_settings(),
@@ -147,7 +149,7 @@ def default_data():
     }
 
 
-def _deep_merge(default, incoming):
+def _deep_merge(default: dict, incoming: dict) -> dict:
     if not isinstance(default, dict) or not isinstance(incoming, dict):
         return deepcopy(incoming)
     result = deepcopy(default)
@@ -160,7 +162,7 @@ def _deep_merge(default, incoming):
 
 
 class SaveManager:
-    def __init__(self, path=None):
+    def __init__(self, path: Path | str | None = None) -> None:
         if path is None:
             path = os.environ.get("MERIDIAN_SAVE_PATH")
         if path is None:
@@ -169,7 +171,7 @@ class SaveManager:
         self.path = Path(path)
         self.backup_path = self.path.with_suffix(".json.bak")
 
-    def migrate(self, data):
+    def migrate(self, data: dict) -> dict[str, Any]:
         version = int(data.get("schema_version", 0)) if isinstance(data, dict) else 0
         if version > SCHEMA_VERSION:
             return _deep_merge(default_data(), data)
@@ -191,11 +193,11 @@ class SaveManager:
         migrated["schema_version"] = SCHEMA_VERSION
         return migrated
 
-    def _read(self, path):
+    def _read(self, path: Path) -> dict[str, Any]:
         with path.open("r", encoding="utf-8") as handle:
             return self.migrate(json.load(handle))
 
-    def load(self):
+    def load(self) -> dict[str, Any]:
         if not self.path.exists():
             return default_data()
         try:
@@ -214,7 +216,7 @@ class SaveManager:
                     pass
             return default_data()
 
-    def save(self, data):
+    def save(self, data: dict) -> None:
         self.path.parent.mkdir(parents=True, exist_ok=True)
         temp_path = self.path.with_suffix(".json.tmp")
         payload = self.migrate(data)
@@ -226,12 +228,12 @@ class SaveManager:
             shutil.copy2(self.path, self.backup_path)
         os.replace(temp_path, self.path)
 
-    def reset_settings(self, data):
+    def reset_settings(self, data: dict) -> dict[str, Any]:
         result = self.migrate(data)
         result["settings"] = default_settings()
         return result
 
-    def erase_progress(self, data):
+    def erase_progress(self, data: dict) -> dict[str, Any]:
         result = self.migrate(data)
         result["records"] = default_records()
         result["statistics"] = default_statistics()

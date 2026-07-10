@@ -752,7 +752,7 @@ class SnakeMixin:
         self.screen.blit(shadow, (tx + 4, ty + 4))
         self.screen.blit(title, (tx, ty))
 
-        subtitle_text = "贪吃蛇 · 复古像素街机" if is_chinese() else "RETRO PIXEL ARCADE"
+        subtitle_text = "复古像素街机" if is_chinese() else "RETRO PIXEL ARCADE"
         subtitle = render_pixel_text(self.font_small, subtitle_text, C.SNAKE_TEXT, scale=2)
         self.screen.blit(subtitle, (outer.centerx - subtitle.get_width() // 2, ty + title.get_height() + 18))
 

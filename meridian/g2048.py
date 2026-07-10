@@ -444,7 +444,7 @@ class Game2048Mixin:
             outer.y + (96 if is_chinese() else 120) + title_offset,
         )
         self.screen.blit(shadow, (tx + 4, ty + 4)); self.screen.blit(title, (tx, ty))
-        subtitle_text = "数字合成 · 合并方块，挑战 2048" if is_chinese() else "MERGE TILES TO REACH 2048"
+        subtitle_text = "合并方块，挑战 2048" if is_chinese() else "MERGE TILES TO REACH 2048"
         subtitle = render_pixel_text(self.font_small, subtitle_text, C.G2048_TEXT, scale=2)
         self.screen.blit(subtitle, (outer.centerx - subtitle.get_width() // 2, ty + title.get_height() + 18))
         mp = self._logical_mouse_pos()

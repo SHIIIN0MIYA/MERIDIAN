@@ -16,9 +16,8 @@ class PasswordMixin:
         screen_rect = pygame.Rect(0, 0, WINDOW_W, WINDOW_H)
         btn_w, btn_h = 72, 44
         gap_x, gap_y = 18, 10
-        cols, rows = 3, 4
+        cols = 3  # layout is 3 columns x 4 rows
         total_w = cols * btn_w + (cols - 1) * gap_x
-        total_h = rows * btn_h + (rows - 1) * gap_y
         start_x = screen_rect.centerx - total_w // 2
         start_y = screen_rect.centery + 10
 

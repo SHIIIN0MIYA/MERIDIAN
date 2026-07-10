@@ -3,7 +3,7 @@
 from .common import *
 from .arcade_common import *
 from .arcade_levels import (
-    AIR_ARCHIVE, AIR_CHAPTERS, AIR_CHAPTER_STORIES, AIR_ENEMY_TYPES,
+    AIR_ARCHIVE, AIR_CHAPTER_STORIES, AIR_ENEMY_TYPES,
     AIR_LEVELS, AIR_PROLOGUE, AIR_STANDARD_LOADOUTS,
 )
 
@@ -1134,7 +1134,7 @@ class AirRaidMixin:
         from .lore import get_world
         world = get_world("air")
         sub_en = "WARDEN FLIGHT / AUTONOMOUS WAR NETWORK"
-        sub_zh = "空袭行动 · 守望者飞行队 / 自主战争网络"
+        sub_zh = "守望者飞行队 / 自主战争网络"
         if world:
             sub_en = world["desktop_subtitle_en"]
             sub_zh = world["desktop_subtitle_zh"]
