@@ -11,6 +11,7 @@ dist/
 _render_verification.py
 verification-*.png
 .agents/
+.worktrees/
 tests/.tmp/
 *.exe
 *.manifest
