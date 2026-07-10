@@ -46,6 +46,19 @@ class TankState:
         return self.x, self.y
 
 
+@dataclass
+class BulletState:
+    owner: str
+    x: float
+    y: float
+    dx: float
+    dy: float
+
+    @property
+    def direction(self) -> tuple[float, float]:
+        return self.dx, self.dy
+
+
 @dataclass(frozen=True)
 class EngineEvent:
     kind: str
@@ -93,7 +106,11 @@ _ARENA_ROWS = [
 class TankBattleEngine:
     STEP_MS = 16
     MOVE_SPEED = 0.004
+    BULLET_SPEED = 0.006
+    FIRE_INTERVAL_MS = 650
+    MAX_BULLETS_PER_PLAYER = 2
     TANK_HALF_SIZE = 0.35
+    BULLET_CLASH_DISTANCE = 0.2
 
     def __init__(self, seed: int = 0) -> None:
         self.seed = seed
@@ -103,6 +120,9 @@ class TankBattleEngine:
             "red": TankState("red", 1.5, 1.5, 1, 0),
             "blue": TankState("blue", 22.5, 10.5, -1, 0),
         }
+        self.bullets: list[BulletState] = []
+        self.score = {"red": 0, "blue": 0}
+        self._fire_elapsed_ms = {"red": 0, "blue": 0}
         self._accumulator_ms = 0
 
     def update(
@@ -123,7 +143,135 @@ class TankBattleEngine:
         commands: Mapping[str, PlayerCommand],
     ) -> list[EngineEvent]:
         self._move_tanks_simultaneously(dt_ms, commands)
-        return []
+        events = self._spawn_due_bullets(dt_ms)
+        self._move_bullets(dt_ms)
+
+        removed: set[int] = set()
+        hits: list[tuple[str, int, str]] = []
+        events.extend(self._collect_bullet_clashes(removed))
+        events.extend(self._collect_bullet_impacts(removed, hits))
+        self.bullets = [
+            bullet for index, bullet in enumerate(self.bullets) if index not in removed
+        ]
+        events.extend(self._resolve_damage_batch(hits))
+        return events
+
+    def _spawn_due_bullets(self, dt_ms: int) -> list[EngineEvent]:
+        events: list[EngineEvent] = []
+        for player_id, tank in self.tanks.items():
+            if tank.hp <= 0:
+                continue
+            self._fire_elapsed_ms[player_id] += dt_ms
+            if self._fire_elapsed_ms[player_id] < self.FIRE_INTERVAL_MS:
+                continue
+            self._fire_elapsed_ms[player_id] -= self.FIRE_INTERVAL_MS
+            owned = sum(bullet.owner == player_id for bullet in self.bullets)
+            if owned >= self.MAX_BULLETS_PER_PLAYER:
+                continue
+            length = math.hypot(tank.facing_x, tank.facing_y)
+            dx = tank.facing_x / length
+            dy = tank.facing_y / length
+            self.bullets.append(BulletState(player_id, tank.x, tank.y, dx, dy))
+            events.append(EngineEvent("shot", player_id))
+        return events
+
+    def _move_bullets(self, dt_ms: int) -> None:
+        distance = self.BULLET_SPEED * dt_ms
+        for bullet in self.bullets:
+            bullet.x += bullet.dx * distance
+            bullet.y += bullet.dy * distance
+
+    def _collect_bullet_clashes(self, removed: set[int]) -> list[EngineEvent]:
+        events: list[EngineEvent] = []
+        for first_index, first in enumerate(self.bullets):
+            if first_index in removed:
+                continue
+            for second_index in range(first_index + 1, len(self.bullets)):
+                if second_index in removed:
+                    continue
+                second = self.bullets[second_index]
+                if math.dist((first.x, first.y), (second.x, second.y)) <= (
+                    self.BULLET_CLASH_DISTANCE
+                ):
+                    removed.update((first_index, second_index))
+                    events.append(EngineEvent("bullet_clash"))
+                    break
+        return events
+
+    def _collect_bullet_impacts(
+        self,
+        removed: set[int],
+        hits: list[tuple[str, int, str]],
+    ) -> list[EngineEvent]:
+        events: list[EngineEvent] = []
+        bricks_hit: set[tuple[int, int]] = set()
+        for index, bullet in enumerate(self.bullets):
+            if index in removed:
+                continue
+            tile_x, tile_y = math.floor(bullet.x), math.floor(bullet.y)
+            if not (0 <= tile_x < ARENA_COLS and 0 <= tile_y < ARENA_ROWS):
+                removed.add(index)
+                continue
+            terrain = self.arena.rows[tile_y][tile_x]
+            if terrain == Terrain.BRICK.value:
+                bricks_hit.add((tile_x, tile_y))
+                removed.add(index)
+                events.append(EngineEvent("brick_hit", bullet.owner))
+                continue
+            if terrain == Terrain.STEEL.value:
+                removed.add(index)
+                continue
+            for target, tank in self.tanks.items():
+                if target == bullet.owner or tank.hp <= 0:
+                    continue
+                if (
+                    abs(bullet.x - tank.x) <= self.TANK_HALF_SIZE
+                    and abs(bullet.y - tank.y) <= self.TANK_HALF_SIZE
+                ):
+                    removed.add(index)
+                    hits.append((target, 1, bullet.owner))
+                    events.append(
+                        EngineEvent("tank_hit", target, {"attacker": bullet.owner})
+                    )
+                    break
+        for tile_x, tile_y in bricks_hit:
+            self._replace_tile(tile_x, tile_y, Terrain.EMPTY.value)
+        return events
+
+    def _replace_tile(self, x: int, y: int, value: str) -> None:
+        row = self.arena.rows[y]
+        if isinstance(row, str):
+            self.arena.rows[y] = row[:x] + value + row[x + 1 :]
+        else:
+            row[x] = value
+
+    def _resolve_damage_batch(
+        self, hits: list[tuple[str, int, str]]
+    ) -> list[EngineEvent]:
+        damage = {"red": 0, "blue": 0}
+        attackers: dict[str, list[str]] = {"red": [], "blue": []}
+        for target, amount, attacker in hits:
+            damage[target] += amount
+            attackers[target].append(attacker)
+
+        events: list[EngineEvent] = []
+        destroyed: list[str] = []
+        for target in ("red", "blue"):
+            if not damage[target]:
+                continue
+            tank = self.tanks[target]
+            was_alive = tank.hp > 0
+            tank.hp = max(0, tank.hp - damage[target])
+            if was_alive and tank.hp == 0:
+                destroyed.append(target)
+
+        for target in destroyed:
+            attacker = attackers[target][0]
+            self.score[attacker] += 1
+            events.append(
+                EngineEvent("tank_destroyed", target, {"attacker": attacker})
+            )
+        return events
 
     @staticmethod
     def _normalized_move(command: PlayerCommand) -> tuple[float, float]:
@@ -195,6 +343,7 @@ __all__ = [
     "ARENA_COLS",
     "ARENA_ROWS",
     "Arena",
+    "BulletState",
     "EngineEvent",
     "ItemType",
     "PlayerCommand",
