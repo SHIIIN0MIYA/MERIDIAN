@@ -7,11 +7,16 @@ from enum import Enum
 from itertools import permutations
 import math
 import random
+from collections.abc import Mapping as MappingABC, Sequence
 from typing import Literal, Mapping
 
 
 ARENA_COLS = 24
 ARENA_ROWS = 12
+
+
+class TankSnapshotError(ValueError):
+    """Raised when a tank battle snapshot is malformed or unsupported."""
 
 
 class Terrain(str, Enum):
@@ -163,6 +168,7 @@ _ARENA_ROWS = [
 
 
 class TankBattleEngine:
+    SNAPSHOT_VERSION = 1
     STEP_MS = 16
     MOVE_SPEED = 0.004
     BULLET_SPEED = 0.006
@@ -295,7 +301,13 @@ class TankBattleEngine:
 
     def to_dict(self) -> dict[str, object]:
         return {
+            "version": self.SNAPSHOT_VERSION,
             "seed": self.seed,
+            "arena": {
+                "cols": ARENA_COLS,
+                "row_count": ARENA_ROWS,
+                "rows": ["".join(row) for row in self.arena.rows],
+            },
             "paused": self.paused,
             "elapsed_ms": self.elapsed_ms,
             "remaining_ms": self.remaining_ms,
@@ -346,7 +358,146 @@ class TankBattleEngine:
                 {"owner": mine.owner, "x": mine.x, "y": mine.y}
                 for mine in self.mines
             ],
+            "rng_state": _json_list(self._rng.getstate()),
         }
+
+    @classmethod
+    def from_dict(cls, data: Mapping[str, object]) -> TankBattleEngine:
+        """Restore a battle from a validated, versioned JSON snapshot."""
+        try:
+            root = _snapshot_mapping(data, "snapshot")
+            if _snapshot_int(root, "version", 1, 1) != cls.SNAPSHOT_VERSION:
+                raise TankSnapshotError("unsupported snapshot version")
+
+            seed = _snapshot_int(root, "seed")
+            arena_data = _snapshot_mapping(root.get("arena"), "arena")
+            if _snapshot_int(arena_data, "cols") != ARENA_COLS:
+                raise TankSnapshotError("arena width does not match engine")
+            if _snapshot_int(arena_data, "row_count") != ARENA_ROWS:
+                raise TankSnapshotError("arena height does not match engine")
+            raw_rows = _snapshot_sequence(arena_data.get("rows"), "arena.rows")
+            if len(raw_rows) != ARENA_ROWS:
+                raise TankSnapshotError("arena has the wrong number of rows")
+            terrain_values = {terrain.value for terrain in Terrain}
+            rows: list[str] = []
+            for row in raw_rows:
+                if not isinstance(row, str) or len(row) != ARENA_COLS:
+                    raise TankSnapshotError("arena row has the wrong width")
+                if any(tile not in terrain_values for tile in row):
+                    raise TankSnapshotError("arena contains invalid terrain")
+                rows.append(row)
+
+            tank_data = _snapshot_mapping(root.get("tanks"), "tanks")
+            player_ids = {"red", "blue"}
+            if set(tank_data) != player_ids:
+                raise TankSnapshotError("snapshot must contain red and blue tanks")
+            tanks: dict[str, TankState] = {}
+            for player_id in ("red", "blue"):
+                raw = _snapshot_mapping(tank_data[player_id], f"tanks.{player_id}")
+                held_value = raw.get("held_item")
+                held_item = (
+                    None
+                    if held_value is None
+                    else _snapshot_enum(ItemType, held_value, "held_item")
+                )
+                tanks[player_id] = TankState(
+                    player_id,
+                    _snapshot_number(raw, "x", 0, ARENA_COLS),
+                    _snapshot_number(raw, "y", 0, ARENA_ROWS),
+                    _snapshot_int(raw, "facing_x", -1, 1),
+                    _snapshot_int(raw, "facing_y", -1, 1),
+                    _snapshot_int(raw, "hp", 0, 3),
+                    held_item,
+                    _snapshot_int(raw, "shield_until_ms", 0),
+                    _snapshot_int(raw, "speed_until_ms", 0),
+                    _snapshot_int(raw, "protected_until_ms", 0),
+                    _snapshot_int(raw, "fire_locked_until_ms", 0),
+                )
+
+            score_data = _snapshot_mapping(root.get("score"), "score")
+            fire_data = _snapshot_mapping(root.get("fire_elapsed_ms"), "fire_elapsed_ms")
+            if set(score_data) != player_ids or set(fire_data) != player_ids:
+                raise TankSnapshotError("score and cooldowns require both player IDs")
+
+            bullets = []
+            for raw_value in _snapshot_sequence(root.get("bullets"), "bullets"):
+                raw = _snapshot_mapping(raw_value, "bullet")
+                owner = _snapshot_player(raw.get("owner"), "bullet owner")
+                bullets.append(
+                    BulletState(
+                        owner,
+                        _snapshot_number(raw, "x", -1, ARENA_COLS + 1),
+                        _snapshot_number(raw, "y", -1, ARENA_ROWS + 1),
+                        _snapshot_number(raw, "dx", -1, 1),
+                        _snapshot_number(raw, "dy", -1, 1),
+                    )
+                )
+
+            mines = []
+            for raw_value in _snapshot_sequence(root.get("mines"), "mines"):
+                raw = _snapshot_mapping(raw_value, "mine")
+                mines.append(
+                    MineState(
+                        _snapshot_player(raw.get("owner"), "mine owner"),
+                        _snapshot_number(raw, "x", 0, ARENA_COLS),
+                        _snapshot_number(raw, "y", 0, ARENA_ROWS),
+                    )
+                )
+
+            pickup_value = root.get("pickup")
+            pickup = None
+            if pickup_value is not None:
+                raw = _snapshot_mapping(pickup_value, "pickup")
+                pickup = PickupState(
+                    _snapshot_enum(ItemType, raw.get("item"), "pickup item"),
+                    _snapshot_number(raw, "x", 0, ARENA_COLS),
+                    _snapshot_number(raw, "y", 0, ARENA_ROWS),
+                )
+
+            phase = _snapshot_enum(MatchPhase, root.get("phase"), "phase")
+            winner_value = root.get("winner")
+            winner = None if winner_value is None else _snapshot_player(winner_value, "winner")
+            paused = root.get("paused")
+            if not isinstance(paused, bool):
+                raise TankSnapshotError("paused must be a boolean")
+
+            engine = cls(seed=seed)
+            engine.arena = Arena(rows)
+            engine.tanks = tanks
+            engine.bullets = bullets
+            engine.score = {
+                player_id: _snapshot_int(score_data, player_id, 0)
+                for player_id in ("red", "blue")
+            }
+            engine.pickup = pickup
+            engine.mines = mines
+            engine.elapsed_ms = _snapshot_int(root, "elapsed_ms", 0)
+            engine.remaining_ms = _snapshot_int(
+                root, "remaining_ms", 0, cls.MATCH_DURATION_MS
+            )
+            engine.phase = phase
+            engine.winner = winner
+            engine.paused = paused
+            engine.next_pickup_ms = _snapshot_int(root, "next_pickup_ms", 0)
+            engine._fire_elapsed_ms = {
+                player_id: _snapshot_int(fire_data, player_id, 0)
+                for player_id in ("red", "blue")
+            }
+            engine._accumulator_ms = _snapshot_int(
+                root, "accumulator_ms", 0, cls.STEP_MS - 1
+            )
+            music_phase = root.get("music_phase")
+            if music_phase not in {"normal", "final", "sprint", "sudden"}:
+                raise TankSnapshotError("invalid music_phase")
+            if music_phase != engine.music_phase:
+                raise TankSnapshotError("music_phase is inconsistent with match state")
+            rng_state = _tuple_tree(root.get("rng_state"))
+            engine._rng.setstate(rng_state)
+            return engine
+        except TankSnapshotError:
+            raise
+        except (KeyError, TypeError, ValueError, OverflowError) as exc:
+            raise TankSnapshotError(f"invalid tank snapshot: {exc}") from exc
 
     def _expire_effects(self) -> None:
         for tank in self.tanks.values():
@@ -722,6 +873,78 @@ def _direction(component: float) -> int:
     return 0
 
 
+def _json_list(value: object) -> object:
+    if isinstance(value, tuple):
+        return [_json_list(item) for item in value]
+    return value
+
+
+def _tuple_tree(value: object) -> tuple:
+    if not isinstance(value, list):
+        raise TankSnapshotError("rng_state must use JSON arrays")
+    return tuple(_tuple_tree(item) if isinstance(item, list) else item for item in value)
+
+
+def _snapshot_mapping(value: object, name: str) -> MappingABC[str, object]:
+    if not isinstance(value, MappingABC) or any(
+        not isinstance(key, str) for key in value
+    ):
+        raise TankSnapshotError(f"{name} must be an object")
+    return value
+
+
+def _snapshot_sequence(value: object, name: str) -> Sequence[object]:
+    if not isinstance(value, Sequence) or isinstance(value, (str, bytes, bytearray)):
+        raise TankSnapshotError(f"{name} must be an array")
+    return value
+
+
+def _snapshot_int(
+    data: MappingABC[str, object],
+    key: str,
+    minimum: int | None = None,
+    maximum: int | None = None,
+) -> int:
+    value = data.get(key)
+    if isinstance(value, bool) or not isinstance(value, int):
+        raise TankSnapshotError(f"{key} must be an integer")
+    if minimum is not None and value < minimum:
+        raise TankSnapshotError(f"{key} is below its minimum")
+    if maximum is not None and value > maximum:
+        raise TankSnapshotError(f"{key} is above its maximum")
+    return value
+
+
+def _snapshot_number(
+    data: MappingABC[str, object],
+    key: str,
+    minimum: float,
+    maximum: float,
+) -> float:
+    value = data.get(key)
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        raise TankSnapshotError(f"{key} must be numeric")
+    result = float(value)
+    if not math.isfinite(result) or not minimum <= result <= maximum:
+        raise TankSnapshotError(f"{key} is outside its allowed range")
+    return result
+
+
+def _snapshot_enum(enum_type: type[Enum], value: object, name: str):
+    if not isinstance(value, str):
+        raise TankSnapshotError(f"{name} must be a string")
+    try:
+        return enum_type(value)
+    except ValueError as exc:
+        raise TankSnapshotError(f"invalid {name}") from exc
+
+
+def _snapshot_player(value: object, name: str) -> str:
+    if value not in {"red", "blue"}:
+        raise TankSnapshotError(f"invalid {name}")
+    return str(value)
+
+
 __all__ = [
     "ARENA_COLS",
     "ARENA_ROWS",
@@ -734,6 +957,7 @@ __all__ = [
     "PickupState",
     "PlayerCommand",
     "TankBattleEngine",
+    "TankSnapshotError",
     "TankState",
     "Terrain",
 ]
