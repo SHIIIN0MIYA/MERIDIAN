@@ -1,5 +1,6 @@
 import pygame
 import pytest
+from unittest.mock import patch
 
 from meridian.common import WINDOW_H, WINDOW_W
 from meridian.localization import set_language
@@ -136,6 +137,39 @@ def test_capture_and_restore_round_trip_uses_engine_snapshot(game):
     game._restore_tank_run_state(snapshot)
     assert game.tank_engine.score["red"] == 4
     assert game._capture_tank_run_state() == snapshot
+
+
+def test_pending_snapshot_changes_menu_to_continue_and_new_match(game):
+    game._pending_run_states = {"tank": game._capture_tank_run_state()}
+
+    buttons = game._tank_buttons("menu")
+
+    assert [(button["label"], button["action"]) for button in buttons[:2]] == [
+        ("CONTINUE", "continue"),
+        ("NEW MATCH", "start"),
+    ]
+
+
+def test_new_match_discards_pending_snapshot_and_resets_engine(game):
+    snapshot = game._capture_tank_run_state()
+    snapshot["score"]["red"] = 4
+    game._pending_run_states = {"tank": snapshot}
+
+    game._start_tank_battle()
+
+    assert "tank" not in game._pending_run_states
+    assert game.tank_engine.score == {"red": 0, "blue": 0}
+
+
+def test_tank_menu_draws_restore_failure_notice(game):
+    game.tank_restore_notice = "TANK SAVE COULD NOT BE RESTORED"
+
+    with patch("meridian.tank_battle.render_pixel_text", wraps=__import__(
+        "meridian.tank_battle", fromlist=["render_pixel_text"]
+    ).render_pixel_text) as render:
+        game._draw_tank_menu()
+
+    assert any(call.args[1] == game.tank_restore_notice for call in render.call_args_list)
 
 
 @pytest.mark.parametrize("state", ["menu", "controls", "playing", "end"])

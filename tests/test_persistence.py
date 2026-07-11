@@ -208,6 +208,34 @@ class RuntimePersistenceTests(unittest.TestCase):
         self.assertEqual(game.save_data["progress"]["snake"]["run_state"], {"kept": True})
         self.assertEqual(game.tank_restore_notice, "TANK SAVE COULD NOT BE RESTORED")
 
+    def test_valid_tank_snapshot_continues_from_menu_and_is_consumed(self):
+        source = Game()
+        source._start_tank_battle()
+        source.tank_engine.score["red"] = 4
+        source.tank_engine.remaining_ms = 123456
+        brick_row = next(index for index, value in enumerate(source.tank_engine.arena.rows) if "B" in value)
+        row = source.tank_engine.arena.rows[brick_row]
+        brick_col = row.index("B")
+        source.tank_engine.arena.rows[brick_row] = row[:brick_col] + "." + row[brick_col + 1:]
+        snapshot = source._capture_tank_run_state()
+        data = default_data()
+        data["progress"]["tank"] = {"run_active": True, "run_state": snapshot}
+        SaveManager(self.path).save(data)
+
+        game = Game()
+
+        self.assertEqual(game._tank_buttons("menu")[0]["action"], "continue")
+        game._tank_held = {pygame.K_w: 1}
+        game._tank_item_pulses = {"red": True, "blue": True}
+        game._continue_tank_battle()
+        self.assertEqual(game.state, game.TANK_PLAYING)
+        self.assertEqual(game.tank_engine.score["red"], 4)
+        self.assertEqual(game.tank_engine.remaining_ms, 123456)
+        self.assertEqual(game.tank_engine.arena.rows[brick_row][brick_col], ".")
+        self.assertNotIn("tank", game._pending_run_states)
+        self.assertEqual(game._tank_held, {})
+        self.assertEqual(game._tank_item_pulses, {"red": False, "blue": False})
+
 
 if __name__ == "__main__":
     unittest.main()

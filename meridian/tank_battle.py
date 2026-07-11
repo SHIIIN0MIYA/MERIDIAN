@@ -66,9 +66,17 @@ class TankBattleMixin:
         self._tank_key_clock = 0
         self._tank_held = {}
         self._tank_item_pulses = {"red": False, "blue": False}
+        self.tank_restore_notice = None
 
     def _tank_buttons(self, page):
         if page == "menu":
+            if "tank" in getattr(self, "_pending_run_states", {}):
+                return [
+                    arcade_button((520, 310, 240, 52), "CONTINUE", "continue"),
+                    arcade_button((520, 374, 240, 52), "NEW MATCH", "start"),
+                    arcade_button((520, 438, 240, 52), "CONTROLS", "controls"),
+                    arcade_button((520, 502, 240, 52), "DESKTOP", "desktop"),
+                ]
             return [
                 arcade_button((520, 350, 240, 52), "START DUEL", "start"),
                 arcade_button((520, 424, 240, 52), "CONTROLS", "controls"),
@@ -80,8 +88,17 @@ class TankBattleMixin:
         ]
 
     def _start_tank_battle(self):
+        getattr(self, "_pending_run_states", {}).pop("tank", None)
         self.tank_engine = TankBattleEngine()
         self.tank_paused = False
+        self._tank_held.clear()
+        self._tank_item_pulses = {"red": False, "blue": False}
+        self.state = getattr(self, "TANK_PLAYING", "tank_playing")
+
+    def _continue_tank_battle(self):
+        snapshot = getattr(self, "_pending_run_states", {}).pop("tank", None)
+        if snapshot is not None:
+            self._restore_tank_run_state(snapshot)
         self._tank_held.clear()
         self._tank_item_pulses = {"red": False, "blue": False}
         self.state = getattr(self, "TANK_PLAYING", "tank_playing")
@@ -91,6 +108,7 @@ class TankBattleMixin:
             self._go_desktop()
             return
         actions = {
+            "continue": self._continue_tank_battle,
             "start": self._start_tank_battle,
             "controls": lambda: setattr(self, "state", getattr(self, "TANK_CONTROLS", "tank_controls")),
             "desktop": self._go_desktop,
@@ -197,6 +215,11 @@ class TankBattleMixin:
         mouse = self._logical_mouse_pos()
         for button in self._tank_buttons("menu"):
             draw_arcade_button(self, button, TANK_PALETTE, button["rect"].collidepoint(mouse), self.tank_pressed_action == button["action"])
+        if self.tank_restore_notice:
+            notice = render_pixel_text(
+                self.font_status, self.tank_restore_notice, C.TANK_ACCENT_LIGHT, scale=2,
+            )
+            self.screen.blit(notice, (outer.centerx - notice.get_width() // 2, 580))
 
     def _draw_tank_controls(self):
         draw_arcade_frame(self, "CONTROLS", "TWO CREWS / ONE KEYBOARD", TANK_PALETTE)
