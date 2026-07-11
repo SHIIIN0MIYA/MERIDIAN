@@ -67,6 +67,12 @@ class TankBattleMixin:
         self._tank_held = {}
         self._tank_item_pulses = {"red": False, "blue": False}
         self.tank_restore_notice = None
+        self._tank_match_stats_recorded = False
+        self._tank_match_shots = 0
+        self._tank_match_hits = 0
+        self._tank_was_behind = {"red": False, "blue": False}
+        self._tank_overdrive_kills = {"red": 0, "blue": 0}
+        self._tank_in_sudden_death = False
 
     def _tank_buttons(self, page):
         if page == "menu":
@@ -93,6 +99,15 @@ class TankBattleMixin:
         self.tank_paused = False
         self._tank_held.clear()
         self._tank_item_pulses = {"red": False, "blue": False}
+        self._tank_match_stats_recorded = False
+        self._tank_match_shots = 0
+        self._tank_match_hits = 0
+        self._tank_was_behind = {"red": False, "blue": False}
+        self._tank_overdrive_kills = {"red": 0, "blue": 0}
+        self._tank_in_sudden_death = False
+        record = getattr(self, "_record_stat", None)
+        if record:
+            record("tank", "games_started")
         self.state = getattr(self, "TANK_PLAYING", "tank_playing")
 
     def _continue_tank_battle(self):
@@ -170,6 +185,10 @@ class TankBattleMixin:
             self._tank_item_pulses = {"red": False, "blue": False}
             return
         commands = {player: self._tank_command(player) for player in ("red", "blue")}
+        self._tank_shields_before_update = {
+            player for player, tank in self.tank_engine.tanks.items()
+            if tank.shield_until_ms > self.tank_engine.elapsed_ms
+        }
         events = self.tank_engine.update(max(0, int(dt_ms)), commands)
         self._handle_tank_engine_events(events)
         if self.tank_engine.phase is MatchPhase.ENDED:
@@ -188,6 +207,7 @@ class TankBattleMixin:
 
     def _handle_tank_engine_events(self, events):
         for event in events:
+            self._record_tank_engine_event(event)
             sound = _SOUNDS.get(event.kind)
             if sound:
                 self.audio.play(sound)
@@ -199,6 +219,63 @@ class TankBattleMixin:
                     for index in range(6):
                         angle = index * math.tau / 6
                         self.tank_particles.append({"x": tank.x, "y": tank.y, "vx": math.cos(angle) * .05, "vy": math.sin(angle) * .05, "life": 14})
+
+    def _record_tank_engine_event(self, event):
+        record = getattr(self, "_record_stat", None)
+        if not record:
+            return
+        if event.kind == "shot":
+            self._tank_match_shots += 1
+            record("tank", "shots_fired")
+        elif event.kind == "tank_hit":
+            self._tank_match_hits += 1
+            record("tank", "hits")
+            if event.player_id in getattr(self, "_tank_shields_before_update", set()):
+                record("tank", "shield_blocks")
+        elif event.kind == "brick_hit":
+            record("tank", "bricks_destroyed")
+        elif event.kind == "pickup":
+            record("tank", "items_picked_up")
+        elif event.kind == "item_used":
+            record("tank", "items_used")
+            item = str(event.data.get("item", ""))
+            if item in {"repair", "shield", "speed", "mine"}:
+                record("tank", f"{item}_uses")
+            if item == "speed":
+                self._tank_overdrive_kills[event.player_id] = 0
+        elif event.kind == "mine_triggered":
+            record("tank", "mine_hits")
+        elif event.kind == "sudden_death":
+            self._tank_in_sudden_death = True
+        elif event.kind == "tank_destroyed":
+            attacker = str(event.data.get("attacker", ""))
+            record("tank", "kills")
+            tank = self.tank_engine.tanks.get(attacker)
+            if tank and tank.hp == 1:
+                record("tank", "iron_will_kills")
+            if tank and tank.speed_until_ms > self.tank_engine.elapsed_ms:
+                self._tank_overdrive_kills[attacker] += 1
+                if self._tank_overdrive_kills[attacker] == 2:
+                    record("tank", "overdrive_double_kills")
+            for player in ("red", "blue"):
+                enemy = "blue" if player == "red" else "red"
+                self._tank_was_behind[player] |= self.tank_engine.score[player] < self.tank_engine.score[enemy]
+        elif event.kind == "match_ended" and not self._tank_match_stats_recorded:
+            self._tank_match_stats_recorded = True
+            winner = event.player_id
+            record("tank", "matches_completed")
+            if winner in {"red", "blue"}:
+                record("tank", "wins")
+                record("tank", f"{winner}_wins")
+                if self._tank_in_sudden_death:
+                    record("tank", "sudden_wins")
+                if self._tank_was_behind[winner]:
+                    record("tank", "comeback_wins")
+            if self._tank_match_shots >= 10 and self._tank_match_hits * 2 >= self._tank_match_shots:
+                record("tank", "accurate_matches")
+            clear = getattr(self, "_clear_run_state", None)
+            if clear:
+                clear("tank")
 
     def _capture_tank_run_state(self):
         return self.tank_engine.to_dict()

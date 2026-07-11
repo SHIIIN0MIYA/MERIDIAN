@@ -206,6 +206,30 @@ class ArchitectureSmokeTests(unittest.TestCase):
         self.assertEqual(game._tank_held, {})
         self.assertEqual(game._tank_item_pulses, {"red": False, "blue": False})
 
+    def test_tank_match_statistics_are_accumulated_once(self):
+        from meridian.tank_engine import EngineEvent
+
+        game = Game()
+        game._start_tank_battle()
+        game._handle_tank_engine_events([
+            *[EngineEvent("shot", "red") for _ in range(10)],
+            *[EngineEvent("tank_hit", "blue", {"attacker": "red"}) for _ in range(5)],
+            EngineEvent("brick_hit", "red"),
+            EngineEvent("item_used", "red", {"item": "shield"}),
+            EngineEvent("mine_triggered", "blue", {"owner": "red"}),
+            EngineEvent("match_ended", "red"),
+            EngineEvent("match_ended", "red"),
+        ])
+        stats = game.save_data["statistics"]["tank"]
+        self.assertEqual(stats["shots_fired"], 10)
+        self.assertEqual(stats["hits"], 5)
+        self.assertEqual(stats["bricks_destroyed"], 1)
+        self.assertEqual(stats["shield_uses"], 1)
+        self.assertEqual(stats["mine_hits"], 1)
+        self.assertEqual(stats["matches_completed"], 1)
+        self.assertEqual(stats["wins"], 1)
+        self.assertEqual(stats["accurate_matches"], 1)
+
     def test_password_keypad_does_not_cover_bottom_hint(self):
         game = Game()
         screen_rect = pygame.Rect(70, 70, WINDOW_W - 140, WINDOW_H - 140).inflate(-36, -36)

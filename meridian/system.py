@@ -59,6 +59,18 @@ ACHIEVEMENTS = [
     ("air_challenge_clear", "HARD SIGNAL", "Clear one challenge mission", "air", "challenge_clears", 1),
     ("air_challenge_campaign", "NO SAFE SKY", "Complete Challenge Campaign", "air", "challenge_campaigns_completed", 1),
     ("air_boss_rush", "EIGHT COMMANDS", "Complete Boss Rush", "air", "boss_rush_clears", 1),
+    ("tank_first_clash", "FIRST CLASH", "Complete one Tank Duel match", "tank", "matches_completed", 1),
+    ("tank_first_victory", "FIRST VICTORY", "Win one Tank Duel match", "tank", "wins", 1),
+    ("tank_sharpshooter", "SHARPSHOOTER", "Hit at least half of 10 or more shots", "tank", "accurate_matches", 1),
+    ("tank_demolition", "DEMOLITION CREW", "Destroy 100 brick walls", "tank", "bricks_destroyed", 100),
+    ("tank_arsenal_master", "ARSENAL MASTER", "Use all four item types", "tank", "item_variety", 4),
+    ("tank_iron_will", "IRON WILL", "Score a kill while at one health", "tank", "iron_will_kills", 1),
+    ("tank_sudden_victor", "SUDDEN VICTOR", "Win in sudden death", "tank", "sudden_wins", 1),
+    ("tank_mine_expert", "MINE EXPERT", "Hit enemies with 20 mines", "tank", "mine_hits", 20),
+    ("tank_shield_wall", "SHIELD WALL", "Block 25 hits with shields", "tank", "shield_blocks", 25),
+    ("tank_overdrive_ace", "OVERDRIVE ACE", "Score two kills during one overdrive", "tank", "overdrive_double_kills", 1),
+    ("tank_turnaround", "TURNAROUND", "Win after falling behind", "tank", "comeback_wins", 1),
+    ("tank_arena_legend", "ARENA LEGEND", "Complete 50 Tank Duel matches", "tank", "matches_completed", 50),
 ]
 
 
@@ -90,6 +102,7 @@ class SystemMixin:
         self.achievement_wall_detail_index = None
         self.achievement_wall_detail_frame = 0
         self.achievement_wall_detail_closing = False
+        self.achievement_wall_page = 0
         self._pending_run_states = {}
         self.tank_restore_notice = None
         self._last_persisted_snapshot = ""
@@ -333,6 +346,8 @@ class SystemMixin:
                 len(ratings) >= 16
                 and all(item.get("rank") == "S" for item in ratings.values())
             )
+        elif game == "tank" and key == "item_variety":
+            value = sum(stats.get(f"{item}_uses", 0) > 0 for item in ("repair", "shield", "speed", "mine"))
         else:
             value = stats.get(key, 0)
         return min(value, target), target
@@ -824,9 +839,12 @@ class SystemMixin:
         start_y = panel_y + 46
 
         badges = []
-        for index, definition in enumerate(ACHIEVEMENTS):
-            row = index // cols
-            col = index % cols
+        page = max(0, min(getattr(self, "achievement_wall_page", 0), (len(ACHIEVEMENTS) - 1) // 48))
+        page_start = page * 48
+        for local_index, definition in enumerate(ACHIEVEMENTS[page_start:page_start + 48]):
+            index = page_start + local_index
+            row = local_index // cols
+            col = local_index % cols
             x = start_x + col * (badge_w + gap)
             y = start_y + row * (badge_h + gap)
             rect = pygame.Rect(x, y, badge_w, badge_h)
@@ -839,6 +857,13 @@ class SystemMixin:
         self.achievement_wall_detail_closing = True
 
     def _handle_achievement_wall_event(self, event):
+        detail_open = self.achievement_wall_detail_index is not None
+        if event.type == pygame.KEYDOWN and not detail_open and event.key in (pygame.K_LEFT, pygame.K_RIGHT):
+            page_count = max(1, (len(ACHIEVEMENTS) + 47) // 48)
+            delta = -1 if event.key == pygame.K_LEFT else 1
+            self.achievement_wall_page = max(0, min(page_count - 1, self.achievement_wall_page + delta))
+            self.achievement_wall_pressed_index = None
+            return
         if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
             if self.achievement_wall_detail_index is not None and not self.achievement_wall_detail_closing:
                 self._start_achievement_wall_close()
@@ -859,6 +884,13 @@ class SystemMixin:
                     self._start_achievement_wall_close()
                     return
                 return
+            prev_rect, next_rect = self._get_achievement_wall_page_rects()
+            if prev_rect.collidepoint(event.pos) and self.achievement_wall_page > 0:
+                self.achievement_wall_page -= 1
+                return
+            if next_rect.collidepoint(event.pos) and (self.achievement_wall_page + 1) * 48 < len(ACHIEVEMENTS):
+                self.achievement_wall_page += 1
+                return
             # Normal badge selection
             for badge in badges:
                 if badge["rect"].collidepoint(event.pos):
@@ -875,6 +907,9 @@ class SystemMixin:
                         self.achievement_wall_detail_closing = False
                         break
                 self.achievement_wall_pressed_index = None
+
+    def _get_achievement_wall_page_rects(self):
+        return pygame.Rect(94, WINDOW_H - 91, 84, 24), pygame.Rect(WINDOW_W - 178, WINDOW_H - 91, 84, 24)
 
     def _get_achievement_wall_detail_rect(self, badges):
         panel_w = 540
@@ -1032,7 +1067,7 @@ class SystemMixin:
         pygame.draw.line(self.screen, C.OUTLINE, (sep_x + 2, sep_y + 3), (sep_x + sep_w - 2, sep_y + 3), 1)
 
         badges = self._get_achievement_wall_badges()
-        unlocked_count = sum(1 for b in badges if self.save_data["achievements"].get(b["definition"][0]))
+        unlocked_count = sum(1 for definition in ACHIEVEMENTS if self.save_data["achievements"].get(definition[0]))
 
         for badge in badges:
             selected = badge["index"] == self.achievement_wall_detail_index
@@ -1044,8 +1079,16 @@ class SystemMixin:
         pygame.draw.rect(self.screen, C.DESK_PANEL_DARK, footer_rect.inflate(-2, -2))
         pygame.draw.line(self.screen, C.DESK_ACCENT, (footer_rect.x + 1, footer_rect.y + 1), (footer_rect.right - 1, footer_rect.y + 1), 1)
 
-        footer = render_pixel_text(self.font_small, f"UNLOCKED {unlocked_count} / 48", C.DESK_MUTED, scale=2)
+        page_count = max(1, (len(ACHIEVEMENTS) + 47) // 48)
+        footer = render_pixel_text(self.font_small, f"UNLOCKED {unlocked_count} / {len(ACHIEVEMENTS)}   {self.achievement_wall_page + 1} / {page_count}", C.DESK_MUTED, scale=2)
         self.screen.blit(footer, (footer_rect.centerx - footer.get_width() // 2, footer_rect.centery - footer.get_height() // 2))
+
+        prev_rect, next_rect = self._get_achievement_wall_page_rects()
+        for rect, label, enabled in ((prev_rect, "PREV", self.achievement_wall_page > 0), (next_rect, "NEXT", self.achievement_wall_page + 1 < page_count)):
+            pygame.draw.rect(self.screen, C.DESK_PANEL, rect)
+            pygame.draw.rect(self.screen, C.GOLD_DARK if enabled else C.OUTLINE, rect, 2)
+            text = render_pixel_text(self.font_small, label, C.GOLD_LIGHT if enabled else C.DESK_MUTED, scale=1)
+            self.screen.blit(text, (rect.centerx - text.get_width() // 2, rect.centery - text.get_height() // 2))
 
         esc_text = render_pixel_text(self.font_small, "ESC RETURN", C.DESK_MUTED, scale=1)
         self.screen.blit(esc_text, (footer_rect.right - esc_text.get_width() - 8, footer_rect.centery - esc_text.get_height() // 2))
@@ -1065,7 +1108,7 @@ class SystemMixin:
 
     def _draw_achievement_wall_detail(self, badges):
         source_index = self.achievement_wall_detail_index
-        source = badges[source_index]
+        source = next(badge for badge in badges if badge["index"] == source_index)
         definition = source["definition"]
         aid, title, description, game_key, stat_key, target = definition
 
