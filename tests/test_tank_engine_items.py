@@ -88,6 +88,47 @@ def test_shield_absorbs_exactly_one_hit_and_expires_after_15000_ms():
     assert tank.hp == 1
 
 
+def test_same_frame_multi_hit_consumes_shield_once_and_emits_one_block():
+    engine = TankBattleEngine(seed=3)
+    red = engine.tanks["red"]
+    red.shield_until_ms = 10_000
+    engine.bullets = [
+        BulletState("blue", red.x, red.y, 0.0, 0.0),
+        BulletState("blue", red.x, red.y, 0.0, 0.0),
+    ]
+
+    events = engine.update(16, commands())
+
+    blocks = [event for event in events if event.kind == "shield_blocked"]
+    assert engine.tanks["red"].hp == 2
+    assert len(blocks) == 1
+    assert blocks[0].player_id == "red"
+    assert blocks[0].data == {"attacker": "blue", "source": "bullet"}
+
+
+def test_mine_damage_block_emits_one_block_with_mine_source():
+    engine = TankBattleEngine(seed=3)
+    red = engine.tanks["red"]
+    red.shield_until_ms = 10_000
+    engine.mines = [MineState("blue", red.x, red.y)]
+
+    events = engine.update(16, commands())
+
+    assert engine.tanks["red"].hp == 3
+    assert any(event.kind == "mine_triggered" for event in events)
+    assert [event.data for event in events if event.kind == "shield_blocked"] == [
+        {"attacker": "blue", "source": "mine"}
+    ]
+
+
+def test_unshielded_damage_emits_no_block_event():
+    engine = TankBattleEngine(seed=3)
+
+    events = engine._resolve_damage_batch([("red", 1, "blue", "bullet")])
+
+    assert all(event.kind != "shield_blocked" for event in events)
+
+
 def test_speed_boost_is_exactly_1_25_and_lasts_6000_ms():
     normal = TankBattleEngine(seed=3)
     boosted = pickup_engine(ItemType.SPEED)

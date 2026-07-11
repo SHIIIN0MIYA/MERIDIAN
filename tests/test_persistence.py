@@ -208,6 +208,21 @@ class RuntimePersistenceTests(unittest.TestCase):
         game._handle_achievement_wall_event(pygame.event.Event(pygame.KEYDOWN, key=pygame.K_LEFT))
         self.assertEqual(game.achievement_wall_page, 0)
 
+    def test_achievement_wall_mouse_paging_preserves_badge_size(self):
+        game = Game()
+        first_size = game._get_achievement_wall_badges()[0]["rect"].size
+        _, next_rect = game._get_achievement_wall_page_rects()
+        game._handle_achievement_wall_event(pygame.event.Event(
+            pygame.MOUSEBUTTONDOWN, button=1, pos=next_rect.center,
+        ))
+        self.assertEqual(game.achievement_wall_page, 1)
+        self.assertTrue(all(badge["rect"].size == first_size for badge in game._get_achievement_wall_badges()))
+        prev_rect, _ = game._get_achievement_wall_page_rects()
+        game._handle_achievement_wall_event(pygame.event.Event(
+            pygame.MOUSEBUTTONDOWN, button=1, pos=prev_rect.center,
+        ))
+        self.assertEqual(game.achievement_wall_page, 0)
+
     def test_gomoku_completion_is_not_double_counted(self):
         game = Game()
         game._start_new_game()

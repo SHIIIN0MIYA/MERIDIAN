@@ -139,6 +139,59 @@ def test_capture_and_restore_round_trip_uses_engine_snapshot(game):
     assert game._capture_tank_run_state() == snapshot
 
 
+def test_restore_accepts_legacy_raw_engine_snapshot(game):
+    legacy = game.tank_engine.to_dict()
+    legacy["score"]["red"] = 3
+
+    game._restore_tank_run_state(legacy)
+
+    assert game.tank_engine.score["red"] == 3
+    assert game._tank_match_shots == 0
+    assert game._tank_match_stats_recorded is False
+
+
+def test_tracking_survives_restore_and_match_end_is_idempotent(game):
+    recorded = []
+    game._record_stat = lambda game_id, key, amount=1, mode="add": recorded.append((key, amount))
+    game._tank_match_shots = 10
+    game._tank_match_hits = 5
+    game._tank_was_behind = {"red": True, "blue": False}
+    game._tank_overdrive_kills = {"red": 1, "blue": 0}
+    game._tank_in_sudden_death = True
+    game.tank_engine.tanks["red"].speed_until_ms = 10_000
+    snapshot = game._capture_tank_run_state()
+
+    restored = type(game)()
+    restored.audio = RecordingAudio()
+    restored._init_tank_battle()
+    restored._record_stat = game._record_stat
+    restored._restore_tank_run_state(snapshot)
+    restored._handle_tank_engine_events([
+        EngineEvent("tank_destroyed", "blue", {"attacker": "red"}),
+        EngineEvent("match_ended", "red"),
+        EngineEvent("match_ended", "red"),
+    ])
+
+    keys = [key for key, _ in recorded]
+    assert keys.count("overdrive_double_kills") == 1
+    assert keys.count("accurate_matches") == 1
+    assert keys.count("comeback_wins") == 1
+    assert keys.count("sudden_wins") == 1
+    assert keys.count("matches_completed") == 1
+
+
+def test_only_shield_blocked_event_records_a_shield_block(game):
+    recorded = []
+    game._record_stat = lambda game_id, key, amount=1, mode="add": recorded.append(key)
+
+    game._handle_tank_engine_events([
+        EngineEvent("tank_hit", "red", {"attacker": "blue"}),
+        EngineEvent("shield_blocked", "red", {"attacker": "blue", "source": "bullet"}),
+    ])
+
+    assert recorded.count("shield_blocks") == 1
+
+
 def test_pending_snapshot_changes_menu_to_continue_and_new_match(game):
     game._pending_run_states = {"tank": game._capture_tank_run_state()}
 
@@ -152,7 +205,7 @@ def test_pending_snapshot_changes_menu_to_continue_and_new_match(game):
 
 def test_new_match_discards_pending_snapshot_and_resets_engine(game):
     snapshot = game._capture_tank_run_state()
-    snapshot["score"]["red"] = 4
+    snapshot["engine"]["score"]["red"] = 4
     game._pending_run_states = {"tank": snapshot}
 
     game._start_tank_battle()

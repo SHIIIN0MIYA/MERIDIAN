@@ -208,8 +208,10 @@ class ArchitectureSmokeTests(unittest.TestCase):
 
     def test_tank_match_statistics_are_accumulated_once(self):
         from meridian.tank_engine import EngineEvent
+        from meridian.persistence import default_statistics
 
         game = Game()
+        game.save_data["statistics"]["tank"] = default_statistics()["tank"]
         game._start_tank_battle()
         game._handle_tank_engine_events([
             *[EngineEvent("shot", "red") for _ in range(10)],
@@ -229,6 +231,19 @@ class ArchitectureSmokeTests(unittest.TestCase):
         self.assertEqual(stats["matches_completed"], 1)
         self.assertEqual(stats["wins"], 1)
         self.assertEqual(stats["accurate_matches"], 1)
+
+    def test_tank_accuracy_requires_ten_shots_and_half_hits(self):
+        from meridian.tank_engine import EngineEvent
+
+        for shots, hits in ((9, 9), (10, 4)):
+            game = Game()
+            game._start_tank_battle()
+            game._handle_tank_engine_events([
+                *[EngineEvent("shot", "red") for _ in range(shots)],
+                *[EngineEvent("tank_hit", "blue", {"attacker": "red"}) for _ in range(hits)],
+                EngineEvent("match_ended", "red"),
+            ])
+            self.assertEqual(game.save_data["statistics"]["tank"].get("accurate_matches", 0), 0)
 
     def test_password_keypad_does_not_cover_bottom_hint(self):
         game = Game()

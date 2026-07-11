@@ -237,7 +237,7 @@ class TankBattleEngine:
         self._move_bullets(dt_ms)
 
         removed: set[int] = set()
-        hits: list[tuple[str, int, str]] = []
+        hits: list[tuple[str, int, str, str]] = []
         mine_events, mine_hits = self._collect_mine_triggers()
         events.extend(mine_events)
         hits.extend(mine_hits)
@@ -516,10 +516,10 @@ class TankBattleEngine:
 
     def _collect_mine_triggers(
         self,
-    ) -> tuple[list[EngineEvent], list[tuple[str, int, str]]]:
+    ) -> tuple[list[EngineEvent], list[tuple[str, int, str, str]]]:
         triggered: set[int] = set()
         events: list[EngineEvent] = []
-        hits: list[tuple[str, int, str]] = []
+        hits: list[tuple[str, int, str, str]] = []
         for index, mine in enumerate(self.mines):
             targets = sorted(
                 player_id
@@ -533,7 +533,7 @@ class TankBattleEngine:
                 continue
             target = targets[0]
             triggered.add(index)
-            hits.append((target, 1, mine.owner))
+            hits.append((target, 1, mine.owner, "mine"))
             events.append(
                 EngineEvent(
                     "mine_triggered",
@@ -640,7 +640,7 @@ class TankBattleEngine:
     def _collect_bullet_impacts(
         self,
         removed: set[int],
-        hits: list[tuple[str, int, str]],
+        hits: list[tuple[str, int, str, str]],
     ) -> list[EngineEvent]:
         events: list[EngineEvent] = []
         bricks_hit: set[tuple[int, int]] = set()
@@ -668,7 +668,7 @@ class TankBattleEngine:
                     and abs(bullet.y - tank.y) <= self.TANK_HALF_SIZE
                 ):
                     removed.add(index)
-                    hits.append((target, 1, bullet.owner))
+                    hits.append((target, 1, bullet.owner, "bullet"))
                     events.append(
                         EngineEvent("tank_hit", target, {"attacker": bullet.owner})
                     )
@@ -685,13 +685,17 @@ class TankBattleEngine:
             row[x] = value
 
     def _resolve_damage_batch(
-        self, hits: list[tuple[str, int, str]]
+        self, hits: list[tuple[str, int, str] | tuple[str, int, str, str]]
     ) -> list[EngineEvent]:
         damage = {"red": 0, "blue": 0}
         attackers: dict[str, list[str]] = {"red": [], "blue": []}
-        for target, amount, attacker in hits:
+        hit_sources: dict[str, list[tuple[str, str]]] = {"red": [], "blue": []}
+        for hit in hits:
+            target, amount, attacker = hit[:3]
+            source = hit[3] if len(hit) == 4 else "unknown"
             damage[target] += amount
             attackers[target].append(attacker)
+            hit_sources[target].append((source, attacker))
 
         events: list[EngineEvent] = []
         destroyed: list[str] = []
@@ -705,6 +709,11 @@ class TankBattleEngine:
             if tank.shield_until_ms > self.elapsed_ms:
                 damage[target] = max(0, damage[target] - 1)
                 tank.shield_until_ms = 0
+                source, attacker = sorted(hit_sources[target])[0]
+                events.append(EngineEvent(
+                    "shield_blocked", target,
+                    {"attacker": attacker, "source": source},
+                ))
             was_alive = tank.hp > 0
             tank.hp = max(0, tank.hp - damage[target])
             if was_alive and tank.hp == 0:

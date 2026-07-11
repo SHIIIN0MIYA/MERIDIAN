@@ -67,6 +67,9 @@ class TankBattleMixin:
         self._tank_held = {}
         self._tank_item_pulses = {"red": False, "blue": False}
         self.tank_restore_notice = None
+        self._reset_tank_tracking()
+
+    def _reset_tank_tracking(self):
         self._tank_match_stats_recorded = False
         self._tank_match_shots = 0
         self._tank_match_hits = 0
@@ -99,12 +102,7 @@ class TankBattleMixin:
         self.tank_paused = False
         self._tank_held.clear()
         self._tank_item_pulses = {"red": False, "blue": False}
-        self._tank_match_stats_recorded = False
-        self._tank_match_shots = 0
-        self._tank_match_hits = 0
-        self._tank_was_behind = {"red": False, "blue": False}
-        self._tank_overdrive_kills = {"red": 0, "blue": 0}
-        self._tank_in_sudden_death = False
+        self._reset_tank_tracking()
         record = getattr(self, "_record_stat", None)
         if record:
             record("tank", "games_started")
@@ -185,10 +183,6 @@ class TankBattleMixin:
             self._tank_item_pulses = {"red": False, "blue": False}
             return
         commands = {player: self._tank_command(player) for player in ("red", "blue")}
-        self._tank_shields_before_update = {
-            player for player, tank in self.tank_engine.tanks.items()
-            if tank.shield_until_ms > self.tank_engine.elapsed_ms
-        }
         events = self.tank_engine.update(max(0, int(dt_ms)), commands)
         self._handle_tank_engine_events(events)
         if self.tank_engine.phase is MatchPhase.ENDED:
@@ -230,8 +224,8 @@ class TankBattleMixin:
         elif event.kind == "tank_hit":
             self._tank_match_hits += 1
             record("tank", "hits")
-            if event.player_id in getattr(self, "_tank_shields_before_update", set()):
-                record("tank", "shield_blocks")
+        elif event.kind == "shield_blocked":
+            record("tank", "shield_blocks")
         elif event.kind == "brick_hit":
             record("tank", "bricks_destroyed")
         elif event.kind == "pickup":
@@ -278,10 +272,39 @@ class TankBattleMixin:
                 clear("tank")
 
     def _capture_tank_run_state(self):
-        return self.tank_engine.to_dict()
+        return {
+            "engine": self.tank_engine.to_dict(),
+            "tracking": {
+                "match_stats_recorded": self._tank_match_stats_recorded,
+                "match_shots": self._tank_match_shots,
+                "match_hits": self._tank_match_hits,
+                "was_behind": dict(self._tank_was_behind),
+                "overdrive_kills": dict(self._tank_overdrive_kills),
+                "in_sudden_death": self._tank_in_sudden_death,
+            },
+        }
 
     def _restore_tank_run_state(self, snapshot):
-        self.tank_engine = TankBattleEngine.from_dict(snapshot)
+        if isinstance(snapshot, dict) and "engine" in snapshot:
+            engine_snapshot = snapshot["engine"]
+            tracking = snapshot.get("tracking", {})
+        else:
+            engine_snapshot = snapshot
+            tracking = {}
+        self.tank_engine = TankBattleEngine.from_dict(engine_snapshot)
+        self._reset_tank_tracking()
+        if isinstance(tracking, dict):
+            self._tank_match_stats_recorded = bool(tracking.get("match_stats_recorded", False))
+            self._tank_match_shots = max(0, int(tracking.get("match_shots", 0)))
+            self._tank_match_hits = max(0, int(tracking.get("match_hits", 0)))
+            for key, attr in (("was_behind", "_tank_was_behind"), ("overdrive_kills", "_tank_overdrive_kills")):
+                values = tracking.get(key, {})
+                if isinstance(values, dict):
+                    setattr(self, attr, {
+                        player: (bool(values.get(player, False)) if key == "was_behind" else max(0, int(values.get(player, 0))))
+                        for player in ("red", "blue")
+                    })
+            self._tank_in_sudden_death = bool(tracking.get("in_sudden_death", False))
         self.tank_paused = self.tank_engine.paused
         self._tank_held.clear()
         self._tank_item_pulses = {"red": False, "blue": False}
