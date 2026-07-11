@@ -4,9 +4,10 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from enum import Enum
+from itertools import permutations
 import math
 import random
-from typing import Mapping
+from typing import Literal, Mapping
 
 
 ARENA_COLS = 24
@@ -245,7 +246,7 @@ class TankBattleEngine:
         return events
 
     @property
-    def music_phase(self) -> str:
+    def music_phase(self) -> Literal["normal", "final", "sprint", "sudden"]:
         if self.phase is MatchPhase.SUDDEN_DEATH:
             return "sudden"
         if self.remaining_ms <= 15_000:
@@ -443,9 +444,12 @@ class TankBattleEngine:
             self._fire_elapsed_ms[player_id] += dt_ms
             if tank.fire_locked_until_ms > self.elapsed_ms:
                 continue
-            if self._fire_elapsed_ms[player_id] < self.FIRE_INTERVAL_MS:
+            fire_interval_ms = (
+                430 if tank.speed_until_ms > self.elapsed_ms else self.FIRE_INTERVAL_MS
+            )
+            if self._fire_elapsed_ms[player_id] < fire_interval_ms:
                 continue
-            self._fire_elapsed_ms[player_id] -= self.FIRE_INTERVAL_MS
+            self._fire_elapsed_ms[player_id] -= fire_interval_ms
             owned = sum(bullet.owner == player_id for bullet in self.bullets)
             if owned >= self.MAX_BULLETS_PER_PLAYER:
                 continue
@@ -567,27 +571,31 @@ class TankBattleEngine:
         return events
 
     def _respawn_players(self, player_ids: list[str]) -> list[EngineEvent]:
-        chosen: dict[str, tuple[float, float]] = {}
-        reserved: set[tuple[float, float]] = set()
-        for player_id in sorted(player_ids):
-            enemy_id = "blue" if player_id == "red" else "red"
-            enemy = self.tanks[enemy_id]
-            scores = {
-                point: (
-                    float("-inf")
-                    if point in reserved
-                    else self._spawn_score(point, enemy)
-                )
-                for point in self.spawn_candidates
-            }
-            best_score = max(scores.values())
-            best = sorted(point for point, score in scores.items() if score == best_score)
-            point = best[0] if len(best) == 1 else self._rng.choice(best)
-            chosen[player_id] = point
-            reserved.add(point)
+        players = tuple(dict.fromkeys(player_ids))
+        assignments: list[
+            tuple[
+                tuple[float, float],
+                tuple[tuple[float, float], ...],
+            ]
+        ] = []
+        for points in permutations(self.spawn_candidates, len(players)):
+            scores = []
+            for player_id, point in zip(players, points):
+                enemy_id = "blue" if player_id == "red" else "red"
+                scores.append(self._spawn_score(point, self.tanks[enemy_id]))
+            objective = (min(scores), sum(scores))
+            assignments.append((objective, points))
+        best_objective = max(objective for objective, _ in assignments)
+        best_assignments = [
+            points
+            for objective, points in assignments
+            if objective == best_objective
+        ]
+        selected = self._rng.choice(best_assignments)
+        chosen = dict(zip(players, selected))
 
         events: list[EngineEvent] = []
-        for player_id in sorted(chosen):
+        for player_id in players:
             tank = self.tanks[player_id]
             tank.x, tank.y = chosen[player_id]
             tank.hp = 3
@@ -666,7 +674,7 @@ class TankBattleEngine:
             if move_x or move_y:
                 tank.facing_x = _direction(move_x)
                 tank.facing_y = _direction(move_y)
-            speed_multiplier = 1.5 if tank.speed_until_ms > self.elapsed_ms else 1.0
+            speed_multiplier = 1.25 if tank.speed_until_ms > self.elapsed_ms else 1.0
             distance = self.MOVE_SPEED * speed_multiplier * dt_ms
             candidate = (tank.x + move_x * distance, tank.y + move_y * distance)
             candidates[player_id] = (

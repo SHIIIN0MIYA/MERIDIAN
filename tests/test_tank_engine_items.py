@@ -1,4 +1,5 @@
 from itertools import permutations
+from typing import get_type_hints, Literal
 
 import pytest
 
@@ -87,20 +88,53 @@ def test_shield_absorbs_exactly_one_hit_and_expires_after_15000_ms():
     assert tank.hp == 1
 
 
-def test_speed_boost_lasts_6000_ms():
-    engine = pickup_engine(ItemType.SPEED)
-    tank = engine.tanks["red"]
-    engine.arena.rows = [list("." * 24) for _ in range(12)]
-    engine.update(16, commands(red_use=True))
-    start = tank.x
+def test_speed_boost_is_exactly_1_25_and_lasts_6000_ms():
+    normal = TankBattleEngine(seed=3)
+    boosted = pickup_engine(ItemType.SPEED)
+    normal.arena.rows = boosted.arena.rows = [list("." * 24) for _ in range(12)]
+    boosted.update(16, commands(red_use=True))
+    normal_start = normal.tanks["red"].x
+    boosted_start = boosted.tanks["red"].x
 
-    engine.update(16, commands(red=(1, 0)))
-    boosted_distance = tank.x - start
-    engine.update(5_984, commands())
-    start = tank.x
-    engine.update(16, commands(red=(1, 0)))
+    normal.update(160, commands(red=(1, 0)))
+    boosted.update(160, commands(red=(1, 0)))
 
-    assert boosted_distance > tank.x - start
+    normal_distance = normal.tanks["red"].x - normal_start
+    boosted_distance = boosted.tanks["red"].x - boosted_start
+    assert boosted_distance / normal_distance == pytest.approx(1.25)
+
+    boosted.update(5_840, commands())
+    start = boosted.tanks["red"].x
+    boosted.update(16, commands(red=(1, 0)))
+    assert boosted.tanks["red"].x - start == pytest.approx(
+        normal_distance / 10
+    )
+
+
+def test_speed_boost_uses_430_ms_fire_interval_then_restores_650_ms():
+    boosted = pickup_engine(ItemType.SPEED)
+    normal = TankBattleEngine(seed=3)
+    boosted.arena.rows = normal.arena.rows = [list("." * 24) for _ in range(12)]
+    boosted.update(16, commands(red_use=True))
+    boosted._fire_elapsed_ms["red"] = normal._fire_elapsed_ms["red"] = 0
+
+    boosted_events = boosted.update(432, commands())
+    normal_events = normal.update(432, commands())
+
+    assert any(e.kind == "shot" and e.player_id == "red" for e in boosted_events)
+    assert all(e.kind != "shot" or e.player_id != "red" for e in normal_events)
+
+    boosted.update(5_568, commands())
+    boosted.bullets = []
+    boosted._fire_elapsed_ms["red"] = 0
+    assert all(
+        e.kind != "shot" or e.player_id != "red"
+        for e in boosted.update(432, commands())
+    )
+    assert any(
+        e.kind == "shot" and e.player_id == "red"
+        for e in boosted.update(224, commands())
+    )
 
 
 def test_one_mine_per_player_and_enemy_trigger():
@@ -165,6 +199,12 @@ def test_regulation_starts_at_180_seconds_and_music_phase_changes():
     assert engine.music_phase == "final"
     engine.remaining_ms = 10_000
     assert engine.music_phase == "sprint"
+
+
+def test_music_phase_has_a_literal_return_type():
+    assert get_type_hints(TankBattleEngine.music_phase.fget)["return"] == Literal[
+        "normal", "final", "sprint", "sudden"
+    ]
 
 
 def test_tied_regulation_enters_sudden_death_and_stops_pickups():
@@ -275,3 +315,49 @@ def test_sudden_death_double_ko_continues_independent_of_bullet_order():
         assert sum(event.kind == "respawn" for event in events) == 2
         snapshots.append(engine.to_dict())
     assert snapshots[0] == snapshots[1]
+
+
+class AllocationEngine(TankBattleEngine):
+    def __init__(self, seed, red_fallback, blue_fallback):
+        super().__init__(seed=seed)
+        self.spawn_candidates = [(5.0, 5.0), (10.0, 5.0)]
+        self.fallback = {"red": red_fallback, "blue": blue_fallback}
+        self.tanks["red"].hp = self.tanks["blue"].hp = 0
+
+    def _spawn_score(self, point, enemy):
+        respawning_player = "blue" if enemy.player_id == "red" else "red"
+        return 10.0 if point == (5.0, 5.0) else self.fallback[respawning_player]
+
+
+def shared_point_owner(engine):
+    engine._respawn_players(["red", "blue"])
+    return next(
+        player_id
+        for player_id, tank in engine.tanks.items()
+        if tank.position == (5.0, 5.0)
+    )
+
+
+def test_joint_respawn_maximizes_minimum_score_before_total_score():
+    engine = AllocationEngine(seed=3, red_fallback=1.0, blue_fallback=9.0)
+
+    assert shared_point_owner(engine) == "red"
+
+
+def test_tied_shared_respawn_point_is_awarded_to_both_players_across_seeds():
+    owners = {
+        shared_point_owner(
+            AllocationEngine(seed=seed, red_fallback=9.0, blue_fallback=9.0)
+        )
+        for seed in range(20)
+    }
+
+    assert owners == {"red", "blue"}
+
+
+def test_joint_respawn_is_symmetric_when_player_labels_are_swapped():
+    red_needs_shared = AllocationEngine(seed=7, red_fallback=1.0, blue_fallback=9.0)
+    blue_needs_shared = AllocationEngine(seed=7, red_fallback=9.0, blue_fallback=1.0)
+
+    assert shared_point_owner(red_needs_shared) == "red"
+    assert shared_point_owner(blue_needs_shared) == "blue"
