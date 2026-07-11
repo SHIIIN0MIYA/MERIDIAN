@@ -115,6 +115,40 @@ def test_incomplete_or_non_mapping_snapshot_raises_tank_snapshot_error():
         TankBattleEngine.from_dict([])  # type: ignore[arg-type]
 
 
+def test_zero_facing_is_rejected_before_it_can_cause_division_by_zero():
+    snapshot = progressed_engine().to_dict()
+    snapshot["tanks"]["red"]["facing_x"] = 0
+    snapshot["tanks"]["red"]["facing_y"] = 0
+    snapshot["fire_elapsed_ms"]["red"] = TankBattleEngine.FIRE_INTERVAL_MS
+
+    with pytest.raises(TankSnapshotError):
+        TankBattleEngine.from_dict(snapshot)
+
+
+@pytest.mark.parametrize(
+    ("entity_path", "axis", "boundary"),
+    [
+        (("tanks", "red"), "x", 24),
+        (("tanks", "red"), "y", 12),
+        (("mines", 0), "x", 24),
+        (("mines", 0), "y", 12),
+        (("pickup",), "x", 24),
+        (("pickup",), "y", 12),
+    ],
+)
+def test_entities_reject_exclusive_arena_boundaries(
+    entity_path, axis, boundary
+):
+    snapshot = progressed_engine().to_dict()
+    entity = snapshot
+    for key in entity_path:
+        entity = entity[key]
+    entity[axis] = boundary
+
+    with pytest.raises(TankSnapshotError):
+        TankBattleEngine.from_dict(snapshot)
+
+
 def test_loading_does_not_alias_mutable_snapshot_data():
     snapshot = progressed_engine().to_dict()
     restored = TankBattleEngine.from_dict(snapshot)

@@ -400,12 +400,16 @@ class TankBattleEngine:
                     if held_value is None
                     else _snapshot_enum(ItemType, held_value, "held_item")
                 )
+                facing_x = _snapshot_int(raw, "facing_x", -1, 1)
+                facing_y = _snapshot_int(raw, "facing_y", -1, 1)
+                if facing_x == 0 and facing_y == 0:
+                    raise TankSnapshotError("tank facing direction cannot be zero")
                 tanks[player_id] = TankState(
                     player_id,
-                    _snapshot_number(raw, "x", 0, ARENA_COLS),
-                    _snapshot_number(raw, "y", 0, ARENA_ROWS),
-                    _snapshot_int(raw, "facing_x", -1, 1),
-                    _snapshot_int(raw, "facing_y", -1, 1),
+                    _snapshot_coordinate(raw, "x", ARENA_COLS),
+                    _snapshot_coordinate(raw, "y", ARENA_ROWS),
+                    facing_x,
+                    facing_y,
                     _snapshot_int(raw, "hp", 0, 3),
                     held_item,
                     _snapshot_int(raw, "shield_until_ms", 0),
@@ -439,8 +443,8 @@ class TankBattleEngine:
                 mines.append(
                     MineState(
                         _snapshot_player(raw.get("owner"), "mine owner"),
-                        _snapshot_number(raw, "x", 0, ARENA_COLS),
-                        _snapshot_number(raw, "y", 0, ARENA_ROWS),
+                        _snapshot_coordinate(raw, "x", ARENA_COLS),
+                        _snapshot_coordinate(raw, "y", ARENA_ROWS),
                     )
                 )
 
@@ -450,8 +454,8 @@ class TankBattleEngine:
                 raw = _snapshot_mapping(pickup_value, "pickup")
                 pickup = PickupState(
                     _snapshot_enum(ItemType, raw.get("item"), "pickup item"),
-                    _snapshot_number(raw, "x", 0, ARENA_COLS),
-                    _snapshot_number(raw, "y", 0, ARENA_ROWS),
+                    _snapshot_coordinate(raw, "x", ARENA_COLS),
+                    _snapshot_coordinate(raw, "y", ARENA_ROWS),
                 )
 
             phase = _snapshot_enum(MatchPhase, root.get("phase"), "phase")
@@ -928,6 +932,15 @@ def _snapshot_number(
     if not math.isfinite(result) or not minimum <= result <= maximum:
         raise TankSnapshotError(f"{key} is outside its allowed range")
     return result
+
+
+def _snapshot_coordinate(
+    data: MappingABC[str, object], key: str, limit: float
+) -> float:
+    value = _snapshot_number(data, key, 0, limit)
+    if value >= limit:
+        raise TankSnapshotError(f"{key} must be inside the arena")
+    return value
 
 
 def _snapshot_enum(enum_type: type[Enum], value: object, name: str):
