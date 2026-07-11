@@ -174,16 +174,37 @@ class ArchitectureSmokeTests(unittest.TestCase):
             {
                 "open_gomoku", "open_snake", "open_breakout", "open_2048",
                 "open_mines", "open_tetris", "open_air",
+                "open_tank",
                 "open_system_settings", "open_profile", "open_achievement_wall",
                 "open_lore",
             },
         )
         self.assertEqual(
             [item["action"] for item in game.desktop_pages[1]],
-            ["open_air",
+            ["open_air", "open_tank",
              "open_system_settings", "open_profile", "open_achievement_wall",
              "open_lore"],
         )
+
+    def test_tank_desktop_icon_and_dispatch_are_registered(self):
+        game = Game()
+        actions = {item["action"] for page in game.desktop_pages for item in page}
+        self.assertIn("open_tank", actions)
+        for state in (game.TANK_MENU, game.TANK_CONTROLS, game.TANK_PLAYING, game.TANK_END):
+            self.assertIn(state, game._EVENT_DISPATCH)
+            self.assertIn(state, game._UPDATE_DISPATCH)
+            self.assertIn(state, game._DRAW_DISPATCH)
+
+    def test_returning_from_tank_clears_transient_input(self):
+        game = Game()
+        game.state = game.TANK_PLAYING
+        game._tank_held = {pygame.K_w: 1}
+        game._tank_item_pulses = {"red": True, "blue": True}
+
+        game._go_desktop()
+
+        self.assertEqual(game._tank_held, {})
+        self.assertEqual(game._tank_item_pulses, {"red": False, "blue": False})
 
     def test_password_keypad_does_not_cover_bottom_hint(self):
         game = Game()

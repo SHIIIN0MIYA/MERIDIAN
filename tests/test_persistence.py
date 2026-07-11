@@ -7,7 +7,7 @@ import unittest
 
 from meridian import Game
 from meridian.common import pygame
-from meridian.persistence import SaveManager, default_data
+from meridian.persistence import SaveManager, default_data, default_statistics
 from meridian.system import ACHIEVEMENTS
 
 
@@ -24,7 +24,7 @@ class SaveManagerTests(unittest.TestCase):
 
     def test_first_load_and_unknown_fields(self):
         data = self.manager.load()
-        self.assertEqual(data["schema_version"], 4)
+        self.assertEqual(data["schema_version"], 5)
         data["future_field"] = {"kept": True}
         self.manager.save(data)
         self.assertTrue(self.manager.load()["future_field"]["kept"])
@@ -72,7 +72,7 @@ class SaveManagerTests(unittest.TestCase):
         old["achievements"]["air_old"] = {"unlocked_at": "old"}
         old["achievements"]["snake_5"] = {"unlocked_at": "kept"}
         migrated = self.manager.migrate(old)
-        self.assertEqual(migrated["schema_version"], 4)
+        self.assertEqual(migrated["schema_version"], 5)
         self.assertEqual(migrated["records"]["snake"]["best_score"], 77)
         self.assertEqual(migrated["statistics"]["snake"]["food_eaten"], 55)
         self.assertEqual(migrated["records"]["air"]["best_score"], 0)
@@ -81,9 +81,24 @@ class SaveManagerTests(unittest.TestCase):
         self.assertNotIn("air_old", migrated["achievements"])
         self.assertIn("snake_5", migrated["achievements"])
 
+    def test_schema_four_adds_tank_without_resetting_other_games(self):
+        old = default_data()
+        old["schema_version"] = 4
+        old["statistics"].pop("tank", None)
+        old["progress"].pop("tank", None)
+        old["statistics"]["snake"]["best_score"] = 17
+
+        migrated = self.manager.migrate(old)
+
+        self.assertEqual(migrated["schema_version"], 5)
+        self.assertEqual(migrated["statistics"]["snake"]["best_score"], 17)
+        self.assertEqual(migrated["statistics"]["tank"], default_statistics()["tank"])
+        self.assertEqual(migrated["progress"]["tank"], {"run_active": False, "run_state": None})
+
 
 class RuntimePersistenceTests(unittest.TestCase):
     def setUp(self):
+        pygame.init()
         test_root = Path.cwd() / "tests" / ".tmp"
         test_root.mkdir(exist_ok=True)
         self.temp = tempfile.TemporaryDirectory(dir=test_root)
@@ -167,6 +182,31 @@ class RuntimePersistenceTests(unittest.TestCase):
         event = pygame.event.Event(pygame.MOUSEBUTTONDOWN, button=1, pos=(300, 250))
         mapped = game._map_event_to_logical(event)
         self.assertEqual(mapped.pos, (100, 100))
+
+    def test_tank_playing_capture_is_persisted(self):
+        game = Game()
+        game._start_tank_battle()
+
+        data = game._capture_data()
+
+        self.assertTrue(data["progress"]["tank"]["run_active"])
+        self.assertEqual(data["progress"]["tank"]["run_state"], game._capture_tank_run_state())
+
+    def test_invalid_tank_snapshot_only_clears_tank_run(self):
+        data = default_data()
+        data["statistics"]["tank"]["games_completed"] = 9
+        data["statistics"]["snake"]["best_score"] = 17
+        data["progress"]["snake"] = {"run_active": True, "run_state": {"kept": True}}
+        data["progress"]["tank"] = {"run_active": True, "run_state": {"bad": True}}
+        SaveManager(self.path).save(data)
+
+        game = Game()
+
+        self.assertEqual(game.save_data["progress"]["tank"], {"run_active": False, "run_state": None})
+        self.assertEqual(game.save_data["statistics"]["tank"]["games_completed"], 9)
+        self.assertEqual(game.save_data["statistics"]["snake"]["best_score"], 17)
+        self.assertEqual(game.save_data["progress"]["snake"]["run_state"], {"kept": True})
+        self.assertEqual(game.tank_restore_notice, "TANK SAVE COULD NOT BE RESTORED")
 
 
 if __name__ == "__main__":

@@ -7,6 +7,7 @@ from .common import *
 from .persistence import SaveManager
 from .localization import set_language, get_chinese_font, is_chinese
 from . import lore as _lore
+from .tank_engine import TankSnapshotError
 
 
 ACHIEVEMENTS = [
@@ -69,6 +70,7 @@ GAME_STATES = {
     "mines_playing": "mines",
     "tetris_playing": "tetris",
     "air_playing": "air",
+    "tank_playing": "tank",
 }
 
 
@@ -89,6 +91,7 @@ class SystemMixin:
         self.achievement_wall_detail_frame = 0
         self.achievement_wall_detail_closing = False
         self._pending_run_states = {}
+        self.tank_restore_notice = None
         self._last_persisted_snapshot = ""
         self._last_save_check = pygame.time.get_ticks()
         self._last_usage_tick = pygame.time.get_ticks()
@@ -150,10 +153,20 @@ class SystemMixin:
         self._rebuild_stone_assets()
         self._set_display_mode(self.fullscreen, persist=False)
         # Load pending run states for resume support
-        for game_id in ("gomoku", "snake", "breakout", "2048", "mines", "tetris", "air"):
+        for game_id in ("gomoku", "snake", "breakout", "2048", "mines", "tetris", "air", "tank"):
             progress = self.save_data.get("progress", {}).get(game_id, {})
             if progress.get("run_active") and progress.get("run_state") is not None:
-                self._pending_run_states[game_id] = progress["run_state"]
+                if game_id == "tank":
+                    try:
+                        self._restore_tank_run_state(progress["run_state"])
+                    except TankSnapshotError:
+                        progress["run_active"] = False
+                        progress["run_state"] = None
+                        self.tank_restore_notice = "TANK SAVE COULD NOT BE RESTORED"
+                    else:
+                        self._pending_run_states[game_id] = progress["run_state"]
+                else:
+                    self._pending_run_states[game_id] = progress["run_state"]
 
     def _apply_snake_preferences(self):
         self.snake_base_interval = {"slow": 11, "normal": 8, "fast": 6}.get(self.snake_speed_mode, 8)

@@ -78,6 +78,9 @@ class DesktopMixin:
             subtitle_en=air_world["desktop_subtitle_en"] if air_world else "SHOOT 'EM UP",
             subtitle_zh=air_world["desktop_subtitle_zh"] if air_world else "弹幕射击",
         )
+        register_desktop_icon("TANK DUEL", "open_tank", page=1, enabled=True,
+                              subtitle_en="LOCAL TWO-PLAYER ARENA",
+                              subtitle_zh="本地双人对战")
         register_desktop_icon("SETTINGS", "open_system_settings", page=1, enabled=True)
         register_desktop_icon("PROFILE", "open_profile", page=1, enabled=True)
         register_desktop_icon("WALL", "open_achievement_wall", page=1, enabled=True)
@@ -204,6 +207,7 @@ class DesktopMixin:
                     elif action == "open_mines": self._desktop_return_effect = "mines_radar"; self._start_transition(self.MINES_MENU, "mines_radar", frames=50)
                     elif action == "open_tetris": self._desktop_return_effect = "tetris_drop"; self._start_transition(self.TETRIS_MENU, "tetris_drop", frames=58)
                     elif action == "open_air": self._desktop_return_effect = "air_sweep"; self._start_transition(self.AIR_MENU, "air_sweep", frames=46)
+                    elif action == "open_tank": self._desktop_return_effect = "fade"; self._start_transition(self.TANK_MENU, "fade", frames=28)
                     elif action == "open_system_settings": self._start_transition(self.SYSTEM_SETTINGS, "fade", frames=28)
                     elif action == "open_profile": self._start_transition(self.PROFILE, "fade", frames=28)
                     elif action == "open_achievement_wall": self._start_transition(self.ACHIEVEMENT_WALL, "fade", frames=28)

@@ -316,5 +316,9 @@ class TransitionMixin:
         self.preview_active = False; self.preview_cell = None
         self.occupied_hover_pos = None
         self.pressed_button_action = None; self.desktop_pressed_action = None
+        if hasattr(self, "_tank_held"):
+            self._tank_held.clear()
+        if hasattr(self, "_tank_item_pulses"):
+            self._tank_item_pulses = {"red": False, "blue": False}
         self.desktop_esc_lock_frames = 15
         self._start_transition(self.DESKTOP, transition_type)
