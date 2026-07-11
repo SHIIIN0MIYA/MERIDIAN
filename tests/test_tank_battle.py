@@ -70,6 +70,47 @@ def test_each_players_item_key_is_a_single_frame_pulse(game):
     assert game._tank_command("blue").use_item is False
 
 
+def test_item_edges_during_pause_are_discarded_before_resume(game):
+    recorded = []
+    original_update = game.tank_engine.update
+
+    def record_update(dt_ms, commands):
+        recorded.append(commands["red"].use_item)
+        return original_update(dt_ms, commands)
+
+    game.tank_engine.update = record_update
+    game.tank_paused = True
+    game.tank_engine.paused = True
+    game._handle_tank_playing_event(keydown(pygame.K_f))
+    game._update_tank_battle()
+
+    assert game._tank_item_pulses == {"red": False, "blue": False}
+
+    game.tank_paused = False
+    game.tank_engine.paused = False
+    game._update_tank_battle()
+
+    assert recorded == [False]
+    assert game._tank_item_pulses == {"red": False, "blue": False}
+
+
+def test_item_edge_reaches_exactly_one_normal_update(game):
+    recorded = []
+    original_update = game.tank_engine.update
+
+    def record_update(dt_ms, commands):
+        recorded.append(commands["red"].use_item)
+        return original_update(dt_ms, commands)
+
+    game.tank_engine.update = record_update
+    game._handle_tank_playing_event(keydown(pygame.K_f))
+    game._update_tank_battle()
+    game._update_tank_battle()
+
+    assert recorded == [True, False]
+    assert game._tank_item_pulses == {"red": False, "blue": False}
+
+
 @pytest.mark.parametrize(
     ("kind", "sound"),
     [

@@ -110,6 +110,8 @@ class TankBattleMixin:
                 self.tank_paused = not self.tank_paused
                 self.tank_engine.paused = self.tank_paused
                 return
+            if self.tank_paused and event.key in _ITEM_KEYS:
+                return
             if event.key in _ITEM_KEYS and not self._tank_held.get(event.key):
                 self._tank_item_pulses[_ITEM_KEYS[event.key]] = True
             if event.key not in self._tank_held:
@@ -147,6 +149,7 @@ class TankBattleMixin:
 
     def _update_tank_battle(self, dt_ms=16):
         if self.tank_paused:
+            self._tank_item_pulses = {"red": False, "blue": False}
             return
         commands = {player: self._tank_command(player) for player in ("red", "blue")}
         events = self.tank_engine.update(max(0, int(dt_ms)), commands)
