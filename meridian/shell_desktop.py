@@ -713,7 +713,13 @@ class DesktopMixin:
         icon_sub_en = button.get("subtitle_en")
         icon_sub_zh = button.get("subtitle_zh")
         has_icon_sub = bool(icon_sub_en or icon_sub_zh)
-        if has_icon_sub and not chinese_label:
+        # Tank Duel's six-character Chinese subtitle consumed the title lane and
+        # made the real 2x title overlap the icon artwork.  Chinese desktop cards
+        # use the same single-line title baseline as WALL/LORE instead.
+        show_icon_sub = has_icon_sub and not (
+            chinese_label and button["action"] == "open_tank"
+        )
+        if show_icon_sub and not chinese_label:
             txt_scale = 1
 
         # CJK labels use the bundled Fusion Pixel face at a consistent 2x
@@ -721,10 +727,10 @@ class DesktopMixin:
         # which made Tank Duel look like a different, tiny font.
         txt = render_pixel_text(self.font_small, translated_text, text_col, scale=txt_scale)
         tx = rect.centerx - txt.get_width() // 2
-        ty = rect.bottom - txt.get_height() - (24 if has_icon_sub else 8)
+        ty = rect.bottom - txt.get_height() - (24 if show_icon_sub else 8)
 
         self.screen.blit(txt, (tx, ty))
-        if has_icon_sub:
+        if show_icon_sub:
             sub_text = icon_sub_zh if is_chinese() else icon_sub_en
             subtitle = render_pixel_text(
                 self.font_small, sub_text, text_col, scale=1
