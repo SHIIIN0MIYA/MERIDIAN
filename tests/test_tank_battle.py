@@ -2,10 +2,17 @@ import pygame
 import pytest
 from unittest.mock import patch
 
+from meridian import Game
 from meridian.common import WINDOW_H, WINDOW_W
 from meridian.localization import set_language
 from meridian.tank_battle import TankBattleMixin
-from meridian.tank_engine import EngineEvent, PlayerCommand
+from meridian.tank_engine import (
+    EngineEvent,
+    ItemType,
+    MatchPhase,
+    PickupState,
+    PlayerCommand,
+)
 
 
 def keydown(key):
@@ -19,6 +26,12 @@ def keyup(key):
 def press(game, *keys):
     for key in keys:
         game._handle_tank_playing_event(keydown(key))
+
+
+def click(handler, position):
+    attributes = {"button": 1, "pos": position}
+    handler(pygame.event.Event(pygame.MOUSEBUTTONDOWN, attributes))
+    handler(pygame.event.Event(pygame.MOUSEBUTTONUP, attributes))
 
 
 class RecordingAudio:
@@ -257,3 +270,63 @@ def test_tank_end_score_uses_localized_team_labels(game, language, expected, for
 @pytest.mark.parametrize("state", ["menu", "controls", "playing", "end"])
 def test_tank_pages_draw_without_error(game, state):
     getattr(game, f"_draw_tank_{state}")()
+
+
+def test_tank_duel_desktop_to_rematch_acceptance_flow():
+    game = Game()
+    game.transition_active = False
+    game.state = game.DESKTOP
+    game.desktop_page = 1
+    game._start_transition = lambda state, *_args, **_kwargs: setattr(game, "state", state)
+    states = []
+
+    tank_icon = next(
+        button
+        for button in game._get_desktop_icon_buttons()
+        if button["action"] == "open_tank"
+    )
+    click(game._handle_desktop_event, tank_icon["rect"].center)
+    states.append(game.state)
+
+    start = next(
+        button
+        for button in game._tank_buttons("menu")
+        if button["action"] == "start"
+    )
+    click(game._handle_tank_menu_event, start["rect"].center)
+    states.append(game.state)
+
+    red = game.tank_engine.tanks["red"]
+    starting_x = red.x
+    game._handle_tank_playing_event(keydown(pygame.K_d))
+    game._handle_tank_playing_event(keydown(pygame.K_UP))
+    game._update_tank_battle(32)
+    assert red.x > starting_x
+    assert game.tank_engine.tanks["blue"].facing_y == -1
+
+    red.hp = 2
+    game.tank_engine.pickup = PickupState(ItemType.REPAIR, red.x, red.y)
+    game._handle_tank_playing_event(keydown(pygame.K_f))
+    game._update_tank_battle(16)
+    assert red.hp == 3
+    assert red.held_item is None
+
+    game.tank_engine.score = {"red": 1, "blue": 1}
+    game.tank_engine.remaining_ms = 1
+    game._update_tank_battle(16)
+    assert game.tank_engine.phase is MatchPhase.SUDDEN_DEATH
+
+    events = game.tank_engine._resolve_damage_batch([("blue", 3, "red", "bullet")])
+    game._handle_tank_engine_events(events)
+    game._update_tank_battle(0)
+    states.append(game.state)
+
+    rematch = next(
+        button
+        for button in game._tank_buttons("end")
+        if button["action"] == "start"
+    )
+    click(game._handle_tank_end_event, rematch["rect"].center)
+    states.append(game.state)
+
+    assert states == [game.TANK_MENU, game.TANK_PLAYING, game.TANK_END, game.TANK_PLAYING]

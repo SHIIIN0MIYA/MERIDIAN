@@ -17,8 +17,6 @@ from .localization import translate
 from .tank_engine import (
     ARENA_COLS,
     ARENA_ROWS,
-    EngineEvent,
-    ItemType,
     MatchPhase,
     PlayerCommand,
     TankBattleEngine,
