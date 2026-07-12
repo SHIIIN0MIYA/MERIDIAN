@@ -131,7 +131,8 @@ class ArchitectureSmokeTests(unittest.TestCase):
         game = Game()
         expected_tracks = {
             "desktop", "gomoku", "snake", "breakout", "2048", "mines",
-            "tetris", "air",
+            "tetris", "air", "tank_menu", "tank_normal", "tank_final",
+            "tank_sprint", "tank_sudden",
         }
         self.assertEqual(set(game.audio.tracks), expected_tracks)
 
@@ -144,6 +145,46 @@ class ArchitectureSmokeTests(unittest.TestCase):
         self.assertEqual(game.audio.music_volume, 0.0)
         game.audio.set_music_volume(2)
         self.assertEqual(game.audio.music_volume, 1.0)
+
+    def test_tank_music_layers_effects_and_phase_switching_are_available(self):
+        from meridian.audio import TANK_TRACK_SPECS
+
+        game = Game()
+        self.assertEqual(
+            TANK_TRACK_SPECS,
+            {
+                "tank_menu": 0.24,
+                "tank_normal": 0.18,
+                "tank_final": 0.15,
+                "tank_sprint": 0.125,
+                "tank_sudden": 0.105,
+            },
+        )
+        self.assertLessEqual(set(TANK_TRACK_SPECS), set(game.audio.tracks))
+        self.assertLessEqual(
+            {
+                "tank_shot", "tank_clash", "tank_brick", "tank_hit",
+                "tank_explosion", "tank_pickup", "tank_item", "tank_alarm",
+            },
+            set(game.audio.effects),
+        )
+        game.audio.set_tank_phase("sprint")
+        game.audio.sync_state(game.TANK_PLAYING)
+        self.assertEqual(game.audio.current_track, "tank_sprint")
+        self.assertEqual(game.audio.crossfade_duration_ms, 700)
+
+    def test_tank_pause_scales_music_and_resume_fades_for_300_ms(self):
+        game = Game()
+        game._start_tank_battle()
+        game._handle_tank_playing_event(
+            pygame.event.Event(pygame.KEYDOWN, key=pygame.K_p)
+        )
+        self.assertEqual(game.audio.scene_volume_scale, 0.6)
+        game._handle_tank_playing_event(
+            pygame.event.Event(pygame.KEYDOWN, key=pygame.K_p)
+        )
+        self.assertEqual(game.audio.scene_volume_scale_target, 1.0)
+        self.assertEqual(game.audio.scene_volume_fade_duration_ms, 300)
 
     def test_audio_crossfade_and_power_sounds_are_available(self):
         game = Game()

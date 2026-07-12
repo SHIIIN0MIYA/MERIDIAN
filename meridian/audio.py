@@ -83,10 +83,20 @@ THEME_MELODY: list[float] = [
     440.00, 349.23, 293.66, 246.94,
 ]
 
+TANK_TRACK_SPECS: dict[str, float] = {
+    "tank_menu": 0.24,
+    "tank_normal": 0.18,
+    "tank_final": 0.15,
+    "tank_sprint": 0.125,
+    "tank_sudden": 0.105,
+}
+
 
 def _theme_variation(style: str) -> list[float]:
     melody = list(THEME_MELODY)
-    if style == "gomoku":
+    if style.startswith("tank_"):
+        melody = [note * 0.5 for note in melody]
+    elif style == "gomoku":
         melody = [note * 0.75 for note in melody]
     elif style == "snake":
         melody = [
@@ -176,7 +186,7 @@ def _make_bgm(bass: list[float], beat_seconds: float, style: str) -> pygame.mixe
 
 
 def _build_tracks() -> dict[str, pygame.mixer.Sound]:
-    return {
+    tracks = {
         "desktop": _cached("bgm_desktop", lambda: _make_bgm(
             [130.81, 146.83, 174.61, 123.47], 0.24, "desktop")),
         "gomoku": _cached("bgm_gomoku", lambda: _make_bgm(
@@ -194,6 +204,15 @@ def _build_tracks() -> dict[str, pygame.mixer.Sound]:
         "air": _cached("bgm_air", lambda: _make_bgm(
             [82.41, 110.00, 98.00, 123.47], 0.14, "air")),
     }
+    tank_bass = [65.41, 73.42, 87.31, 61.74]
+    for name, beat_seconds in TANK_TRACK_SPECS.items():
+        tracks[name] = _cached(
+            f"bgm_{name}",
+            lambda name=name, beat_seconds=beat_seconds: _make_bgm(
+                tank_bass, beat_seconds, name
+            ),
+        )
+    return tracks
 
 
 def _build_effects() -> dict[str, pygame.mixer.Sound]:
@@ -237,6 +256,14 @@ def _build_effects() -> dict[str, pygame.mixer.Sound]:
         "air_empty": _cached("sfx_air_empty", lambda: _tone_sequence([180, 140], 0.055, 0.16)),
         "air_phase": _cached("sfx_air_phase", lambda: _tone_sequence([110, 220, 440, 880], 0.11, 0.28, "triangle")),
         "air_graze": _cached("sfx_air_graze", lambda: _sweep(760, 1080, 0.035, 0.12)),
+        "tank_shot": _cached("sfx_tank_shot", lambda: _sweep(310, 92, 0.11, 0.34, noise=0.18)),
+        "tank_clash": _cached("sfx_tank_clash", lambda: _sweep(980, 240, 0.08, 0.28, noise=0.32)),
+        "tank_brick": _cached("sfx_tank_brick", lambda: _sweep(270, 72, 0.16, 0.30, noise=0.48)),
+        "tank_hit": _cached("sfx_tank_hit", lambda: _sweep(190, 48, 0.24, 0.38, noise=0.52)),
+        "tank_explosion": _cached("sfx_tank_explosion", lambda: _sweep(145, 28, 0.62, 0.46, noise=0.72)),
+        "tank_pickup": _cached("sfx_tank_pickup", lambda: _tone_sequence([261.63, 392.0, 523.25], 0.07, 0.24, "triangle")),
+        "tank_item": _cached("sfx_tank_item", lambda: _sweep(180, 740, 0.18, 0.25, pulse=True)),
+        "tank_alarm": _cached("sfx_tank_alarm", lambda: _tone_sequence([110, 164.81, 110, 164.81], 0.13, 0.30)),
     }
     roots = {"gomoku": 196.00, "snake": 220.00, "breakout": 174.61, "2048": 246.94, "mines": 146.83, "tetris": 196.00, "air": 164.81}
     for game, root in roots.items():
@@ -266,6 +293,8 @@ class AudioManager:
         "air_menu": "air", "air_select": "air", "air_controls": "air",
         "air_brief": "air", "air_archive": "air", "air_supply": "air",
         "air_playing": "air", "air_end": "air",
+        "tank_menu": "tank_menu", "tank_controls": "tank_menu",
+        "tank_playing": "tank_normal", "tank_end": "tank_menu",
         "system_settings": "desktop", "profile": "desktop",
     }
 
@@ -275,6 +304,12 @@ class AudioManager:
         self.sfx_volume: float = 1.0
         self.muted: bool = False
         self.current_track: str | None = None
+        self.tank_phase: str = "normal"
+        self.scene_volume_scale: float = 1.0
+        self.scene_volume_scale_start: float = 1.0
+        self.scene_volume_scale_target: float = 1.0
+        self.scene_volume_fade_started_at: int = 0
+        self.scene_volume_fade_duration_ms: int = 0
         self.music_channels: list = []
         self.active_music_index: int = 0
         self.previous_music_index: int | None = None
@@ -296,8 +331,43 @@ class AudioManager:
             self.enabled = False
 
     def sync_state(self, state: str) -> None:
-        self.play_music(self.STATE_TRACKS.get(state))
+        track = self.STATE_TRACKS.get(state)
+        if state == "tank_playing":
+            track = f"tank_{self.tank_phase}"
+        self.play_music(track)
         self._update_crossfade()
+
+    def set_tank_phase(self, phase: str) -> None:
+        if phase not in {"normal", "final", "sprint", "sudden"}:
+            phase = "normal"
+        if phase == self.tank_phase:
+            return
+        self.tank_phase = phase
+        if self.current_track and self.current_track.startswith("tank_") and self.current_track != "tank_menu":
+            self.play_music(f"tank_{phase}")
+
+    def set_scene_volume_scale(self, scale: float, fade_ms: int = 0) -> None:
+        target = max(0.0, min(1.0, float(scale)))
+        self._update_scene_volume_scale()
+        self.scene_volume_scale_start = self.scene_volume_scale
+        self.scene_volume_scale_target = target
+        self.scene_volume_fade_started_at = pygame.time.get_ticks()
+        self.scene_volume_fade_duration_ms = max(0, int(fade_ms))
+        if self.scene_volume_fade_duration_ms == 0:
+            self.scene_volume_scale = target
+        self._update_crossfade()
+
+    def _update_scene_volume_scale(self) -> None:
+        if self.scene_volume_fade_duration_ms <= 0:
+            self.scene_volume_scale = self.scene_volume_scale_target
+            return
+        elapsed = pygame.time.get_ticks() - self.scene_volume_fade_started_at
+        progress = max(0.0, min(1.0, elapsed / self.scene_volume_fade_duration_ms))
+        self.scene_volume_scale = self.scene_volume_scale_start + (
+            self.scene_volume_scale_target - self.scene_volume_scale_start
+        ) * progress
+        if progress >= 1.0:
+            self.scene_volume_fade_duration_ms = 0
 
     def play_music(self, track_name: str | None) -> None:
         if not self.enabled or not self.music_channels or track_name == self.current_track:
@@ -321,14 +391,15 @@ class AudioManager:
     def _update_crossfade(self) -> None:
         if not self.enabled or not self.music_channels:
             return
+        self._update_scene_volume_scale()
         elapsed = pygame.time.get_ticks() - self.crossfade_started_at
         progress = max(0.0, min(1.0, elapsed / self.crossfade_duration_ms))
         active = self.music_channels[self.active_music_index]
         if self.current_track is not None:
-            active.set_volume((0.0 if self.muted else self.music_volume) * progress)
+            active.set_volume((0.0 if self.muted else self.music_volume * self.scene_volume_scale) * progress)
         if self.previous_music_index is not None:
             previous = self.music_channels[self.previous_music_index]
-            previous.set_volume((0.0 if self.muted else self.music_volume) * (1.0 - progress))
+            previous.set_volume((0.0 if self.muted else self.music_volume * self.scene_volume_scale) * (1.0 - progress))
             if progress >= 1.0:
                 previous.stop()
                 self.previous_music_index = None

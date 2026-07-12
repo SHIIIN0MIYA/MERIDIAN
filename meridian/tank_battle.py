@@ -13,6 +13,7 @@ from .arcade_common import (
     handle_arcade_buttons,
 )
 from .common import C, WINDOW_H, WINDOW_W, pygame, render_pixel_text
+from .localization import translate
 from .tank_engine import (
     ARENA_COLS,
     ARENA_ROWS,
@@ -106,6 +107,8 @@ class TankBattleMixin:
         record = getattr(self, "_record_stat", None)
         if record:
             record("tank", "games_started")
+        self.audio.set_tank_phase(self.tank_engine.music_phase)
+        self.audio.set_scene_volume_scale(1.0, 300)
         self.state = getattr(self, "TANK_PLAYING", "tank_playing")
 
     def _continue_tank_battle(self):
@@ -114,6 +117,8 @@ class TankBattleMixin:
             self._restore_tank_run_state(snapshot)
         self._tank_held.clear()
         self._tank_item_pulses = {"red": False, "blue": False}
+        self.audio.set_tank_phase(self.tank_engine.music_phase)
+        self.audio.set_scene_volume_scale(0.6 if self.tank_paused else 1.0, 300)
         self.state = getattr(self, "TANK_PLAYING", "tank_playing")
 
     def _handle_tank_menu_event(self, event):
@@ -140,6 +145,10 @@ class TankBattleMixin:
             if event.key == pygame.K_p:
                 self.tank_paused = not self.tank_paused
                 self.tank_engine.paused = self.tank_paused
+                self.audio.set_scene_volume_scale(
+                    0.6 if self.tank_paused else 1.0,
+                    0 if self.tank_paused else 300,
+                )
                 return
             if self.tank_paused and event.key in _ITEM_KEYS:
                 return
@@ -185,6 +194,7 @@ class TankBattleMixin:
         commands = {player: self._tank_command(player) for player in ("red", "blue")}
         events = self.tank_engine.update(max(0, int(dt_ms)), commands)
         self._handle_tank_engine_events(events)
+        self.audio.set_tank_phase(self.tank_engine.music_phase)
         if self.tank_engine.phase is MatchPhase.ENDED:
             self.state = getattr(self, "TANK_END", "tank_end")
         if self.tank_shake_frames:
@@ -397,16 +407,16 @@ class TankBattleMixin:
         blue = self.tank_engine.tanks["blue"]
         remain = max(0, self.tank_engine.remaining_ms // 1000)
         labels = [
-            (f"RED  HP {red.hp}  {self._item_label(red.held_item)}", 70, C.TANK_RED_LIGHT),
+            (f"{translate('RED')}  {translate('HP')} {red.hp}  {self._item_label(red.held_item)}", 70, C.TANK_RED_LIGHT),
             (f"{remain // 60:02d}:{remain % 60:02d}   {self.tank_engine.score['red']} : {self.tank_engine.score['blue']}", 515, C.TANK_ACCENT_LIGHT),
-            (f"{self._item_label(blue.held_item)}  HP {blue.hp}  BLUE", 920, C.TANK_BLUE_LIGHT),
+            (f"{self._item_label(blue.held_item)}  {translate('HP')} {blue.hp}  {translate('BLUE')}", 920, C.TANK_BLUE_LIGHT),
         ]
         for label, x, color in labels:
             self.screen.blit(render_pixel_text(self.font_status, label, color, scale=2), (x, 49))
 
     @staticmethod
     def _item_label(item):
-        return "ITEM --" if item is None else f"ITEM {item.value.upper()}"
+        return translate("ITEM --" if item is None else f"ITEM {item.value.upper()}")
 
     @staticmethod
     def _world_point(arena, tile, x, y):

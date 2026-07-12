@@ -1,5 +1,7 @@
 import unittest
 
+import pygame
+
 from meridian.localization import (
     ZH, contains_chinese, set_language, translate,
     _format_dynamic, register_game_translations,
@@ -36,6 +38,51 @@ class LocalizationTests(unittest.TestCase):
         # Cleanup
         del ZH["TEST KEY"]
         self.assertEqual(len(ZH), initial_size)
+
+    def test_tank_english_and_chinese_copy_is_complete(self):
+        required = {
+            "TANK DUEL": "坦克对决",
+            "IRON ARENA": "钢铁斗场",
+            "SUDDEN DEATH": "骤死决胜",
+            "REPAIR KIT": "维修包",
+            "SHIELD": "护盾",
+            "OVERDRIVE": "超速驱动",
+            "MINE": "地雷",
+            "MATCHES COMPLETED": "已完成对局",
+            "RESTORE FAILED — STARTING A NEW MATCH": "恢复失败——将开始新对局",
+        }
+        set_language("zh_hans")
+        for english, chinese in required.items():
+            self.assertEqual(translate(english), chinese)
+        achievement_keys = {
+            "FIRST CLASH", "Complete one Tank Duel match",
+            "FIRST VICTORY", "Win one Tank Duel match",
+            "SHARPSHOOTER", "Hit at least half of 10 or more shots",
+            "DEMOLITION CREW", "Destroy 100 brick walls",
+            "ARSENAL MASTER", "Use all four item types",
+            "IRON WILL", "Score a kill while at one health",
+            "SUDDEN VICTOR", "Win in sudden death",
+            "MINE EXPERT", "Hit enemies with 20 mines",
+            "SHIELD WALL", "Block 25 hits with shields",
+            "OVERDRIVE ACE", "Score two kills during one overdrive",
+            "TURNAROUND", "Win after falling behind",
+            "ARENA LEGEND", "Complete 50 Tank Duel matches",
+        }
+        self.assertTrue(achievement_keys <= ZH.keys())
+
+    def test_tank_copy_renders_in_both_languages_with_initialized_font_cache(self):
+        from meridian.common import render_pixel_text
+        from meridian.localization import _font_cache, get_chinese_font
+
+        pygame.font.init()
+        _font_cache.clear()
+        latin_font = pygame.font.Font(None, 16)
+        get_chinese_font(12)
+        for language in ("en", "zh_hans"):
+            set_language(language)
+            surface = render_pixel_text(latin_font, "TANK DUEL", (255, 255, 255), scale=2)
+            self.assertGreater(surface.get_width(), 0)
+            self.assertGreater(surface.get_height(), 0)
 
 
 if __name__ == "__main__":

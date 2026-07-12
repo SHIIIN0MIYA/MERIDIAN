@@ -628,6 +628,60 @@ register_game_world(
 #  Convenience: collect translation keys
 # ============================================================
 
+register_game_world(
+    "tank",
+    world_name_en="IRON ARENA",
+    world_name_zh="钢铁斗场",
+    world_summary_en="Two roaming war machines contest a bell-bound arena where no spawn stays safe.",
+    world_summary_zh="两台游弋战车在钟声约束的斗场中交锋，没有出生点能永远安全。",
+    prologue_en=[
+        "THE IRON ARENA ACCEPTS TWO SIGNALS.",
+        "RED AND BLUE WAKE BENEATH THE SAME SKY.",
+        "NO SPAWN IS SAFE FOREVER.",
+        "ONLY THE LAST SCORE SURVIVES THE BELL.",
+    ],
+    prologue_zh=[
+        "钢铁斗场接纳了两道信号。",
+        "红与蓝在同一片天空下苏醒。",
+        "没有任何出生点永远安全。",
+        "钟声落下时，唯有比分得以留存。",
+    ],
+    menu_flavor_en="Engines wake beneath the bell. The arena is already moving.",
+    menu_flavor_zh="钟声之下，引擎苏醒；斗场早已开始移动。",
+    desktop_subtitle_en="LOCAL TANK DUEL",
+    desktop_subtitle_zh="本地坦克对决",
+    lore_entries=[
+        {
+            "id": "arena_origin",
+            "title_en": "THE FIRST BELL",
+            "title_zh": "初鸣之钟",
+            "content_en": [
+                "The arena timer descends from the first ceasefire bell, when rival crews were granted one measured interval to settle the field.",
+                "MERIDIAN preserved that interval as a rule: when the bell falls silent, the score becomes history.",
+            ],
+            "content_zh": [
+                "斗场计时器源自第一次停火钟声；敌对车组曾被给予一段精确时限来决出战场归属。",
+                "MERIDIAN 将这段时限保存为规则：钟声沉寂之时，比分便成为历史。",
+            ],
+            "unlock": "stat:tank:matches_completed:1",
+        },
+        {
+            "id": "moving_spawn",
+            "title_en": "NO FIXED HOME",
+            "title_zh": "无定之所",
+            "content_en": [
+                "The moving-spawn protocol was written after crews learned to trap every fixed return point with mines and waiting guns.",
+                "Each rebirth now chooses open ground anew. The arena offers another chance, never the same shelter.",
+            ],
+            "content_zh": [
+                "车组学会用地雷与伏击炮口封锁固定返回点后，动态重生协议由此诞生。",
+                "每次重生都会重新选择开阔地带。斗场会再给一次机会，却绝不提供同一处庇护。",
+            ],
+            "unlock": "stat:tank:matches_completed:10",
+        },
+    ],
+)
+
 def collect_lore_translations():
     """Return a dict of all lore-related ZH translation keys.
 
@@ -665,6 +719,7 @@ def collect_lore_translations():
     zh_map["lore_category_mines"] = "雷原遗迹"
     zh_map["lore_category_tetris"] = "筑天塔"
     zh_map["lore_category_air"] = "守望者战线"
+    zh_map["lore_category_tank"] = "钢铁斗场"
     zh_map["lore_locked_hint"] = "???（未解锁）"
     zh_map["lore_new_discovered"] = "新档案发现："
     zh_map["lore_esc_return"] = "ESC：返回"

@@ -24,9 +24,17 @@ def press(game, *keys):
 class RecordingAudio:
     def __init__(self):
         self.names = []
+        self.tank_phase = None
+        self.scene_volume = None
 
     def play(self, name, *_args, **_kwargs):
         self.names.append(name)
+
+    def set_tank_phase(self, phase):
+        self.tank_phase = phase
+
+    def set_scene_volume_scale(self, scale, fade_ms=0):
+        self.scene_volume = (scale, fade_ms)
 
 
 @pytest.fixture
