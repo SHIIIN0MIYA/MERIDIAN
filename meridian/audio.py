@@ -91,6 +91,13 @@ TANK_TRACK_SPECS: dict[str, float] = {
     "tank_sudden": 0.105,
 }
 
+# Tank Duel deliberately owns a separate, asymmetric seven-step motif.  Keeping
+# it outside THEME_MELODY prevents it from sounding like another world's remix.
+TANK_DUEL_MOTIF: tuple[float, ...] = (
+    92.50, 138.59, 103.83, 164.81, 116.54, 155.56, 82.41,
+    123.47, 110.00, 185.00, 98.00, 146.83, 77.78, 130.81,
+)
+
 
 def _theme_variation(style: str) -> list[float]:
     melody = list(THEME_MELODY)
@@ -185,6 +192,38 @@ def _make_bgm(bass: list[float], beat_seconds: float, style: str) -> pygame.mixe
     return _make_sound(samples)
 
 
+def _make_tank_bgm(beat_seconds: float, phase: str) -> pygame.mixer.Sound:
+    """Build Tank Duel's own tracked-vehicle march, independent of the deck theme."""
+    motif = TANK_DUEL_MOTIF
+    total_seconds = beat_seconds * len(motif)
+    sample_count = int(SAMPLE_RATE * total_seconds)
+    samples: list[float] = []
+    phase_weight = {"menu": 0.72, "normal": 0.86, "final": 0.94,
+                    "sprint": 1.0, "sudden": 1.08}.get(phase, 0.86)
+    for index in range(sample_count):
+        t = index / SAMPLE_RATE
+        step = min(len(motif) - 1, int(t / beat_seconds))
+        step_t = t % beat_seconds
+        gate = min(1.0, step_t / 0.008) * max(
+            0.0, min(1.0, (beat_seconds - step_t) / 0.035)
+        )
+        lead_hz = motif[step]
+        bass_hz = (46.25, 41.20, 51.91, 38.89)[(step // 3) % 4]
+        # Alternating track clatter and a short command-radio chirp make the
+        # identity recognisably mechanical instead of melodic-theme based.
+        lead = _triangle(lead_hz * (2.0 if step % 5 == 3 else 1.0), t) * 0.052
+        growl = _square(bass_hz, t) * 0.052
+        clatter = _noise(index + step * 97) * (0.040 if step_t < 0.018 else 0.0)
+        offbeat = _noise(index + 311) * (
+            0.025 if beat_seconds * 0.48 < step_t < beat_seconds * 0.55 else 0.0
+        )
+        chirp = 0.0
+        if phase in {"final", "sprint", "sudden"} and step % 7 == 6:
+            chirp = _square(740.0 + 90.0 * math.sin(t * 19.0), t) * 0.018
+        samples.append(((lead + growl) * gate + clatter + offbeat + chirp) * phase_weight)
+    return _make_sound(samples)
+
+
 def _build_tracks() -> dict[str, pygame.mixer.Sound]:
     tracks = {
         "desktop": _cached("bgm_desktop", lambda: _make_bgm(
@@ -204,12 +243,12 @@ def _build_tracks() -> dict[str, pygame.mixer.Sound]:
         "air": _cached("bgm_air", lambda: _make_bgm(
             [82.41, 110.00, 98.00, 123.47], 0.14, "air")),
     }
-    tank_bass = [65.41, 73.42, 87.31, 61.74]
     for name, beat_seconds in TANK_TRACK_SPECS.items():
+        phase = name.removeprefix("tank_")
         tracks[name] = _cached(
-            f"bgm_{name}",
-            lambda name=name, beat_seconds=beat_seconds: _make_bgm(
-                tank_bass, beat_seconds, name
+            f"bgm_{name}_duel_v2",
+            lambda beat_seconds=beat_seconds, phase=phase: _make_tank_bgm(
+                beat_seconds, phase
             ),
         )
     return tracks

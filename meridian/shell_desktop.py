@@ -207,7 +207,7 @@ class DesktopMixin:
                     elif action == "open_mines": self._desktop_return_effect = "mines_radar"; self._start_transition(self.MINES_MENU, "mines_radar", frames=50)
                     elif action == "open_tetris": self._desktop_return_effect = "tetris_drop"; self._start_transition(self.TETRIS_MENU, "tetris_drop", frames=58)
                     elif action == "open_air": self._desktop_return_effect = "air_sweep"; self._start_transition(self.AIR_MENU, "air_sweep", frames=46)
-                    elif action == "open_tank": self._desktop_return_effect = "fade"; self._start_transition(self.TANK_MENU, "fade", frames=28)
+                    elif action == "open_tank": self._desktop_return_effect = "tank_crossfire"; self._start_transition(self.TANK_MENU, "tank_crossfire", frames=48)
                     elif action == "open_system_settings": self._start_transition(self.SYSTEM_SETTINGS, "fade", frames=28)
                     elif action == "open_profile": self._start_transition(self.PROFILE, "fade", frames=28)
                     elif action == "open_achievement_wall": self._start_transition(self.ACHIEVEMENT_WALL, "fade", frames=28)

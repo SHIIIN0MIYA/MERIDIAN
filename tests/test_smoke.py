@@ -147,7 +147,7 @@ class ArchitectureSmokeTests(unittest.TestCase):
         self.assertEqual(game.audio.music_volume, 1.0)
 
     def test_tank_music_layers_effects_and_phase_switching_are_available(self):
-        from meridian.audio import TANK_TRACK_SPECS
+        from meridian.audio import TANK_DUEL_MOTIF, TANK_TRACK_SPECS, THEME_MELODY
 
         game = Game()
         self.assertEqual(
@@ -161,6 +161,8 @@ class ArchitectureSmokeTests(unittest.TestCase):
             },
         )
         self.assertLessEqual(set(TANK_TRACK_SPECS), set(game.audio.tracks))
+        self.assertNotEqual(tuple(THEME_MELODY), TANK_DUEL_MOTIF)
+        self.assertEqual(len(TANK_DUEL_MOTIF), 14)
         self.assertLessEqual(
             {
                 "tank_shot", "tank_clash", "tank_brick", "tank_hit",
@@ -172,6 +174,14 @@ class ArchitectureSmokeTests(unittest.TestCase):
         game.audio.sync_state(game.TANK_PLAYING)
         self.assertEqual(game.audio.current_track, "tank_sprint")
         self.assertEqual(game.audio.crossfade_duration_ms, 700)
+
+    def test_tank_uses_dedicated_crossfire_transition(self):
+        game = Game()
+        game.state = game.DESKTOP
+        game._start_transition(game.TANK_MENU, "tank_crossfire", 48)
+        self.assertTrue(game.transition_active)
+        self.assertEqual(game.transition_type, "tank_crossfire")
+        game._draw_transition_overlay()
 
     def test_tank_pause_scales_music_and_resume_fades_for_300_ms(self):
         game = Game()

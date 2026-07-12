@@ -38,11 +38,13 @@ def click(handler, position):
 class RecordingAudio:
     def __init__(self):
         self.names = []
+        self.volumes = []
         self.tank_phase = None
         self.scene_volume = None
 
-    def play(self, name, *_args, **_kwargs):
+    def play(self, name, volume=1.0, *_args, **_kwargs):
         self.names.append(name)
+        self.volumes.append(volume)
 
     def set_tank_phase(self, phase):
         self.tank_phase = phase
@@ -150,6 +152,13 @@ def test_item_edge_reaches_exactly_one_normal_update(game):
 def test_engine_events_use_fixed_sound_names(game, kind, sound):
     game._handle_tank_engine_events([EngineEvent(kind, "red")])
     assert game.audio.names == [sound]
+    assert 0.0 < game.audio.volumes[0] < 1.0
+
+
+def test_tank_shot_uses_quieter_sfx_gain(game):
+    game._handle_tank_engine_events([EngineEvent("shot", "red")])
+    assert game.audio.names == ["tank_shot"]
+    assert game.audio.volumes == [pytest.approx(0.46)]
 
 
 def test_capture_and_restore_round_trip_uses_engine_snapshot(game):
