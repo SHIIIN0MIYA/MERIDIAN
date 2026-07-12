@@ -31,6 +31,10 @@ class ItemType(str, Enum):
     SHIELD = "shield"
     SPEED = "speed"
     MINE = "mine"
+    EMP = "emp"
+    PIERCING = "piercing"
+    SMOKE = "smoke"
+    WARP = "warp"
 
 
 class MatchPhase(str, Enum):
@@ -53,6 +57,14 @@ class MineState:
     y: float
 
 
+@dataclass
+class SmokeState:
+    owner: str
+    x: float
+    y: float
+    until_ms: int
+
+
 @dataclass(frozen=True)
 class PlayerCommand:
     move_x: int = 0
@@ -73,6 +85,7 @@ class TankState:
     speed_until_ms: int = 0
     protected_until_ms: int = 0
     fire_locked_until_ms: int = 0
+    piercing_shots: int = 0
 
     @property
     def position(self) -> tuple[float, float]:
@@ -86,6 +99,7 @@ class BulletState:
     y: float
     dx: float
     dy: float
+    piercing: bool = False
 
     @property
     def direction(self) -> tuple[float, float]:
@@ -200,6 +214,7 @@ class TankBattleEngine:
         self.score = {"red": 0, "blue": 0}
         self.pickup: PickupState | None = None
         self.mines: list[MineState] = []
+        self.smokes: list[SmokeState] = []
         self._rng = random.Random(seed)
         self.elapsed_ms = 0
         self.remaining_ms = self.MATCH_DURATION_MS
@@ -339,6 +354,7 @@ class TankBattleEngine:
                     "speed_until_ms": tank.speed_until_ms,
                     "protected_until_ms": tank.protected_until_ms,
                     "fire_locked_until_ms": tank.fire_locked_until_ms,
+                    "piercing_shots": tank.piercing_shots,
                 }
                 for player_id, tank in self.tanks.items()
             },
@@ -349,6 +365,7 @@ class TankBattleEngine:
                     "y": bullet.y,
                     "dx": bullet.dx,
                     "dy": bullet.dy,
+                    "piercing": bullet.piercing,
                 }
                 for bullet in self.bullets
             ],
@@ -364,6 +381,11 @@ class TankBattleEngine:
             "mines": [
                 {"owner": mine.owner, "x": mine.x, "y": mine.y}
                 for mine in self.mines
+            ],
+            "smokes": [
+                {"owner": smoke.owner, "x": smoke.x, "y": smoke.y,
+                 "until_ms": smoke.until_ms}
+                for smoke in self.smokes
             ],
             "rng_state": _json_list(self._rng.getstate()),
         }
@@ -423,6 +445,7 @@ class TankBattleEngine:
                     _snapshot_int(raw, "speed_until_ms", 0),
                     _snapshot_int(raw, "protected_until_ms", 0),
                     _snapshot_int(raw, "fire_locked_until_ms", 0),
+                    _optional_snapshot_int(raw, "piercing_shots", 0, 0, 3),
                 )
 
             score_data = _snapshot_mapping(root.get("score"), "score")
@@ -441,6 +464,7 @@ class TankBattleEngine:
                         _snapshot_number(raw, "y", -1, ARENA_ROWS + 1),
                         _snapshot_number(raw, "dx", -1, 1),
                         _snapshot_number(raw, "dy", -1, 1),
+                        _optional_snapshot_bool(raw, "piercing", False),
                     )
                 )
 
@@ -452,6 +476,18 @@ class TankBattleEngine:
                         _snapshot_player(raw.get("owner"), "mine owner"),
                         _snapshot_coordinate(raw, "x", ARENA_COLS),
                         _snapshot_coordinate(raw, "y", ARENA_ROWS),
+                    )
+                )
+
+            smokes = []
+            for raw_value in _snapshot_sequence(root.get("smokes", []), "smokes"):
+                raw = _snapshot_mapping(raw_value, "smoke")
+                smokes.append(
+                    SmokeState(
+                        _snapshot_player(raw.get("owner"), "smoke owner"),
+                        _snapshot_coordinate(raw, "x", ARENA_COLS),
+                        _snapshot_coordinate(raw, "y", ARENA_ROWS),
+                        _snapshot_int(raw, "until_ms", 0),
                     )
                 )
 
@@ -482,6 +518,7 @@ class TankBattleEngine:
             }
             engine.pickup = pickup
             engine.mines = mines
+            engine.smokes = smokes
             engine.elapsed_ms = _snapshot_int(root, "elapsed_ms", 0)
             engine.remaining_ms = _snapshot_int(
                 root, "remaining_ms", 0, cls.MATCH_DURATION_MS
@@ -511,6 +548,7 @@ class TankBattleEngine:
             raise TankSnapshotError(f"invalid tank snapshot: {exc}") from exc
 
     def _expire_effects(self) -> None:
+        self.smokes = [smoke for smoke in self.smokes if smoke.until_ms > self.elapsed_ms]
         for tank in self.tanks.values():
             if tank.shield_until_ms <= self.elapsed_ms:
                 tank.shield_until_ms = 0
@@ -593,6 +631,33 @@ class TankBattleEngine:
                 if any(mine.owner == player_id for mine in self.mines):
                     continue
                 self.mines.append(MineState(player_id, tank.x, tank.y))
+            elif item is ItemType.EMP:
+                enemy_id = "blue" if player_id == "red" else "red"
+                self.tanks[enemy_id].fire_locked_until_ms = max(
+                    self.tanks[enemy_id].fire_locked_until_ms,
+                    self.elapsed_ms + 3_000,
+                )
+                events.append(EngineEvent("emp_blast", enemy_id, {"attacker": player_id}))
+            elif item is ItemType.PIERCING:
+                tank.piercing_shots = 3
+            elif item is ItemType.SMOKE:
+                self.smokes.append(SmokeState(player_id, tank.x, tank.y, self.elapsed_ms + 6_000))
+            elif item is ItemType.WARP:
+                enemy_id = "blue" if player_id == "red" else "red"
+                candidates = [
+                    point for point in self.spawn_candidates
+                    if not self._spawn_is_blocked(point)
+                ]
+                if not candidates:
+                    continue
+                ranked = sorted(
+                    candidates,
+                    key=lambda point: self._spawn_score(point, self.tanks[enemy_id]),
+                    reverse=True,
+                )
+                tank.x, tank.y = self._rng.choice(ranked[:min(3, len(ranked))])
+                tank.protected_until_ms = self.elapsed_ms + 700
+                events.append(EngineEvent("tank_warped", player_id))
             tank.held_item = None
             data = {"item": item.value}
             events.append(EngineEvent("item_used", player_id, data))
@@ -618,7 +683,10 @@ class TankBattleEngine:
             length = math.hypot(tank.facing_x, tank.facing_y)
             dx = tank.facing_x / length
             dy = tank.facing_y / length
-            self.bullets.append(BulletState(player_id, tank.x, tank.y, dx, dy))
+            piercing = tank.piercing_shots > 0
+            self.bullets.append(BulletState(player_id, tank.x, tank.y, dx, dy, piercing))
+            if piercing:
+                tank.piercing_shots -= 1
             events.append(EngineEvent("shot", player_id))
         return events
 
@@ -661,7 +729,8 @@ class TankBattleEngine:
             terrain = self.arena.rows[tile_y][tile_x]
             if terrain == Terrain.BRICK.value:
                 bricks_hit.setdefault((tile_x, tile_y), bullet.owner)
-                removed.add(index)
+                if not bullet.piercing:
+                    removed.add(index)
                 events.append(EngineEvent("brick_impact", bullet.owner))
                 continue
             if terrain == Terrain.STEEL.value:
@@ -675,7 +744,7 @@ class TankBattleEngine:
                     and abs(bullet.y - tank.y) <= self.TANK_HALF_SIZE
                 ):
                     removed.add(index)
-                    hits.append((target, 1, bullet.owner, "bullet"))
+                    hits.append((target, 2 if bullet.piercing else 1, bullet.owner, "bullet"))
                     events.append(
                         EngineEvent("tank_hit", target, {"attacker": bullet.owner})
                     )
@@ -774,6 +843,7 @@ class TankBattleEngine:
             tank.held_item = None
             tank.shield_until_ms = 0
             tank.speed_until_ms = 0
+            tank.piercing_shots = 0
             tank.protected_until_ms = self.elapsed_ms + 1_500
             tank.fire_locked_until_ms = self.elapsed_ms + 400
             self._fire_elapsed_ms[player_id] = 0
@@ -936,6 +1006,21 @@ def _snapshot_int(
     return value
 
 
+def _optional_snapshot_int(data, key, default, minimum=None, maximum=None):
+    if key not in data:
+        return default
+    return _snapshot_int(data, key, minimum, maximum)
+
+
+def _optional_snapshot_bool(data, key, default):
+    if key not in data:
+        return default
+    value = data.get(key)
+    if not isinstance(value, bool):
+        raise TankSnapshotError(f"{key} must be a boolean")
+    return value
+
+
 def _snapshot_number(
     data: MappingABC[str, object],
     key: str,
@@ -984,6 +1069,7 @@ __all__ = [
     "ItemType",
     "MatchPhase",
     "MineState",
+    "SmokeState",
     "PickupState",
     "PlayerCommand",
     "TankBattleEngine",

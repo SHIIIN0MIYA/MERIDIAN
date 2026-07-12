@@ -13,10 +13,11 @@ from .arcade_common import (
     handle_arcade_buttons,
 )
 from .common import C, WINDOW_H, WINDOW_W, pygame, render_pixel_text
-from .localization import translate
+from .localization import get_chinese_font, is_chinese, translate
 from .tank_engine import (
     ARENA_COLS,
     ARENA_ROWS,
+    ItemType,
     MatchPhase,
     PlayerCommand,
     TankBattleEngine,
@@ -43,6 +44,8 @@ _SOUNDS = {
     "pickup": "tank_pickup",
     "item_used": "tank_item",
     "sudden_death": "tank_alarm",
+    "emp_blast": "tank_alarm",
+    "tank_warped": "tank_item",
 }
 _SOUND_VOLUMES = {
     "tank_shot": 0.46,
@@ -268,7 +271,7 @@ class TankBattleMixin:
             self._tank_player_items_used[event.player_id] += 1
             record("tank", "items_used")
             item = str(event.data.get("item", ""))
-            if item in {"repair", "shield", "speed", "mine"}:
+            if item in {"repair", "shield", "speed", "mine", "emp", "piercing", "smoke", "warp"}:
                 record("tank", f"{item}_uses")
             if item == "speed":
                 self._tank_overdrive_kills[event.player_id] = 0
@@ -357,6 +360,17 @@ class TankBattleMixin:
 
     def _draw_tank_menu(self):
         outer = draw_arcade_frame(self, "TANK DUEL", "LOCAL TWO-PLAYER ARENA", TANK_PALETTE)
+        if is_chinese():
+            # Force the bundled 12px CJK bitmap face and integer nearest scaling.
+            title_font = get_chinese_font(12)
+            raw = title_font.render(translate("TANK DUEL"), False, C.TANK_ACCENT_LIGHT)
+            title = pygame.transform.scale(raw, (raw.get_width() * 4, raw.get_height() * 4))
+            title_plate = pygame.Rect(outer.centerx - title.get_width() // 2 - 18,
+                                      outer.y + 18, title.get_width() + 36, title.get_height() + 12)
+            pygame.draw.rect(self.screen, C.TANK_PANEL, title_plate)
+            pygame.draw.rect(self.screen, C.OUTLINE, title_plate, 3)
+            self.screen.blit(title, (outer.centerx - title.get_width() // 2,
+                                     title_plate.centery - title.get_height() // 2))
         arena_card = pygame.Rect(154, 164, 972, 142)
         pygame.draw.rect(self.screen, C.OUTLINE, arena_card, 5)
         pygame.draw.rect(self.screen, C.TANK_PANEL_DARK, arena_card.inflate(-10, -10))
@@ -385,12 +399,27 @@ class TankBattleMixin:
     def _draw_tank_controls(self):
         draw_arcade_frame(self, "CONTROLS", "TWO CREWS / ONE KEYBOARD", TANK_PALETTE)
         lines = ["RED: W A S D    ITEM: F", "BLUE: ARROW KEYS    ITEM: ENTER", "MOVE IN 8 DIRECTIONS", "P: PAUSE    ESC: MENU"]
-        panel = pygame.Rect(280, 190, 720, 350)
+        panel = pygame.Rect(220, 164, 840, 448)
         pygame.draw.rect(self.screen, C.OUTLINE, panel, 5)
         pygame.draw.rect(self.screen, C.TANK_PANEL_DARK, panel.inflate(-10, -10))
         for index, line in enumerate(lines):
             text = render_pixel_text(self.font_status, line, C.TANK_TEXT, scale=2)
-            self.screen.blit(text, (panel.centerx - text.get_width() // 2, 245 + index * 62))
+            self.screen.blit(text, (panel.centerx - text.get_width() // 2, 202 + index * 48))
+        pygame.draw.line(self.screen, C.TANK_ACCENT,
+                         (panel.x + 38, 398), (panel.right - 38, 398), 2)
+        for index, item in enumerate(ItemType):
+            col, row = index % 4, index // 4
+            card = pygame.Rect(panel.x + 34 + col * 196, 420 + row * 72, 176, 50)
+            pygame.draw.rect(self.screen, C.OUTLINE, card, 2)
+            pygame.draw.rect(self.screen, C.TANK_PANEL, card.inflate(-4, -4))
+            label_key = {"repair": "REPAIR KIT", "speed": "OVERDRIVE"}.get(
+                item.value, item.value.upper()
+            )
+            label = render_pixel_text(
+                self.font_small, translate(label_key), C.TANK_ACCENT_LIGHT, scale=2,
+            )
+            self.screen.blit(label, (card.centerx - label.get_width() // 2,
+                                     card.centery - label.get_height() // 2))
 
     def _draw_tank_playing(self):
         self.screen.fill(C.TANK_BG)
@@ -426,6 +455,19 @@ class TankBattleMixin:
         for particle in self.tank_particles:
             px, py = self._world_point(arena, tile, particle["x"], particle["y"])
             pygame.draw.rect(self.screen, C.TANK_ACCENT_LIGHT, (px - 2, py - 2, 4, 4))
+        for smoke in self.tank_engine.smokes:
+            px, py = self._world_point(arena, tile, smoke.x, smoke.y)
+            cloud = pygame.Surface((tile * 4, tile * 4), pygame.SRCALPHA)
+            rng = random.Random(f"{smoke.owner}:{int(smoke.x)}:{int(smoke.y)}")
+            for _ in range(18):
+                radius = rng.randint(max(8, tile // 3), max(10, tile * 2 // 3))
+                cx = cloud.get_width() // 2 + rng.randint(-tile, tile)
+                cy = cloud.get_height() // 2 + rng.randint(-tile, tile)
+                pygame.draw.circle(cloud, (66, 78, 72, 205), (cx, cy), radius)
+            pygame.draw.circle(cloud, (145, 160, 150, 85), cloud.get_rect().center,
+                               int(tile * 1.45), 3)
+            self.screen.blit(cloud, (px - cloud.get_width() // 2,
+                                     py - cloud.get_height() // 2))
         # Grass is intentionally the final arena layer so tanks can hide beneath it.
         for rect in grasses:
             pygame.draw.rect(self.screen, C.TANK_GRASS, rect)
@@ -529,7 +571,19 @@ class TankBattleMixin:
         pickup = self.tank_engine.pickup
         px, py = self._world_point(arena, tile, pickup.x, pickup.y)
         pygame.draw.rect(self.screen, C.OUTLINE, (px - 10, py - 10, 20, 20))
-        pygame.draw.rect(self.screen, C.TANK_ACCENT_LIGHT, (px - 7, py - 7, 14, 14))
+        item = pickup.item.value
+        colors = {
+            "repair": C.TANK_RED_LIGHT, "shield": C.TANK_BLUE_LIGHT,
+            "speed": C.TANK_ACCENT_LIGHT, "mine": C.TANK_ACCENT,
+            "emp": (180, 125, 255), "piercing": (255, 225, 105),
+            "smoke": (145, 160, 150), "warp": (100, 245, 225),
+        }
+        color = colors.get(item, C.TANK_ACCENT_LIGHT)
+        pygame.draw.rect(self.screen, color, (px - 7, py - 7, 14, 14))
+        glyphs = {"repair": "+", "shield": "O", "speed": ">", "mine": "X",
+                  "emp": "E", "piercing": "P", "smoke": "S", "warp": "W"}
+        glyph = render_pixel_text(self.font_small, glyphs.get(item, "?"), C.OUTLINE, scale=1)
+        self.screen.blit(glyph, (px - glyph.get_width() // 2, py - glyph.get_height() // 2))
 
     def _draw_tank_entity(self, arena, tile, player_id, tank):
         px, py = self._world_point(arena, tile, tank.x, tank.y)

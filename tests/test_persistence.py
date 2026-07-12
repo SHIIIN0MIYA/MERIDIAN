@@ -171,7 +171,7 @@ class RuntimePersistenceTests(unittest.TestCase):
                 ("tank_first_victory", "wins", 1),
                 ("tank_sharpshooter", "accurate_matches", 1),
                 ("tank_demolition", "bricks_destroyed", 100),
-                ("tank_arsenal_master", "item_variety", 4),
+                ("tank_arsenal_master", "item_variety", 8),
                 ("tank_iron_will", "iron_will_kills", 1),
                 ("tank_sudden_victor", "sudden_wins", 1),
                 ("tank_mine_expert", "mine_hits", 20),
@@ -185,9 +185,12 @@ class RuntimePersistenceTests(unittest.TestCase):
     def test_tank_compound_achievement_progress_and_unlock_once(self):
         game = Game()
         stats = game.save_data["statistics"]["tank"]
-        stats.update({"repair_uses": 1, "shield_uses": 2, "speed_uses": 3, "mine_uses": 4})
+        stats.update({
+            "repair_uses": 1, "shield_uses": 2, "speed_uses": 3, "mine_uses": 4,
+            "emp_uses": 1, "piercing_uses": 1, "smoke_uses": 1, "warp_uses": 1,
+        })
         arsenal = next(item for item in ACHIEVEMENTS if item[0] == "tank_arsenal_master")
-        self.assertEqual(game._achievement_progress(arsenal), (4, 4))
+        self.assertEqual(game._achievement_progress(arsenal), (8, 8))
         stats["matches_completed"] = 1
         game._check_achievements()
         game._check_achievements()

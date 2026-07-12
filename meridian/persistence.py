@@ -99,6 +99,7 @@ def default_statistics() -> dict[str, Any]:
             "hits": 0, "shots_fired": 0, "bricks_destroyed": 0,
             "items_picked_up": 0, "items_used": 0, "repair_uses": 0,
             "shield_uses": 0, "speed_uses": 0, "mine_uses": 0,
+            "emp_uses": 0, "piercing_uses": 0, "smoke_uses": 0, "warp_uses": 0,
             "mine_hits": 0, "shield_blocks": 0, "overdrive_kills": 0,
             "sudden_death_wins": 0, "largest_comeback": 0,
         },

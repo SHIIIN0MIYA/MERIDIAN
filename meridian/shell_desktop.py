@@ -566,6 +566,39 @@ class DesktopMixin:
                 pygame.draw.rect(self.screen, C.OUTLINE, block_rect)
                 pygame.draw.rect(self.screen, color, block_rect.inflate(-2, -2))
 
+        elif button["action"] == "open_tank":
+            field = icon_box.inflate(-10, -10)
+            pygame.draw.rect(self.screen, C.TANK_GROUND, field)
+            pygame.draw.rect(self.screen, C.OUTLINE, field, 2)
+            for offset in range(12, field.width, 18):
+                pygame.draw.line(self.screen, C.TANK_GRID,
+                                 (field.x + offset, field.y + 2),
+                                 (field.x + offset, field.bottom - 2), 1)
+
+            def mini_tank(cx, cy, color, light, direction):
+                body = pygame.Rect(cx - 19, cy - 12, 38, 24)
+                pygame.draw.rect(self.screen, C.OUTLINE, body.inflate(4, 4))
+                pygame.draw.rect(self.screen, color, body)
+                pygame.draw.rect(self.screen, C.OUTLINE, (body.x - 4, body.y, 5, body.height))
+                pygame.draw.rect(self.screen, C.OUTLINE, (body.right - 1, body.y, 5, body.height))
+                pygame.draw.rect(self.screen, light, (cx - 7, cy - 7, 14, 14))
+                end_x = cx + direction * 31
+                pygame.draw.line(self.screen, C.OUTLINE, (cx, cy), (end_x, cy), 6)
+                pygame.draw.line(self.screen, light, (cx, cy), (end_x, cy), 3)
+
+            mini_tank(field.x + 42, field.centery + 20,
+                      C.TANK_RED, C.TANK_RED_LIGHT, 1)
+            mini_tank(field.right - 42, field.centery - 20,
+                      C.TANK_BLUE, C.TANK_BLUE_LIGHT, -1)
+            pygame.draw.line(self.screen, C.TANK_RED_LIGHT,
+                             (field.x + 74, field.centery + 20),
+                             (field.centerx - 8, field.centery + 4), 3)
+            pygame.draw.line(self.screen, C.TANK_BLUE_LIGHT,
+                             (field.right - 74, field.centery - 20),
+                             (field.centerx + 8, field.centery - 4), 3)
+            pygame.draw.rect(self.screen, C.TANK_ACCENT_LIGHT,
+                             (field.centerx - 5, field.centery - 5, 10, 10))
+
         elif button["action"] == "open_air":
             field = icon_box.inflate(-14, -14)
             pygame.draw.rect(self.screen, (5, 18, 34), field)

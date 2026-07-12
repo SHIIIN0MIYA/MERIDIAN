@@ -31,12 +31,16 @@ def pickup_engine(item, player="red"):
     return engine
 
 
-def test_there_are_exactly_four_item_types():
+def test_there_are_exactly_eight_item_types():
     assert {item.value for item in ItemType} == {
         "repair",
         "shield",
         "speed",
         "mine",
+        "emp",
+        "piercing",
+        "smoke",
+        "warp",
     }
 
 
@@ -207,6 +211,60 @@ def test_death_clears_the_destroyed_players_mine():
     engine._resolve_damage_batch([("red", 1, "blue")])
 
     assert [mine.owner for mine in engine.mines] == ["blue"]
+
+
+def test_emp_locks_enemy_autofire_for_three_seconds():
+    engine = pickup_engine(ItemType.EMP)
+    engine._fire_elapsed_ms["blue"] = engine.FIRE_INTERVAL_MS
+    events = engine.update(16, commands(red_use=True))
+    assert engine.tanks["blue"].fire_locked_until_ms == engine.elapsed_ms + 3_000
+    assert any(event.kind == "emp_blast" for event in events)
+    assert all(event.kind != "shot" or event.player_id != "blue" for event in events)
+
+
+def test_piercing_grants_three_double_damage_wall_piercing_shots():
+    engine = pickup_engine(ItemType.PIERCING)
+    red = engine.tanks["red"]
+    engine.update(16, commands(red_use=True))
+    assert red.piercing_shots == 3
+    engine._fire_elapsed_ms["red"] = engine.FIRE_INTERVAL_MS
+    engine.update(16, commands())
+    bullet = next(bullet for bullet in engine.bullets if bullet.owner == "red")
+    assert bullet.piercing is True
+    assert red.piercing_shots == 2
+
+    engine.arena.rows = ["." * ARENA_COLS for _ in range(ARENA_ROWS)]
+    engine.arena.rows[6] = "." * 5 + "B" + "." * (ARENA_COLS - 6)
+    bullet.x, bullet.y, bullet.dx, bullet.dy = 5.1, 6.5, 1.0, 0.0
+    events = engine.update(16, commands())
+    assert engine.arena.rows[6][5] == "."
+    assert bullet in engine.bullets
+    assert any(event.kind == "brick_hit" for event in events)
+
+    blue = engine.tanks["blue"]
+    blue.x, blue.y = bullet.x, bullet.y
+    engine.update(16, commands())
+    assert blue.hp == 1
+
+
+def test_smoke_lasts_six_seconds_and_round_trips():
+    engine = pickup_engine(ItemType.SMOKE)
+    engine.update(16, commands(red_use=True))
+    assert len(engine.smokes) == 1
+    restored = TankBattleEngine.from_dict(engine.to_dict())
+    assert restored.smokes[0].owner == "red"
+    restored.update(6_000, commands())
+    assert restored.smokes == []
+
+
+def test_warp_moves_to_one_of_the_safest_spawn_candidates():
+    engine = pickup_engine(ItemType.WARP)
+    start = engine.tanks["red"].position
+    events = engine.update(16, commands(red_use=True))
+    assert engine.tanks["red"].position != start
+    assert engine.tanks["red"].position in engine.spawn_candidates
+    assert engine.tanks["red"].protected_until_ms == engine.elapsed_ms + 700
+    assert any(event.kind == "tank_warped" for event in events)
 
 
 def test_pause_freezes_every_logic_clock():

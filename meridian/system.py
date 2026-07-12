@@ -63,7 +63,7 @@ ACHIEVEMENTS = [
     ("tank_first_victory", "FIRST VICTORY", "Win one Tank Duel match", "tank", "wins", 1),
     ("tank_sharpshooter", "SHARPSHOOTER", "Hit at least half of 10 or more shots", "tank", "accurate_matches", 1),
     ("tank_demolition", "DEMOLITION CREW", "Destroy 100 brick walls", "tank", "bricks_destroyed", 100),
-    ("tank_arsenal_master", "ARSENAL MASTER", "Use all four item types", "tank", "item_variety", 4),
+    ("tank_arsenal_master", "ARSENAL MASTER", "Use all eight item types", "tank", "item_variety", 8),
     ("tank_iron_will", "IRON WILL", "Score a kill while at one health", "tank", "iron_will_kills", 1),
     ("tank_sudden_victor", "SUDDEN VICTOR", "Win in sudden death", "tank", "sudden_wins", 1),
     ("tank_mine_expert", "MINE EXPERT", "Hit enemies with 20 mines", "tank", "mine_hits", 20),
@@ -347,7 +347,10 @@ class SystemMixin:
                 and all(item.get("rank") == "S" for item in ratings.values())
             )
         elif game == "tank" and key == "item_variety":
-            value = sum(stats.get(f"{item}_uses", 0) > 0 for item in ("repair", "shield", "speed", "mine"))
+            value = sum(
+                stats.get(f"{item}_uses", 0) > 0
+                for item in ("repair", "shield", "speed", "mine", "emp", "piercing", "smoke", "warp")
+            )
         else:
             value = stats.get(key, 0)
         return min(value, target), target
