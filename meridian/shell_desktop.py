@@ -707,6 +707,8 @@ class DesktopMixin:
         translated_text = translate(text)
         chinese_label = is_chinese() and contains_chinese(translated_text)
         txt_scale = 2 if len(text) <= 8 else 1
+        if chinese_label:
+            txt_scale = 2
         text_col = C.DESK_TEXT if enabled else C.DESK_MUTED
 
         # Check for per-icon subtitle from registry

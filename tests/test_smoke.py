@@ -246,6 +246,31 @@ class ArchitectureSmokeTests(unittest.TestCase):
             self.assertIn(state, game._UPDATE_DISPATCH)
             self.assertIn(state, game._DRAW_DISPATCH)
 
+    def test_chinese_tank_desktop_title_uses_two_x_primary_label(self):
+        from meridian.localization import set_language
+
+        game = Game()
+        button = next(
+            button for button in game._get_desktop_icon_buttons_for_page(1)
+            if button["action"] == "open_tank"
+        )
+        set_language("zh_hans")
+        try:
+            module = __import__("meridian.shell_desktop", fromlist=["render_pixel_text"])
+            with patch(
+                "meridian.shell_desktop.render_pixel_text", wraps=module.render_pixel_text
+            ) as render:
+                game._draw_desktop_icon_button(button)
+            title_call = next(
+                call for call in render.call_args_list if call.args[1] == "坦克对决"
+            )
+            self.assertEqual(title_call.kwargs["scale"], 2)
+            self.assertFalse(
+                any(call.args[1] == "本地双人对战" for call in render.call_args_list)
+            )
+        finally:
+            set_language("en")
+
     def test_returning_from_tank_clears_transient_input(self):
         game = Game()
         game.state = game.TANK_PLAYING
