@@ -297,12 +297,15 @@ def test_tank_duel_desktop_to_rematch_acceptance_flow():
     states.append(game.state)
 
     red = game.tank_engine.tanks["red"]
+    blue = game.tank_engine.tanks["blue"]
     starting_x = red.x
+    starting_y = blue.y
     game._handle_tank_playing_event(keydown(pygame.K_d))
     game._handle_tank_playing_event(keydown(pygame.K_UP))
     game._update_tank_battle(32)
     assert red.x > starting_x
-    assert game.tank_engine.tanks["blue"].facing_y == -1
+    assert blue.y < starting_y
+    assert blue.facing_y == -1
 
     red.hp = 2
     game.tank_engine.pickup = PickupState(ItemType.REPAIR, red.x, red.y)
