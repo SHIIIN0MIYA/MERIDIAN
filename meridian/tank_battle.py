@@ -394,7 +394,11 @@ class TankBattleMixin:
         title = "DRAW" if winner is None else f"{winner.upper()} WINS"
         text = render_pixel_text(self.font_menu_title, title, C.TANK_ACCENT_LIGHT, scale=4)
         self.screen.blit(text, (panel.centerx - text.get_width() // 2, 255))
-        score = render_pixel_text(self.font_status, f"RED {self.tank_engine.score['red']}  :  {self.tank_engine.score['blue']} BLUE", C.TANK_TEXT, scale=3)
+        score_label = (
+            f"{translate('RED')} {self.tank_engine.score['red']}  :  "
+            f"{self.tank_engine.score['blue']} {translate('BLUE')}"
+        )
+        score = render_pixel_text(self.font_status, score_label, C.TANK_TEXT, scale=3)
         self.screen.blit(score, (panel.centerx - score.get_width() // 2, 365))
         mouse = self._logical_mouse_pos()
         for button in self._tank_buttons("end"):

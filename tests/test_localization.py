@@ -84,6 +84,42 @@ class LocalizationTests(unittest.TestCase):
             self.assertGreater(surface.get_width(), 0)
             self.assertGreater(surface.get_height(), 0)
 
+    def test_font_cache_is_rebuilt_after_font_subsystem_restart(self):
+        from meridian.localization import clear_font_cache, get_chinese_font
+
+        try:
+            pygame.font.init()
+            clear_font_cache()
+            font1 = get_chinese_font(12)
+            font1.render("中文", False, (255, 255, 255))
+            pygame.font.quit()
+            pygame.font.init()
+            font2 = get_chinese_font(12)
+            font2.render("中文", False, (255, 255, 255))
+            self.assertIsNot(font2, font1)
+        finally:
+            pygame.font.init()
+            clear_font_cache()
+            set_language("en")
+
+    def test_font_cache_is_rebuilt_after_pygame_restart(self):
+        from meridian.localization import clear_font_cache, get_chinese_font
+
+        try:
+            pygame.init()
+            clear_font_cache()
+            font1 = get_chinese_font(12)
+            font1.render("中文", False, (255, 255, 255))
+            pygame.quit()
+            pygame.init()
+            font2 = get_chinese_font(12)
+            font2.render("中文", False, (255, 255, 255))
+            self.assertIsNot(font2, font1)
+        finally:
+            pygame.init()
+            clear_font_cache()
+            set_language("en")
+
 
 if __name__ == "__main__":
     unittest.main()

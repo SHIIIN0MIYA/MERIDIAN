@@ -13,6 +13,31 @@ _language: str = "en"
 _font_cache: dict[int, pygame.font.Font] = {}
 
 
+def clear_font_cache() -> None:
+    """Discard cached Font handles before pygame tears down their subsystem."""
+    _font_cache.clear()
+
+
+def _install_pygame_lifecycle_hooks() -> None:
+    def wrap_quit(owner, name: str) -> None:
+        original = getattr(owner, name)
+        if getattr(original, "_meridian_clears_font_cache", False):
+            return
+
+        def quit_with_font_cache_clear(*args, **kwargs):
+            clear_font_cache()
+            return original(*args, **kwargs)
+
+        quit_with_font_cache_clear._meridian_clears_font_cache = True
+        setattr(owner, name, quit_with_font_cache_clear)
+
+    wrap_quit(pygame.font, "quit")
+    wrap_quit(pygame, "quit")
+
+
+_install_pygame_lifecycle_hooks()
+
+
 def set_language(language: str) -> None:
     global _language
     _language = "zh_hans" if language == "zh_hans" else "en"
@@ -34,7 +59,7 @@ def resource_path(*parts: str) -> Path:
 def get_chinese_font(size: int = 12) -> pygame.font.Font:
     if not pygame.font.get_init():
         pygame.font.init()
-        _font_cache.clear()
+        clear_font_cache()
     size = max(8, int(size))
     if size not in _font_cache:
         path = resource_path(

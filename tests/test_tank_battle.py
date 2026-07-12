@@ -233,6 +233,27 @@ def test_tank_menu_draws_restore_failure_notice(game):
     assert any(call.args[1] == game.tank_restore_notice for call in render.call_args_list)
 
 
+@pytest.mark.parametrize(
+    ("language", "expected", "forbidden"),
+    [
+        ("en", "RED 0  :  0 BLUE", ("红方", "蓝方")),
+        ("zh_hans", "红方 0  :  0 蓝方", ("RED", "BLUE")),
+    ],
+)
+def test_tank_end_score_uses_localized_team_labels(game, language, expected, forbidden):
+    set_language(language)
+    with patch("meridian.tank_battle.render_pixel_text", wraps=__import__(
+        "meridian.tank_battle", fromlist=["render_pixel_text"]
+    ).render_pixel_text) as render:
+        game._draw_tank_end()
+
+    rendered_text = [call.args[1] for call in render.call_args_list]
+    assert expected in rendered_text
+    score_text = next(text for text in rendered_text if " : " in text)
+    assert all(label not in score_text for label in forbidden)
+    set_language("en")
+
+
 @pytest.mark.parametrize("state", ["menu", "controls", "playing", "end"])
 def test_tank_pages_draw_without_error(game, state):
     getattr(game, f"_draw_tank_{state}")()
