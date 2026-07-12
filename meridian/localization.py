@@ -162,6 +162,8 @@ ZH: dict[str, str] = {
     "SHUT DOWN": "关机",
     "BYE BYE SEE U NEXT TIME~": "再见，下次再来～",
     "BGM": "音乐",
+    "SETTINGS": "设置中心",
+    "PROFILE": "玩家档案",
     "COMING SOON": "敬请期待",
     "SOON": "即将推出",
 

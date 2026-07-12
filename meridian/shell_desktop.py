@@ -704,6 +704,8 @@ class DesktopMixin:
         else:
             text = label
 
+        translated_text = translate(text)
+        chinese_label = is_chinese() and contains_chinese(translated_text)
         txt_scale = 2 if len(text) <= 8 else 1
         text_col = C.DESK_TEXT if enabled else C.DESK_MUTED
 
@@ -711,10 +713,13 @@ class DesktopMixin:
         icon_sub_en = button.get("subtitle_en")
         icon_sub_zh = button.get("subtitle_zh")
         has_icon_sub = bool(icon_sub_en or icon_sub_zh)
-        if has_icon_sub:
+        if has_icon_sub and not chinese_label:
             txt_scale = 1
 
-        txt = render_pixel_text(self.font_small, text, text_col, scale=txt_scale)
+        # CJK labels use the bundled Fusion Pixel face at a consistent 2x
+        # integer scale.  Previously subtitle-bearing icons were forced to 1x,
+        # which made Tank Duel look like a different, tiny font.
+        txt = render_pixel_text(self.font_small, translated_text, text_col, scale=txt_scale)
         tx = rect.centerx - txt.get_width() // 2
         ty = rect.bottom - txt.get_height() - (24 if has_icon_sub else 8)
 

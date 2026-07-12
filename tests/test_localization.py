@@ -51,6 +51,8 @@ class LocalizationTests(unittest.TestCase):
             "PIERCING": "穿甲弹",
             "SMOKE": "烟幕",
             "WARP": "跃迁器",
+            "SETTINGS": "设置中心",
+            "PROFILE": "玩家档案",
             "MINE": "地雷",
             "MATCHES": "对局",
             "ACCURACY": "命中率",
