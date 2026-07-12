@@ -821,7 +821,7 @@ class SystemMixin:
             self.screen.blit(title, (rect.x + 18, rect.y + 12))
             for index, (label, value) in enumerate(values):
                 x = rect.x + 24 + index * (1040 // max(1, len(values)))
-                text = render_pixel_text(self.font_small, label, C.DESK_MUTED, scale=2)
+                text = render_pixel_text(self.font_small, translate(label), C.DESK_MUTED, scale=2)
                 number = render_pixel_text(self.font_status, str(value), C.DESK_TEXT, scale=2)
                 self.screen.blit(text, (x, rect.y + 45))
                 self.screen.blit(number, (x, rect.y + 70))

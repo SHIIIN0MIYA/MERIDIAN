@@ -48,6 +48,8 @@ class LocalizationTests(unittest.TestCase):
             "SHIELD": "护盾",
             "OVERDRIVE": "超速驱动",
             "MINE": "地雷",
+            "MATCHES": "对局",
+            "ACCURACY": "命中率",
             "MATCHES COMPLETED": "已完成对局",
             "RESTORE FAILED — STARTING A NEW MATCH": "恢复失败——将开始新对局",
         }

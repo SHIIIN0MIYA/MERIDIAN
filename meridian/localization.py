@@ -610,6 +610,8 @@ ZH.update({
     "RED WINS": "红方胜利",
     "BLUE WINS": "蓝方胜利",
     "DRAW": "平局",
+    "MATCHES": "对局",
+    "ACCURACY": "命中率",
     "MATCHES COMPLETED": "已完成对局",
     "SHOTS FIRED": "已发射炮弹",
     "HITS": "命中",

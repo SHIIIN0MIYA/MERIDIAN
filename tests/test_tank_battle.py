@@ -4,7 +4,8 @@ from unittest.mock import patch
 
 from meridian import Game
 from meridian.common import C, WINDOW_H, WINDOW_W
-from meridian.localization import set_language
+from meridian.localization import set_language, translate
+from meridian.persistence import default_data
 from meridian.tank_battle import TankBattleMixin
 from meridian.tank_engine import (
     EngineEvent,
@@ -271,6 +272,54 @@ def test_end_page_draws_localized_winner_accuracy_and_item_counts(game):
     assert "RED WINS" in texts
     assert any("RED" in text and "75%" in text and "2" in text for text in texts)
     assert any("BLUE" in text and "0%" in text and "1" in text for text in texts)
+
+
+def test_end_page_is_fully_localized_in_chinese(game):
+    set_language("zh_hans")
+    game.tank_engine.winner = "red"
+    game._tank_player_shots = {"red": 4, "blue": 2}
+    game._tank_player_hits = {"red": 3, "blue": 1}
+    game._tank_player_items_used = {"red": 2, "blue": 1}
+
+    with patch("meridian.tank_battle.render_pixel_text", wraps=__import__(
+        "meridian.tank_battle", fromlist=["render_pixel_text"]
+    ).render_pixel_text) as render:
+        game._draw_tank_end()
+
+    texts = [call.args[1] for call in render.call_args_list]
+    assert "红方胜利" in texts
+    summaries = [text for text in texts if "%" in text]
+    assert any("红方" in text and "命中率" in text and "使用道具" in text for text in summaries)
+    assert any("蓝方" in text and "命中率" in text and "使用道具" in text for text in summaries)
+    assert all("ACCURACY" not in text and "ITEMS USED" not in text for text in summaries)
+    set_language("en")
+
+
+def test_tank_statistics_labels_are_localized_before_drawing():
+    pygame.init()
+    set_language("zh_hans")
+    game = Game.__new__(Game)
+    game.save_data = default_data()
+    game.mines_best_times = {}
+    game.screen = pygame.Surface((WINDOW_W, WINDOW_H))
+    game.font_status = pygame.font.Font(None, 18)
+    game.font_small = pygame.font.Font(None, 14)
+    game.profile_scroll = 0
+    sections = game._profile_statistics_sections()
+    game.profile_scroll = next(
+        index for index, (title, _values) in enumerate(sections) if "坦克对决" in title
+    )
+
+    with patch("meridian.system.render_pixel_text", wraps=__import__(
+        "meridian.system", fromlist=["render_pixel_text"]
+    ).render_pixel_text) as render:
+        game._draw_statistics_list()
+
+    texts = [call.args[1] for call in render.call_args_list]
+    english_labels = {"MATCHES", "WINS", "KILLS", "ACCURACY"}
+    assert {translate(label) for label in english_labels} <= set(texts)
+    assert not english_labels & set(texts)
+    set_language("en")
 
 
 def test_hud_uses_three_filled_or_empty_life_cells_per_player(game):
