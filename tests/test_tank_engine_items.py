@@ -4,6 +4,8 @@ from typing import get_type_hints, Literal
 import pytest
 
 from meridian.tank_engine import (
+    ARENA_COLS,
+    ARENA_ROWS,
     BulletState,
     ItemType,
     MatchPhase,
@@ -229,6 +231,39 @@ def test_pickup_refresh_uses_a_12000_to_18000_ms_interval():
     assert engine.pickup is not None
     assert engine.pickup.item in ItemType
     assert due + 12_000 <= engine.next_pickup_ms <= due + 18_016
+
+
+def test_pickups_only_spawn_at_mirrored_central_contest_points():
+    seen = set()
+    for seed in range(40):
+        engine = TankBattleEngine(seed=seed)
+        engine.next_pickup_ms = 0
+        engine.update(16, commands())
+        seen.add((engine.pickup.x, engine.pickup.y))
+
+    assert seen <= set(TankBattleEngine.PICKUP_SPAWN_CANDIDATES)
+    assert {(ARENA_COLS - x, ARENA_ROWS - y) for x, y in seen} == seen
+
+
+def test_pickup_spawn_is_delayed_when_all_central_points_are_occupied():
+    engine = TankBattleEngine(seed=3)
+    engine.next_pickup_ms = 0
+    engine.mines = [MineState("red", x, y) for x, y in engine.PICKUP_SPAWN_CANDIDATES]
+
+    assert engine.update(16, commands()) == []
+    assert engine.pickup is None
+    assert engine.next_pickup_ms > engine.elapsed_ms
+
+
+def test_default_respawns_offer_mirrored_left_right_top_bottom_and_outer_routes():
+    points = set(TankBattleEngine.RESPAWN_CANDIDATES)
+    assert len(points) >= 8
+    assert {(ARENA_COLS - x, y) for x, y in points} == points
+    assert {(x, ARENA_ROWS - y) for x, y in points} == points
+    assert any(y <= 2.5 for _, y in points)
+    assert any(y >= ARENA_ROWS - 2.5 for _, y in points)
+    assert any(x <= 2.5 for x, _ in points)
+    assert any(x >= ARENA_COLS - 2.5 for x, _ in points)
 
 
 def test_regulation_starts_at_180_seconds_and_music_phase_changes():

@@ -179,11 +179,19 @@ class TankBattleEngine:
     MATCH_DURATION_MS = 180_000
     PICKUP_MIN_INTERVAL_MS = 12_000
     PICKUP_MAX_INTERVAL_MS = 18_000
+    PICKUP_SPAWN_CANDIDATES = (
+        (10.5, 4.5), (13.5, 4.5), (10.5, 7.5), (13.5, 7.5),
+    )
+    RESPAWN_CANDIDATES = (
+        (1.5, 1.5), (6.5, 1.5), (17.5, 1.5), (22.5, 1.5),
+        (1.5, 5.5), (22.5, 5.5), (1.5, 6.5), (22.5, 6.5),
+        (1.5, 10.5), (6.5, 10.5), (17.5, 10.5), (22.5, 10.5),
+    )
 
     def __init__(self, seed: int = 0) -> None:
         self.seed = seed
         self.arena = Arena(list(_ARENA_ROWS))
-        self.spawn_candidates = [(1.5, 1.5), (22.5, 10.5)]
+        self.spawn_candidates = list(self.RESPAWN_CANDIDATES)
         self.tanks = {
             "red": TankState("red", 1.5, 1.5, 1, 0),
             "blue": TankState("blue", 22.5, 10.5, -1, 0),
@@ -287,16 +295,15 @@ class TankBattleEngine:
         }
         occupied.update((math.floor(mine.x), math.floor(mine.y)) for mine in self.mines)
         candidates = [
-            (x, y)
-            for y in range(ARENA_ROWS)
-            for x in range(ARENA_COLS)
-            if self.arena.is_walkable(x, y) and (x, y) not in occupied
+            (x, y) for x, y in self.PICKUP_SPAWN_CANDIDATES
+            if self.arena.is_walkable(math.floor(x), math.floor(y))
+            and (math.floor(x), math.floor(y)) not in occupied
         ]
         if not candidates:
             return []
         x, y = self._rng.choice(candidates)
         item = self._rng.choice(tuple(ItemType))
-        self.pickup = PickupState(item, x + 0.5, y + 0.5)
+        self.pickup = PickupState(item, x, y)
         return [EngineEvent("pickup_spawned", data={"item": item.value})]
 
     def to_dict(self) -> dict[str, object]:
@@ -643,7 +650,7 @@ class TankBattleEngine:
         hits: list[tuple[str, int, str, str]],
     ) -> list[EngineEvent]:
         events: list[EngineEvent] = []
-        bricks_hit: set[tuple[int, int]] = set()
+        bricks_hit: dict[tuple[int, int], str] = {}
         for index, bullet in enumerate(self.bullets):
             if index in removed:
                 continue
@@ -653,9 +660,9 @@ class TankBattleEngine:
                 continue
             terrain = self.arena.rows[tile_y][tile_x]
             if terrain == Terrain.BRICK.value:
-                bricks_hit.add((tile_x, tile_y))
+                bricks_hit.setdefault((tile_x, tile_y), bullet.owner)
                 removed.add(index)
-                events.append(EngineEvent("brick_hit", bullet.owner))
+                events.append(EngineEvent("brick_impact", bullet.owner))
                 continue
             if terrain == Terrain.STEEL.value:
                 removed.add(index)
@@ -673,8 +680,9 @@ class TankBattleEngine:
                         EngineEvent("tank_hit", target, {"attacker": bullet.owner})
                     )
                     break
-        for tile_x, tile_y in bricks_hit:
+        for (tile_x, tile_y), owner in bricks_hit.items():
             self._replace_tile(tile_x, tile_y, Terrain.EMPTY.value)
+            events.append(EngineEvent("brick_hit", owner))
         return events
 
     def _replace_tile(self, x: int, y: int, value: str) -> None:

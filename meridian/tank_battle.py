@@ -37,7 +37,7 @@ TANK_PALETTE = {
 _SOUNDS = {
     "shot": "tank_shot",
     "bullet_clash": "tank_clash",
-    "brick_hit": "tank_brick",
+    "brick_impact": "tank_brick",
     "tank_hit": "tank_hit",
     "tank_destroyed": "tank_explosion",
     "pickup": "tank_pickup",
@@ -72,7 +72,10 @@ class TankBattleMixin:
         self._tank_match_stats_recorded = False
         self._tank_match_shots = 0
         self._tank_match_hits = 0
-        self._tank_was_behind = {"red": False, "blue": False}
+        self._tank_max_deficit = {"red": 0, "blue": 0}
+        self._tank_player_shots = {"red": 0, "blue": 0}
+        self._tank_player_hits = {"red": 0, "blue": 0}
+        self._tank_player_items_used = {"red": 0, "blue": 0}
         self._tank_overdrive_kills = {"red": 0, "blue": 0}
         self._tank_in_sudden_death = False
 
@@ -228,9 +231,13 @@ class TankBattleMixin:
             return
         if event.kind == "shot":
             self._tank_match_shots += 1
+            self._tank_player_shots[event.player_id] += 1
             record("tank", "shots_fired")
         elif event.kind == "tank_hit":
             self._tank_match_hits += 1
+            attacker = str(event.data.get("attacker", ""))
+            if attacker in self._tank_player_hits:
+                self._tank_player_hits[attacker] += 1
             record("tank", "hits")
         elif event.kind == "shield_blocked":
             record("tank", "shield_blocks")
@@ -239,6 +246,7 @@ class TankBattleMixin:
         elif event.kind == "pickup":
             record("tank", "items_picked_up")
         elif event.kind == "item_used":
+            self._tank_player_items_used[event.player_id] += 1
             record("tank", "items_used")
             item = str(event.data.get("item", ""))
             if item in {"repair", "shield", "speed", "mine"}:
@@ -261,17 +269,19 @@ class TankBattleMixin:
                     record("tank", "overdrive_double_kills")
             for player in ("red", "blue"):
                 enemy = "blue" if player == "red" else "red"
-                self._tank_was_behind[player] |= self.tank_engine.score[player] < self.tank_engine.score[enemy]
+                deficit = self.tank_engine.score[enemy] - self.tank_engine.score[player]
+                self._tank_max_deficit[player] = max(self._tank_max_deficit[player], deficit)
         elif event.kind == "match_ended" and not self._tank_match_stats_recorded:
             self._tank_match_stats_recorded = True
             winner = event.player_id
             record("tank", "matches_completed")
+            record("tank", "games_completed")
             if winner in {"red", "blue"}:
                 record("tank", "wins")
                 record("tank", f"{winner}_wins")
                 if self._tank_in_sudden_death:
                     record("tank", "sudden_wins")
-                if self._tank_was_behind[winner]:
+                if self._tank_max_deficit[winner] >= 3:
                     record("tank", "comeback_wins")
             if self._tank_match_shots >= 10 and self._tank_match_hits * 2 >= self._tank_match_shots:
                 record("tank", "accurate_matches")
@@ -286,7 +296,10 @@ class TankBattleMixin:
                 "match_stats_recorded": self._tank_match_stats_recorded,
                 "match_shots": self._tank_match_shots,
                 "match_hits": self._tank_match_hits,
-                "was_behind": dict(self._tank_was_behind),
+                "max_deficit": dict(self._tank_max_deficit),
+                "player_shots": dict(self._tank_player_shots),
+                "player_hits": dict(self._tank_player_hits),
+                "player_items_used": dict(self._tank_player_items_used),
                 "overdrive_kills": dict(self._tank_overdrive_kills),
                 "in_sudden_death": self._tank_in_sudden_death,
             },
@@ -305,11 +318,17 @@ class TankBattleMixin:
             self._tank_match_stats_recorded = bool(tracking.get("match_stats_recorded", False))
             self._tank_match_shots = max(0, int(tracking.get("match_shots", 0)))
             self._tank_match_hits = max(0, int(tracking.get("match_hits", 0)))
-            for key, attr in (("was_behind", "_tank_was_behind"), ("overdrive_kills", "_tank_overdrive_kills")):
+            for key, attr in (
+                ("max_deficit", "_tank_max_deficit"),
+                ("player_shots", "_tank_player_shots"),
+                ("player_hits", "_tank_player_hits"),
+                ("player_items_used", "_tank_player_items_used"),
+                ("overdrive_kills", "_tank_overdrive_kills"),
+            ):
                 values = tracking.get(key, {})
                 if isinstance(values, dict):
                     setattr(self, attr, {
-                        player: (bool(values.get(player, False)) if key == "was_behind" else max(0, int(values.get(player, 0))))
+                        player: max(0, int(values.get(player, 0)))
                         for player in ("red", "blue")
                     })
             self._tank_in_sudden_death = bool(tracking.get("in_sudden_death", False))
@@ -389,7 +408,7 @@ class TankBattleMixin:
         pygame.draw.rect(self.screen, C.OUTLINE, panel, 5)
         pygame.draw.rect(self.screen, C.TANK_PANEL, panel.inflate(-10, -10))
         winner = self.tank_engine.winner
-        title = "DRAW" if winner is None else f"{winner.upper()} WINS"
+        title = translate("DRAW" if winner is None else f"{winner.upper()} WINS")
         text = render_pixel_text(self.font_menu_title, title, C.TANK_ACCENT_LIGHT, scale=4)
         self.screen.blit(text, (panel.centerx - text.get_width() // 2, 255))
         score_label = (
@@ -398,6 +417,15 @@ class TankBattleMixin:
         )
         score = render_pixel_text(self.font_status, score_label, C.TANK_TEXT, scale=3)
         self.screen.blit(score, (panel.centerx - score.get_width() // 2, 365))
+        for index, player in enumerate(("red", "blue")):
+            shots = self._tank_player_shots[player]
+            accuracy = round(self._tank_player_hits[player] * 100 / shots) if shots else 0
+            summary = (
+                f"{translate(player.upper())}  {translate('ACCURACY')} {accuracy}%  "
+                f"{translate('ITEMS USED')} {self._tank_player_items_used[player]}"
+            )
+            line = render_pixel_text(self.font_small, summary, C.TANK_TEXT, scale=2)
+            self.screen.blit(line, (panel.centerx - line.get_width() // 2, 420 + index * 38))
         mouse = self._logical_mouse_pos()
         for button in self._tank_buttons("end"):
             draw_arcade_button(self, button, TANK_PALETTE, button["rect"].collidepoint(mouse), self.tank_pressed_action == button["action"])
@@ -409,12 +437,20 @@ class TankBattleMixin:
         blue = self.tank_engine.tanks["blue"]
         remain = max(0, self.tank_engine.remaining_ms // 1000)
         labels = [
-            (f"{translate('RED')}  {translate('HP')} {red.hp}  {self._item_label(red.held_item)}", 70, C.TANK_RED_LIGHT),
+            (f"{translate('RED')}      {self._item_label(red.held_item)}", 70, C.TANK_RED_LIGHT),
             (f"{remain // 60:02d}:{remain % 60:02d}   {self.tank_engine.score['red']} : {self.tank_engine.score['blue']}", 515, C.TANK_ACCENT_LIGHT),
-            (f"{self._item_label(blue.held_item)}  {translate('HP')} {blue.hp}  {translate('BLUE')}", 920, C.TANK_BLUE_LIGHT),
+            (f"{self._item_label(blue.held_item)}      {translate('BLUE')}", 920, C.TANK_BLUE_LIGHT),
         ]
         for label, x, color in labels:
             self.screen.blit(render_pixel_text(self.font_status, label, color, scale=2), (x, 49))
+        self._draw_life_cells(145, 48, red.hp, C.TANK_RED_LIGHT)
+        self._draw_life_cells(1080, 48, blue.hp, C.TANK_BLUE_LIGHT)
+
+    def _draw_life_cells(self, x, y, hp, color):
+        for index in range(3):
+            rect = pygame.Rect(x + index * 18, y, 14, 14)
+            pygame.draw.rect(self.screen, color if index < hp else C.TANK_PANEL_DARK, rect)
+            pygame.draw.rect(self.screen, C.OUTLINE, rect, 2)
 
     @staticmethod
     def _item_label(item):

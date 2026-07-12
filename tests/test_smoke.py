@@ -253,6 +253,7 @@ class ArchitectureSmokeTests(unittest.TestCase):
 
         game = Game()
         game.save_data["statistics"]["tank"] = default_statistics()["tank"]
+        global_completed_before = game.save_data["statistics"]["global"]["games_completed"]
         game._start_tank_battle()
         game._handle_tank_engine_events([
             *[EngineEvent("shot", "red") for _ in range(10)],
@@ -272,6 +273,17 @@ class ArchitectureSmokeTests(unittest.TestCase):
         self.assertEqual(stats["matches_completed"], 1)
         self.assertEqual(stats["wins"], 1)
         self.assertEqual(stats["accurate_matches"], 1)
+        self.assertEqual(
+            game.save_data["statistics"]["global"]["games_completed"],
+            global_completed_before + 1,
+        )
+
+    def test_profile_statistics_include_tank_duel(self):
+        game = Game()
+        sections = game._profile_statistics_sections()
+        title, values = next(section for section in sections if "TANK DUEL" in section[0])
+        self.assertIn("TANK DUEL", title)
+        self.assertEqual([label for label, _ in values], ["MATCHES", "WINS", "KILLS", "ACCURACY"])
 
     def test_tank_accuracy_requires_ten_shots_and_half_hits(self):
         from meridian.tank_engine import EngineEvent

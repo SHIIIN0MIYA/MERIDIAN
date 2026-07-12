@@ -800,6 +800,12 @@ class SystemMixin:
             ]),
             (f"{translate('TETRIS')}  PLAY {self._format_duration(stats['tetris']['play_time_ms'])}", [("BEST", stats["tetris"]["best_score"]), ("LEVEL", stats["tetris"]["highest_level"]), ("LINES", stats["tetris"]["lines_cleared"]), ("TETRISES", stats["tetris"]["tetrises"])]),
             (f"{translate('AIR RAID')}  PLAY {self._format_duration(stats['air']['play_time_ms'])}", [("BEST", stats["air"]["best_score"]), ("MISSION", stats["air"]["highest_level"]), ("KILLS", stats["air"]["enemies_destroyed"]), ("S RANKS", stats["air"]["s_ranks"])]),
+            (f"{translate('TANK DUEL')}  PLAY {self._format_duration(stats['tank']['play_time_ms'])}", [
+                ("MATCHES", stats["tank"].get("matches_completed", 0)),
+                ("WINS", stats["tank"].get("wins", 0)),
+                ("KILLS", stats["tank"].get("kills", 0)),
+                ("ACCURACY", f"{round(stats['tank']['hits'] * 100 / stats['tank']['shots_fired']) if stats['tank']['shots_fired'] else 0}%"),
+            ]),
         ]
 
     def _draw_statistics_list(self):

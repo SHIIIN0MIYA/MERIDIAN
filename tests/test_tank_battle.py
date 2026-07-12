@@ -3,7 +3,7 @@ import pytest
 from unittest.mock import patch
 
 from meridian import Game
-from meridian.common import WINDOW_H, WINDOW_W
+from meridian.common import C, WINDOW_H, WINDOW_W
 from meridian.localization import set_language
 from meridian.tank_battle import TankBattleMixin
 from meridian.tank_engine import (
@@ -138,7 +138,7 @@ def test_item_edge_reaches_exactly_one_normal_update(game):
     [
         ("shot", "tank_shot"),
         ("bullet_clash", "tank_clash"),
-        ("brick_hit", "tank_brick"),
+        ("brick_impact", "tank_brick"),
         ("tank_hit", "tank_hit"),
         ("tank_destroyed", "tank_explosion"),
         ("pickup", "tank_pickup"),
@@ -176,7 +176,7 @@ def test_tracking_survives_restore_and_match_end_is_idempotent(game):
     game._record_stat = lambda game_id, key, amount=1, mode="add": recorded.append((key, amount))
     game._tank_match_shots = 10
     game._tank_match_hits = 5
-    game._tank_was_behind = {"red": True, "blue": False}
+    game._tank_max_deficit = {"red": 3, "blue": 0}
     game._tank_overdrive_kills = {"red": 1, "blue": 0}
     game._tank_in_sudden_death = True
     game.tank_engine.tanks["red"].speed_until_ms = 10_000
@@ -199,6 +199,92 @@ def test_tracking_survives_restore_and_match_end_is_idempotent(game):
     assert keys.count("comeback_wins") == 1
     assert keys.count("sudden_wins") == 1
     assert keys.count("matches_completed") == 1
+
+
+def test_comeback_requires_three_point_deficit_and_survives_restore(game):
+    recorded = []
+    game._record_stat = lambda game_id, key, amount=1, mode="add": recorded.append(key)
+    game.tank_engine.score = {"red": 0, "blue": 2}
+    game._handle_tank_engine_events([EngineEvent("tank_destroyed", "red", {"attacker": "blue"})])
+    game.tank_engine.score = {"red": 0, "blue": 3}
+    game._handle_tank_engine_events([EngineEvent("tank_destroyed", "red", {"attacker": "blue"})])
+    snapshot = game._capture_tank_run_state()
+
+    restored = type(game)()
+    restored.audio = RecordingAudio()
+    restored._init_tank_battle()
+    restored._record_stat = game._record_stat
+    restored._restore_tank_run_state(snapshot)
+    restored._handle_tank_engine_events([EngineEvent("match_ended", "red")])
+
+    assert restored._tank_max_deficit == {"red": 3, "blue": 0}
+    assert recorded.count("comeback_wins") == 1
+
+
+def test_legacy_boolean_comeback_tracking_does_not_award_three_point_comeback(game):
+    snapshot = game._capture_tank_run_state()
+    snapshot["tracking"].pop("max_deficit", None)
+    snapshot["tracking"]["was_behind"] = {"red": True, "blue": False}
+    game._restore_tank_run_state(snapshot)
+    recorded = []
+    game._record_stat = lambda game_id, key, amount=1, mode="add": recorded.append(key)
+    game._handle_tank_engine_events([EngineEvent("match_ended", "red")])
+    assert "comeback_wins" not in recorded
+
+
+def test_match_end_records_generic_completion_and_per_player_summary(game):
+    recorded = []
+    game._record_stat = lambda game_id, key, amount=1, mode="add": recorded.append(key)
+    game._handle_tank_engine_events([
+        EngineEvent("shot", "red"), EngineEvent("shot", "red"),
+        EngineEvent("shot", "blue"), EngineEvent("tank_hit", "blue", {"attacker": "red"}),
+        EngineEvent("item_used", "blue", {"item": "shield"}), EngineEvent("match_ended", "red"),
+    ])
+    assert recorded.count("games_completed") == 1
+    assert game._tank_player_shots == {"red": 2, "blue": 1}
+    assert game._tank_player_hits == {"red": 1, "blue": 0}
+    assert game._tank_player_items_used == {"red": 0, "blue": 1}
+
+
+def test_per_player_summary_survives_restore(game):
+    game._tank_player_shots = {"red": 7, "blue": 5}
+    game._tank_player_hits = {"red": 3, "blue": 2}
+    game._tank_player_items_used = {"red": 1, "blue": 4}
+    snapshot = game._capture_tank_run_state()
+    game._reset_tank_tracking()
+    game._restore_tank_run_state(snapshot)
+    assert game._tank_player_shots == {"red": 7, "blue": 5}
+    assert game._tank_player_hits == {"red": 3, "blue": 2}
+    assert game._tank_player_items_used == {"red": 1, "blue": 4}
+
+
+def test_end_page_draws_localized_winner_accuracy_and_item_counts(game):
+    game.tank_engine.winner = "red"
+    game._tank_player_shots = {"red": 4, "blue": 0}
+    game._tank_player_hits = {"red": 3, "blue": 0}
+    game._tank_player_items_used = {"red": 2, "blue": 1}
+    with patch("meridian.tank_battle.render_pixel_text", wraps=__import__(
+        "meridian.tank_battle", fromlist=["render_pixel_text"]
+    ).render_pixel_text) as render:
+        game._draw_tank_end()
+    texts = [call.args[1] for call in render.call_args_list]
+    assert "RED WINS" in texts
+    assert any("RED" in text and "75%" in text and "2" in text for text in texts)
+    assert any("BLUE" in text and "0%" in text and "1" in text for text in texts)
+
+
+def test_hud_uses_three_filled_or_empty_life_cells_per_player(game):
+    game.tank_engine.tanks["red"].hp = 2
+    game.tank_engine.tanks["blue"].hp = 1
+    with patch("meridian.tank_battle.pygame.draw.rect", wraps=pygame.draw.rect) as draw_rect:
+        game._draw_tank_hud()
+    life_fills = [
+        call.args[1] for call in draw_rect.call_args_list
+        if len(call.args) == 3 and pygame.Rect(call.args[2]).size == (14, 14)
+    ]
+    assert life_fills.count(C.TANK_RED_LIGHT) == 2
+    assert life_fills.count(C.TANK_BLUE_LIGHT) == 1
+    assert life_fills.count(C.TANK_PANEL_DARK) == 3
 
 
 def test_only_shield_blocked_event_records_a_shield_block(game):

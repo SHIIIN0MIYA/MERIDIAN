@@ -129,4 +129,5 @@ def test_same_step_brick_hits_do_not_depend_on_bullet_order():
 
     assert engine.arena.rows[6][6] == "."
     assert engine.bullets == []
-    assert sum(event.kind == "brick_hit" for event in events) == 2
+    assert sum(event.kind == "brick_hit" for event in events) == 1
+    assert sum(event.kind == "brick_impact" for event in events) == 2
