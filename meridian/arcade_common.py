@@ -3,6 +3,7 @@
 from .common import *
 from .localization import get_chinese_font, is_chinese
 from . import lore as _lore
+from .ui_components import anchored_blit, draw_pixel_panel, fit_pixel_text
 
 
 def arcade_button(rect, label, action, selected=False):
@@ -16,14 +17,22 @@ def draw_arcade_button(game, button, palette, hovered=False, pressed=False):
     if pressed:
         rect.y += 4
     pygame.draw.rect(game.screen, C.OUTLINE, rect.move(5, 5))
-    pygame.draw.rect(game.screen, C.OUTLINE, rect)
     fill = palette["hover"] if hovered or button.get("selected") else palette["panel_dark"]
-    pygame.draw.rect(game.screen, fill, rect.inflate(-5, -5))
+    draw_pixel_panel(
+        game.screen,
+        rect,
+        {"outline": C.OUTLINE, "panel": fill},
+        border=2.5,
+    )
     pygame.draw.rect(game.screen, palette["accent"], rect.inflate(-12, -12), 2)
-    text = render_pixel_text(game.font_btn, button["label"], palette["text"], scale=2)
-    if text.get_width() > rect.width - 20:
-        text = render_pixel_text(game.font_small, button["label"], palette["text"], scale=1)
-    game.screen.blit(text, (rect.centerx - text.get_width() // 2, rect.centery - text.get_height() // 2))
+    text = fit_pixel_text(
+        game.font_btn,
+        button["label"],
+        palette["text"],
+        rect.width - 20,
+        preferred_scale=2,
+    )
+    anchored_blit(game.screen, text, rect, "center")
 
 
 def handle_arcade_buttons(game, event, buttons, pressed_attr, actions):
@@ -48,14 +57,32 @@ def handle_arcade_buttons(game, event, buttons, pressed_attr, actions):
 def draw_arcade_frame(game, title, subtitle, palette):
     game.screen.fill(palette["bg"])
     outer = pygame.Rect(32, 28, WINDOW_W - 64, WINDOW_H - 56)
-    pygame.draw.rect(game.screen, C.OUTLINE, outer, 5)
-    pygame.draw.rect(game.screen, palette["panel"], outer.inflate(-10, -10))
+    draw_pixel_panel(
+        game.screen,
+        outer,
+        {"outline": C.OUTLINE, "panel": palette["panel"]},
+        border=5,
+    )
     pygame.draw.rect(game.screen, palette["accent"], outer.inflate(-22, -22), 2)
-    heading = render_pixel_text(game.font_menu_title, title, palette["accent_light"], scale=3)
-    sub = render_pixel_text(game.font_small, subtitle, palette["text"], scale=2)
-    game.screen.blit(heading, (outer.centerx - heading.get_width() // 2, outer.y + 24))
+    heading = fit_pixel_text(
+        game.font_menu_title,
+        title,
+        palette["accent_light"],
+        outer.width - 48,
+        preferred_scale=3,
+    )
+    sub = fit_pixel_text(
+        game.font_small,
+        subtitle,
+        palette["text"],
+        outer.width - 48,
+        preferred_scale=2,
+    )
+    heading_row = pygame.Rect(outer.x, outer.y + 24, outer.width, heading.get_height())
+    anchored_blit(game.screen, heading, heading_row, "center")
     subtitle_y = outer.y + (100 if is_chinese() else 106)
-    game.screen.blit(sub, (outer.centerx - sub.get_width() // 2, subtitle_y))
+    subtitle_row = pygame.Rect(outer.x, subtitle_y, outer.width, sub.get_height())
+    anchored_blit(game.screen, sub, subtitle_row, "center")
     return outer
 
 
@@ -97,12 +124,30 @@ def draw_pause_overlay(game, palette):
     shade.fill(C.OVERLAY_PAUSE)
     game.screen.blit(shade, (0, 0))
     panel = pygame.Rect(WINDOW_W // 2 - 230, WINDOW_H // 2 - 90, 460, 180)
-    pygame.draw.rect(game.screen, C.OUTLINE, panel, 5)
-    pygame.draw.rect(game.screen, palette["panel"], panel.inflate(-10, -10))
-    text = render_pixel_text(game.font_menu_title, "PAUSED", palette["accent_light"], scale=3)
-    hint = render_pixel_text(game.font_small, "P TO RESUME   ESC FOR MENU", palette["text"], scale=2)
-    game.screen.blit(text, (panel.centerx - text.get_width() // 2, panel.y + 38))
-    game.screen.blit(hint, (panel.centerx - hint.get_width() // 2, panel.y + 108))
+    draw_pixel_panel(
+        game.screen,
+        panel,
+        {"outline": C.OUTLINE, "panel": palette["panel"]},
+        border=5,
+    )
+    text = fit_pixel_text(
+        game.font_menu_title,
+        "PAUSED",
+        palette["accent_light"],
+        panel.width - 40,
+        preferred_scale=3,
+    )
+    hint = fit_pixel_text(
+        game.font_small,
+        "P TO RESUME   ESC FOR MENU",
+        palette["text"],
+        panel.width - 40,
+        preferred_scale=2,
+    )
+    title_row = pygame.Rect(panel.x, panel.y + 38, panel.width, text.get_height())
+    hint_row = pygame.Rect(panel.x, panel.y + 108, panel.width, hint.get_height())
+    anchored_blit(game.screen, text, title_row, "center")
+    anchored_blit(game.screen, hint, hint_row, "center")
 
 
 class ArcadeHubMixin:
