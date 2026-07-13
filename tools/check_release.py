@@ -2,31 +2,35 @@
 
 from __future__ import annotations
 
-import importlib.util
+import ast
 from pathlib import Path
 import subprocess
 import sys
-from types import ModuleType
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
+RELEASE_TAG = "v3.2.0"
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
 
-def _load_version_module(repo: Path) -> ModuleType:
+def _load_version(repo: Path) -> str:
     version_file = repo / "meridian" / "version.py"
-    spec = importlib.util.spec_from_file_location("meridian_release_version", version_file)
-    if spec is None or spec.loader is None:
-        raise ImportError(f"cannot load {version_file}")
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-    return module
+    tree = ast.parse(version_file.read_text(encoding="utf-8"), filename=str(version_file))
+    for node in tree.body:
+        if not isinstance(node, ast.Assign) or len(node.targets) != 1:
+            continue
+        target = node.targets[0]
+        if isinstance(target, ast.Name) and target.id == "__version__":
+            version = ast.literal_eval(node.value)
+            if isinstance(version, str):
+                return version
+    raise ValueError(f"__version__ string not found in {version_file}")
 
 
 def check_metadata(repo: Path) -> list[str]:
     """Return release metadata problems without changing the repository."""
-    version = _load_version_module(repo).__version__
+    version = _load_version(repo)
     changelog = repo / "CHANGELOG.md"
     if not changelog.is_file():
         return ["CHANGELOG.md is missing"]
@@ -51,20 +55,18 @@ def _run_git(repo: Path, *arguments: str) -> str:
     return result.stdout
 
 
-def check_git(repo: Path, version: str) -> list[str]:
+def check_git(repo: Path) -> list[str]:
     """Return local Git-state problems using read-only commands."""
     problems = []
     if _run_git(repo, "status", "--porcelain").strip():
         problems.append("working tree is not clean")
-    tag = f"v{version}"
-    if _run_git(repo, "tag", "--list", tag).strip():
-        problems.append(f"local tag {tag} already exists")
+    if _run_git(repo, "tag", "--list", RELEASE_TAG).strip():
+        problems.append(f"local tag {RELEASE_TAG} already exists")
     return problems
 
 
 def main() -> int:
-    version = _load_version_module(REPO_ROOT).__version__
-    problems = check_metadata(REPO_ROOT) + check_git(REPO_ROOT, version)
+    problems = check_metadata(REPO_ROOT) + check_git(REPO_ROOT)
     if problems:
         print(*problems, sep="\n")
         return 1

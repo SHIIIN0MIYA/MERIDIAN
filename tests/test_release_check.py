@@ -1,4 +1,5 @@
 from pathlib import Path
+import shutil
 import subprocess
 import sys
 
@@ -16,6 +17,7 @@ def write_version(repo: Path, version: str = "3.2.0") -> None:
 
 def init_git_repo(repo: Path) -> None:
     subprocess.run(["git", "init", "-q"], cwd=repo, check=True)
+    subprocess.run(["git", "add", "."], cwd=repo, check=True)
     subprocess.run(
         [
             "git",
@@ -31,6 +33,26 @@ def init_git_repo(repo: Path) -> None:
         ],
         cwd=repo,
         check=True,
+    )
+
+
+def write_cli_repo(repo: Path) -> None:
+    write_version(repo)
+    (repo / "CHANGELOG.md").write_text("## [3.2.0]\n", encoding="utf-8")
+    tools = repo / "tools"
+    tools.mkdir()
+    shutil.copyfile(ROOT / "tools" / "check_release.py", tools / "check_release.py")
+    init_git_repo(repo)
+
+
+def run_cli(repo: Path) -> subprocess.CompletedProcess[str]:
+    return subprocess.run(
+        [sys.executable, "tools/check_release.py"],
+        cwd=repo,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        check=False,
     )
 
 
@@ -62,18 +84,28 @@ def test_existing_local_release_tag_has_stable_problem_text(tmp_path):
     init_git_repo(tmp_path)
     subprocess.run(["git", "tag", "v3.2.0"], cwd=tmp_path, check=True)
 
-    assert "local tag v3.2.0 already exists" in check_git(tmp_path, "3.2.0")
+    assert "local tag v3.2.0 already exists" in check_git(tmp_path)
 
 
-def test_cli_runs_from_repository_root_without_pythonpath():
-    result = subprocess.run(
-        [sys.executable, "tools/check_release.py"],
-        cwd=ROOT,
-        capture_output=True,
-        text=True,
-        encoding="utf-8",
-        check=False,
-    )
+def test_cli_clean_repository_exits_zero_without_output(tmp_path):
+    write_cli_repo(tmp_path)
 
-    assert result.returncode in {0, 1}
-    assert "ModuleNotFoundError" not in result.stderr
+    result = run_cli(tmp_path)
+
+    assert result.returncode == 0
+    assert result.stdout == ""
+    assert result.stderr == ""
+
+
+def test_cli_prints_each_problem_and_exits_one(tmp_path):
+    write_cli_repo(tmp_path)
+    (tmp_path / "CHANGELOG.md").write_text("# Changelog\n", encoding="utf-8")
+
+    result = run_cli(tmp_path)
+
+    assert result.returncode == 1
+    assert result.stdout.splitlines() == [
+        "version missing from CHANGELOG.md",
+        "working tree is not clean",
+    ]
+    assert result.stderr == ""
