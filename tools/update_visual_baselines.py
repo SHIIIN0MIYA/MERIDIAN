@@ -9,7 +9,7 @@ import os
 from collections.abc import Sequence
 from pathlib import Path
 import sys
-from uuid import uuid4
+import tempfile
 
 import pygame
 
@@ -26,28 +26,19 @@ render_scene = _visual_scenes.render_scene
 
 @contextmanager
 def _isolated_save_environment():
-    save_root = REPO_ROOT / ".test-tmp"
-    save_root.mkdir(parents=True, exist_ok=True)
-    save_path = save_root / f"visual-baseline-{uuid4().hex}.json"
     previous = os.environ.get("MERIDIAN_SAVE_PATH")
-    os.environ["MERIDIAN_SAVE_PATH"] = str(save_path)
-    try:
-        yield
-    finally:
-        if previous is None:
-            os.environ.pop("MERIDIAN_SAVE_PATH", None)
-        else:
-            os.environ["MERIDIAN_SAVE_PATH"] = previous
-        for generated_path in (
-            save_path,
-            save_path.with_suffix(".json.bak"),
-            save_path.with_suffix(".json.tmp"),
-        ):
-            generated_path.unlink(missing_ok=True)
+    with tempfile.TemporaryDirectory(prefix="meridian-visual-baselines-") as directory:
+        os.environ["MERIDIAN_SAVE_PATH"] = str(Path(directory) / "save.json")
+        try:
+            yield
+        finally:
+            if previous is None:
+                os.environ.pop("MERIDIAN_SAVE_PATH", None)
+            else:
+                os.environ["MERIDIAN_SAVE_PATH"] = previous
 
 
-def write_baselines(root: Path) -> list[Path]:
-    """Render every scene in both languages beneath ``root``."""
+def _write_baselines(root: Path) -> list[Path]:
     written: list[Path] = []
     for language in ("en", "zh_hans"):
         for scene in SCENE_NAMES:
@@ -56,6 +47,12 @@ def write_baselines(root: Path) -> list[Path]:
             pygame.image.save(render_scene(scene, language), target)
             written.append(target)
     return written
+
+
+def write_baselines(root: Path) -> list[Path]:
+    """Render every scene in both languages with isolated save state."""
+    with _isolated_save_environment():
+        return _write_baselines(root)
 
 
 def main(
@@ -77,8 +74,7 @@ def main(
         print("Refusing to update baselines without explicit --yes confirmation.")
         return 2
 
-    with _isolated_save_environment():
-        written = write_baselines(baseline_root)
+    written = write_baselines(baseline_root)
     print(f"Wrote {len(written)} visual baselines.")
     return 0
 
