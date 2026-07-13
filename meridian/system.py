@@ -1061,7 +1061,9 @@ class SystemMixin:
                 self.achievement_wall_pressed_index = None
 
     def _get_achievement_wall_page_rects(self):
-        return pygame.Rect(94, WINDOW_H - 91, 84, 24), pygame.Rect(WINDOW_W - 178, WINDOW_H - 91, 84, 24)
+        # Keep both controls fully inside the footer border.  The return hint
+        # is rendered below the panel so it never competes with NEXT.
+        return pygame.Rect(94, WINDOW_H - 93, 84, 20), pygame.Rect(WINDOW_W - 178, WINDOW_H - 93, 84, 20)
 
     def _get_achievement_wall_detail_rect(self, badges):
         panel_w = 540
@@ -1243,7 +1245,7 @@ class SystemMixin:
             self.screen.blit(text, (rect.centerx - text.get_width() // 2, rect.centery - text.get_height() // 2))
 
         esc_text = render_pixel_text(self.font_small, "ESC RETURN", C.DESK_MUTED, scale=1)
-        self.screen.blit(esc_text, (footer_rect.right - esc_text.get_width() - 8, footer_rect.centery - esc_text.get_height() // 2))
+        self.screen.blit(esc_text, (panel_rect.centerx - esc_text.get_width() // 2, panel_rect.bottom + 18))
 
         if self.achievement_wall_detail_index is not None and not self.achievement_wall_detail_closing:
             self.achievement_wall_detail_frame += 1
