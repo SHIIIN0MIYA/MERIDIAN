@@ -22,7 +22,7 @@ def draw_arcade_button(game, button, palette, hovered=False, pressed=False):
         game.screen,
         rect,
         {"outline": C.OUTLINE, "panel": fill},
-        border=2.5,
+        border=3,
     )
     pygame.draw.rect(game.screen, palette["accent"], rect.inflate(-12, -12), 2)
     text = fit_pixel_text(

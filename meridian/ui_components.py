@@ -33,7 +33,11 @@ def draw_pixel_panel(
     palette: dict[str, tuple[int, int, int]],
     border: int = 5,
 ) -> pygame.Rect:
-    """Draw a square pixel panel and return its normalized rectangle."""
+    """Draw a square pixel panel using an integer-pixel inset border."""
+    if isinstance(border, bool) or not isinstance(border, int):
+        raise TypeError("border must be an integer pixel count")
+    if border < 0:
+        raise ValueError("border must not be negative")
     panel_rect = pygame.Rect(rect)
     pygame.draw.rect(surface, palette["outline"], panel_rect)
     inner = panel_rect.inflate(-2 * border, -2 * border)

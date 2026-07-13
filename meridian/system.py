@@ -8,6 +8,7 @@ from .persistence import SaveManager
 from .localization import set_language, get_chinese_font, is_chinese
 from . import lore as _lore
 from .tank_engine import TankSnapshotError
+from .ui_components import anchored_blit, draw_pixel_panel, fit_pixel_text
 
 
 ACHIEVEMENTS = [
@@ -497,6 +498,40 @@ class SystemMixin:
         ])
         return buttons
 
+    def _protected_system_layouts(self):
+        """Return sibling rect groups whose separation protects system-page usability."""
+        lore = self._lore_reader_layout()
+        panel = lore["panel"]
+        tabs = []
+        for index, _category in enumerate(self._lore_categories):
+            rect = pygame.Rect(
+                panel.x + 26 + index * (lore["tab_w"] + 8),
+                lore["tab_y"],
+                lore["tab_w"],
+                32,
+            )
+            if rect.right > panel.right - 10:
+                break
+            tabs.append(rect)
+        entries = [
+            pygame.Rect(
+                panel.x + 26,
+                lore["list_y"] + index * (lore["entry_h"] + lore["entry_gap"]),
+                panel.width - 52,
+                lore["entry_h"],
+            )
+            for index in range(lore["visible_entries"])
+        ]
+        prev_rect, next_rect = self._get_achievement_wall_page_rects()
+        return {
+            "settings_buttons": [button["rect"] for button in self._get_system_settings_buttons()],
+            "profile_buttons": [button["rect"] for button in self._get_profile_buttons()],
+            "achievement_badges": [badge["rect"] for badge in self._get_achievement_wall_badges()],
+            "achievement_navigation": [prev_rect, next_rect],
+            "lore_tabs": tabs,
+            "lore_entries": entries,
+        }
+
     def _settings_value(self, action):
         values = {
             "cycle_gomoku": f"{self.board_size} x {self.board_size}",
@@ -627,30 +662,41 @@ class SystemMixin:
         if pressed:
             rect.y += 3
         pygame.draw.rect(self.screen, C.OUTLINE, rect.move(4, 4))
-        pygame.draw.rect(self.screen, C.OUTLINE, rect)
         fill = C.DESK_ICON_HOVER if hovered or button.get("selected") else C.DESK_PANEL_DARK
-        pygame.draw.rect(self.screen, fill, rect.inflate(-4, -4))
+        draw_pixel_panel(
+            self.screen, rect, {"outline": C.OUTLINE, "panel": fill}, border=2
+        )
         pygame.draw.rect(self.screen, C.DESK_ACCENT_LIGHT, rect.inflate(-10, -10), 2)
         label = button["label"]
         if label.startswith("cycle_"):
             label = self._settings_value(label)
-        text = render_pixel_text(self.font_small, label, C.DESK_TEXT, scale=2)
-        if text.get_width() > rect.width - 18:
-            text = render_pixel_text(self.font_small, label, C.DESK_TEXT, scale=1)
-        self.screen.blit(text, (rect.centerx - text.get_width() // 2, rect.centery - text.get_height() // 2))
+        text = fit_pixel_text(
+            self.font_small, label, C.DESK_TEXT, rect.width - 18, preferred_scale=2
+        )
+        anchored_blit(self.screen, text, rect, "center")
 
     def _draw_system_settings(self):
         self.screen.fill(C.DESK_BG_BOTTOM)
         panel = pygame.Rect(50, 38, 1180, 644)
-        pygame.draw.rect(self.screen, C.OUTLINE, panel, 5)
-        pygame.draw.rect(self.screen, C.DESK_PANEL, panel.inflate(-10, -10))
+        draw_pixel_panel(
+            self.screen, panel,
+            {"outline": C.OUTLINE, "panel": C.DESK_PANEL}, border=5,
+        )
         pygame.draw.rect(self.screen, C.DESK_ACCENT, panel.inflate(-22, -22), 2)
-        title = render_pixel_text(self.font_menu_title, "SYSTEM SETTINGS", C.DESK_ACCENT_LIGHT, scale=3)
-        self.screen.blit(title, (panel.centerx - title.get_width() // 2, panel.y + 28))
-        left = render_pixel_text(self.font_status, "SYSTEM", C.GOLD_LIGHT, scale=2)
-        right = render_pixel_text(self.font_status, "GAME OPTIONS", C.GOLD_LIGHT, scale=2)
-        self.screen.blit(left, (350 - left.get_width() // 2, 132))
-        self.screen.blit(right, (930 - right.get_width() // 2, 132))
+        title = fit_pixel_text(
+            self.font_menu_title, "SYSTEM SETTINGS", C.DESK_ACCENT_LIGHT,
+            panel.width - 80, preferred_scale=3,
+        )
+        anchored_blit(
+            self.screen, title, pygame.Rect(panel.x, panel.y + 28, panel.width, title.get_height()),
+            "center",
+        )
+        left = fit_pixel_text(self.font_status, "SYSTEM", C.GOLD_LIGHT, 400, preferred_scale=2)
+        right = fit_pixel_text(
+            self.font_status, "GAME OPTIONS", C.GOLD_LIGHT, 400, preferred_scale=2
+        )
+        anchored_blit(self.screen, left, pygame.Rect(150, 132, 400, left.get_height()), "center")
+        anchored_blit(self.screen, right, pygame.Rect(730, 132, 400, right.get_height()), "center")
         labels = ["MUSIC", "SFX", "MASTER MUTE", "DISPLAY", "ANIMATION", "SHAKE", "LANGUAGE"]
         game_labels = ["GOMOKU BOARD", "SNAKE SPEED", "SNAKE SKIN", "BREAKOUT MODE", "BREAKOUT LEVEL", "MINES BOARD"]
         for index, y in enumerate([158, 210, 262, 314, 366, 418, 470]):
@@ -737,11 +783,18 @@ class SystemMixin:
     def _draw_profile(self):
         self.screen.fill(C.DESK_BG_BOTTOM)
         outer = pygame.Rect(46, 34, 1188, 652)
-        pygame.draw.rect(self.screen, C.OUTLINE, outer, 5)
-        pygame.draw.rect(self.screen, C.DESK_PANEL, outer.inflate(-10, -10))
+        draw_pixel_panel(
+            self.screen, outer,
+            {"outline": C.OUTLINE, "panel": C.DESK_PANEL}, border=5,
+        )
         pygame.draw.rect(self.screen, C.DESK_ACCENT, outer.inflate(-22, -22), 2)
-        title = render_pixel_text(self.font_menu_title, "PLAYER PROFILE", C.DESK_ACCENT_LIGHT, scale=3)
-        self.screen.blit(title, (outer.centerx - title.get_width() // 2, 42))
+        title = fit_pixel_text(
+            self.font_menu_title, "PLAYER PROFILE", C.DESK_ACCENT_LIGHT,
+            outer.width - 80, preferred_scale=3,
+        )
+        anchored_blit(
+            self.screen, title, pygame.Rect(outer.x, 42, outer.width, title.get_height()), "center"
+        )
         for button in self._get_profile_buttons():
             self._draw_system_button(button)
         if self.profile_tab == "achievements":

@@ -14,6 +14,7 @@ from .arcade_common import (
 )
 from .common import C, WINDOW_H, WINDOW_W, pygame, render_pixel_text
 from .localization import get_chinese_font, is_chinese, translate
+from .ui_components import anchored_blit, draw_pixel_panel, fit_pixel_text
 from .tank_engine import (
     ARENA_COLS,
     ARENA_ROWS,
@@ -110,6 +111,22 @@ class TankBattleMixin:
             arcade_button((410, 550, 210, 52), "REMATCH", "start"),
             arcade_button((660, 550, 210, 52), "MENU", "menu"),
         ]
+
+    def _protected_tank_layouts(self):
+        """Return non-overlapping Tank menu, pause, and result content groups."""
+        end_panel = pygame.Rect(250, 132, 780, 516)
+        return {
+            "menu_buttons": [button["rect"] for button in self._tank_buttons("menu")],
+            "pause_content": [
+                pygame.Rect(450, 300, 380, 48),
+                pygame.Rect(450, 388, 380, 32),
+            ],
+            "end_cards": [
+                pygame.Rect(end_panel.x + 54 + index * 348, 362, 324, 112)
+                for index in range(2)
+            ],
+            "end_buttons": [button["rect"] for button in self._tank_buttons("end")],
+        }
 
     def _start_tank_battle(self):
         getattr(self, "_pending_run_states", {}).pop("tank", None)
@@ -372,8 +389,10 @@ class TankBattleMixin:
             self.screen.blit(title, (outer.centerx - title.get_width() // 2,
                                      title_plate.centery - title.get_height() // 2))
         arena_card = pygame.Rect(154, 164, 972, 142)
-        pygame.draw.rect(self.screen, C.OUTLINE, arena_card, 5)
-        pygame.draw.rect(self.screen, C.TANK_PANEL_DARK, arena_card.inflate(-10, -10))
+        draw_pixel_panel(
+            self.screen, arena_card,
+            {"outline": C.OUTLINE, "panel": C.TANK_PANEL_DARK}, border=5,
+        )
         pygame.draw.rect(self.screen, C.TANK_ACCENT, arena_card.inflate(-20, -20), 2)
         self._draw_tank_emblem(outer.centerx, 226)
         versus = render_pixel_text(self.font_menu_title, "VS", C.TANK_ACCENT_LIGHT, scale=3)
@@ -400,8 +419,10 @@ class TankBattleMixin:
         draw_arcade_frame(self, "CONTROLS", "TWO CREWS / ONE KEYBOARD", TANK_PALETTE)
         lines = ["RED: W A S D    ITEM: F", "BLUE: ARROW KEYS    ITEM: ENTER", "MOVE IN 8 DIRECTIONS", "P: PAUSE    ESC: MENU"]
         panel = pygame.Rect(220, 164, 840, 448)
-        pygame.draw.rect(self.screen, C.OUTLINE, panel, 5)
-        pygame.draw.rect(self.screen, C.TANK_PANEL_DARK, panel.inflate(-10, -10))
+        draw_pixel_panel(
+            self.screen, panel,
+            {"outline": C.OUTLINE, "panel": C.TANK_PANEL_DARK}, border=5,
+        )
         for index, line in enumerate(lines):
             text = render_pixel_text(self.font_status, line, C.TANK_TEXT, scale=2)
             self.screen.blit(text, (panel.centerx - text.get_width() // 2, 202 + index * 48))
@@ -410,8 +431,10 @@ class TankBattleMixin:
         for index, item in enumerate(ItemType):
             col, row = index % 4, index // 4
             card = pygame.Rect(panel.x + 34 + col * 196, 420 + row * 72, 176, 50)
-            pygame.draw.rect(self.screen, C.OUTLINE, card, 2)
-            pygame.draw.rect(self.screen, C.TANK_PANEL, card.inflate(-4, -4))
+            draw_pixel_panel(
+                self.screen, card,
+                {"outline": C.OUTLINE, "panel": C.TANK_PANEL}, border=2,
+            )
             label_key = {"repair": "REPAIR KIT", "speed": "OVERDRIVE"}.get(
                 item.value, item.value.upper()
             )
@@ -481,8 +504,10 @@ class TankBattleMixin:
         shade.fill(C.OVERLAY_END)
         self.screen.blit(shade, (0, 0))
         panel = pygame.Rect(250, 132, 780, 516)
-        pygame.draw.rect(self.screen, C.OUTLINE, panel, 5)
-        pygame.draw.rect(self.screen, C.TANK_PANEL, panel.inflate(-10, -10))
+        draw_pixel_panel(
+            self.screen, panel,
+            {"outline": C.OUTLINE, "panel": C.TANK_PANEL}, border=5,
+        )
         pygame.draw.rect(self.screen, C.TANK_ACCENT, panel.inflate(-22, -22), 2)
         pygame.draw.line(self.screen, C.TANK_ACCENT, (panel.x + 36, 334),
                          (panel.right - 36, 334), 2)
@@ -499,23 +524,35 @@ class TankBattleMixin:
         score = render_pixel_text(self.font_status, score_label, C.TANK_TEXT, scale=3)
         self.screen.blit(score, (panel.centerx - score.get_width() // 2, 272))
         for index, player in enumerate(("red", "blue")):
-            shots = self._tank_player_shots[player]
-            accuracy = round(self._tank_player_hits[player] * 100 / shots) if shots else 0
-            summary = (
-                f"{translate(player.upper())}  {translate('ACCURACY')} {accuracy}%  "
-                f"{translate('ITEMS USED')} {self._tank_player_items_used[player]}"
-            )
             color = C.TANK_RED_LIGHT if player == "red" else C.TANK_BLUE_LIGHT
             card = pygame.Rect(panel.x + 54 + index * 348, 362, 324, 112)
-            pygame.draw.rect(self.screen, C.OUTLINE, card, 3)
-            pygame.draw.rect(self.screen, C.TANK_PANEL_DARK, card.inflate(-6, -6))
+            draw_pixel_panel(
+                self.screen, card,
+                {"outline": C.OUTLINE, "panel": C.TANK_PANEL_DARK}, border=3,
+            )
             pygame.draw.rect(self.screen, color, (card.x + 12, card.y + 14, 7, card.height - 28))
-            line = render_pixel_text(self.font_small, summary, color, scale=2)
-            self.screen.blit(line, (card.centerx - line.get_width() // 2 + 5,
-                                    card.centery - line.get_height() // 2))
+            first_label, second_label = self._tank_end_summary_lines(player)
+            text_box = pygame.Rect(card.x + 30, card.y + 14, card.width - 42, 36)
+            first_line = fit_pixel_text(
+                self.font_small, first_label, color, text_box.width, preferred_scale=2,
+            )
+            anchored_blit(self.screen, first_line, text_box, "center")
+            text_box.y = card.y + 61
+            second_line = fit_pixel_text(
+                self.font_small, second_label, color, text_box.width, preferred_scale=2,
+            )
+            anchored_blit(self.screen, second_line, text_box, "center")
         mouse = self._logical_mouse_pos()
         for button in self._tank_buttons("end"):
             draw_arcade_button(self, button, TANK_PALETTE, button["rect"].collidepoint(mouse), self.tank_pressed_action == button["action"])
+
+    def _tank_end_summary_lines(self, player):
+        shots = self._tank_player_shots[player]
+        accuracy = round(self._tank_player_hits[player] * 100 / shots) if shots else 0
+        return (
+            f"{translate(player.upper())}  {translate('ACCURACY')} {accuracy}%",
+            f"{translate('ITEMS USED')} {self._tank_player_items_used[player]}",
+        )
 
     def _draw_tank_hud(self):
         pygame.draw.rect(self.screen, C.TANK_PANEL, (40, 28, 1200, 66))

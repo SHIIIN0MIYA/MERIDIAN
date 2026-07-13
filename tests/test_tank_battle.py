@@ -279,8 +279,8 @@ def test_end_page_draws_localized_winner_accuracy_and_item_counts(game):
         game._draw_tank_end()
     texts = [call.args[1] for call in render.call_args_list]
     assert "RED WINS" in texts
-    assert any("RED" in text and "75%" in text and "2" in text for text in texts)
-    assert any("BLUE" in text and "0%" in text and "1" in text for text in texts)
+    assert game._tank_end_summary_lines("red") == ("RED  ACCURACY 75%", "ITEMS USED 2")
+    assert game._tank_end_summary_lines("blue") == ("BLUE  ACCURACY 0%", "ITEMS USED 1")
 
 
 def test_end_page_is_fully_localized_in_chinese(game):
@@ -297,10 +297,14 @@ def test_end_page_is_fully_localized_in_chinese(game):
 
     texts = [call.args[1] for call in render.call_args_list]
     assert "红方胜利" in texts
-    summaries = [text for text in texts if "%" in text]
-    assert any("红方" in text and "命中率" in text and "使用道具" in text for text in summaries)
-    assert any("蓝方" in text and "命中率" in text and "使用道具" in text for text in summaries)
-    assert all("ACCURACY" not in text and "ITEMS USED" not in text for text in summaries)
+    red_lines = game._tank_end_summary_lines("red")
+    blue_lines = game._tank_end_summary_lines("blue")
+    assert red_lines == ("红方  命中率 75%", "使用道具 2")
+    assert blue_lines == ("蓝方  命中率 50%", "使用道具 1")
+    assert all(
+        "ACCURACY" not in text and "ITEMS USED" not in text
+        for text in (*red_lines, *blue_lines)
+    )
     set_language("en")
 
 
