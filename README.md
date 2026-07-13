@@ -443,7 +443,7 @@ python tools/check_release.py
 该命令只检查版本与 `CHANGELOG.md` metadata，以及工作区和本地版本标签的 Git 状态。它不运行测试、不打标签、不推送，也不打包。完整质量门槛需由人工另行运行：
 
 ```bash
-python -m pytest tests/ -q
+python -m pytest tests/ -q -p no:cacheprovider
 python -m ruff check MERIDIAN.py meridian tests tools
 python -m compileall -q MERIDIAN.py meridian tests tools
 ```
