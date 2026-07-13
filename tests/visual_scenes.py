@@ -96,7 +96,9 @@ def _fixed_tank_match(game: Game) -> None:
     engine.tanks["blue"].hp = 1
     engine.tanks["blue"].held_item = ItemType.SMOKE
     engine.bullets = [BulletState("red", 9.5, 5.5, 1.0, 0.0, True)]
-    engine.smokes = [SmokeState("blue", 18.5, 8.5, 90_000)]
+    engine.smokes = [
+        SmokeState("blue", 18.5, 8.5, engine.elapsed_ms + 6_000),
+    ]
     game.tank_paused = False
 
 
@@ -132,6 +134,9 @@ def _scene_tank_end(game: Game) -> None:
     game.tank_engine.winner = "red"
     game.tank_engine.tanks["red"].hp = 2
     game.tank_engine.tanks["blue"].hp = 0
+    game._tank_player_shots = {"red": 8, "blue": 6}
+    game._tank_player_hits = {"red": 5, "blue": 3}
+    game._tank_player_items_used = {"red": 3, "blue": 2}
 
 
 SCENE_BUILDERS: dict[str, Callable[[Game], None]] = {

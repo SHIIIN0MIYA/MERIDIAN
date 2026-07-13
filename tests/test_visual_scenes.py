@@ -106,7 +106,13 @@ def test_tank_playing_visual_state_is_not_a_random_default():
     assert engine.tanks["blue"].hp == 1
     assert engine.tanks["blue"].held_item is ItemType.SMOKE
     assert engine.bullets == [BulletState("red", 9.5, 5.5, 1.0, 0.0, True)]
-    assert engine.smokes == [SmokeState("blue", 18.5, 8.5, 90_000)]
+    expected_smoke = SmokeState(
+        "blue", 18.5, 8.5, engine.elapsed_ms + 6_000,
+    )
+    assert engine.smokes == [expected_smoke]
+    assert expected_smoke.until_ms > engine.elapsed_ms
+    engine._expire_effects()
+    assert engine.smokes == [expected_smoke]
     assert playing.tank_paused is False
     assert engine.paused is False
 
@@ -142,3 +148,9 @@ def test_tank_end_visual_state_has_fixed_result_data():
     assert ended.tank_engine.winner == "red"
     assert ended.tank_engine.tanks["red"].hp == 2
     assert ended.tank_engine.tanks["blue"].hp == 0
+    assert ended._tank_player_shots == {"red": 8, "blue": 6}
+    assert ended._tank_player_hits == {"red": 5, "blue": 3}
+    assert ended._tank_player_items_used == {"red": 3, "blue": 2}
+    assert sum(ended._tank_player_shots.values()) > 0
+    for player in ("red", "blue"):
+        assert ended._tank_player_hits[player] <= ended._tank_player_shots[player]
