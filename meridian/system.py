@@ -1539,6 +1539,7 @@ class SystemMixin:
         if event.type == pygame.MOUSEBUTTONUP and event.button == 1:
             if self.lore_pressed_action == "click":
                 layout = self._lore_reader_layout()
+                panel = layout["panel"]
                 # Check category tabs
                 for i, tab_rect in enumerate(layout["tab_rects"]):
                     if tab_rect.collidepoint(event.pos):

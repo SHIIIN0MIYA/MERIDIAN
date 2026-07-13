@@ -73,6 +73,31 @@ def test_tank_lore_tab_is_visible_and_clickable(game):
     assert game._lore_categories[game.lore_category_index][0] == "tank"
 
 
+def test_tank_lore_entry_is_clickable_after_selecting_its_tab(game):
+    tank_index = next(
+        index for index, category in enumerate(game._lore_categories)
+        if category[0] == "tank"
+    )
+    game.lore_category_index = tank_index
+    layout = game._lore_reader_layout()
+    first_entry = pygame.Rect(
+        layout["panel"].x + 26,
+        layout["list_y"],
+        layout["panel"].width - 52,
+        layout["entry_h"],
+    )
+
+    game._handle_lore_reader_event(pygame.event.Event(
+        pygame.MOUSEBUTTONDOWN, {"button": 1, "pos": first_entry.center},
+    ))
+    game._handle_lore_reader_event(pygame.event.Event(
+        pygame.MOUSEBUTTONUP, {"button": 1, "pos": first_entry.center},
+    ))
+
+    assert game.state == game.LORE_STORY
+    assert game.lore_reading_entry_id == "twin_signals"
+
+
 def test_tank_menu_pause_and_end_layouts_are_protected(game):
     layouts = game._protected_tank_layouts()
 
