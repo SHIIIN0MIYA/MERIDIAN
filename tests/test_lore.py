@@ -4,7 +4,7 @@ from meridian.lore import get_all_worlds, collect_lore_translations, get_world
 
 
 class LoreTests(unittest.TestCase):
-    def test_seven_worlds_are_registered(self):
+    def test_eight_worlds_are_registered(self):
         worlds = get_all_worlds()
         expected_ids = {"gomoku", "snake", "breakout", "2048", "mines", "tetris", "air", "tank"}
         actual_ids = {w["game_id"] for w in worlds}
@@ -33,12 +33,18 @@ class LoreTests(unittest.TestCase):
         self.assertEqual(world["world_name_zh"], "钢铁斗场")
         self.assertEqual(world["prologue_en"], [
             "THE IRON ARENA ACCEPTS TWO SIGNALS.",
-            "RED AND BLUE WAKE BENEATH THE SAME SKY.",
-            "NO SPAWN IS SAFE FOREVER.",
-            "ONLY THE LAST SCORE SURVIVES THE BELL.",
+            "RED AND BLUE ARE SPLIT ECHOES OF ONE COMMAND.",
+            "THEIR FIRE-CONTROL CORES NEVER STOP CYCLING.",
+            "FALLEN HULLS RETURN THROUGH MOVING RECONSTRUCTION GATES.",
+            "WHEN THE FINAL BELL SOUNDS, ONLY THE HIGHER SCORE SURVIVES.",
         ])
         entries = {entry["id"]: entry for entry in world["lore_entries"]}
+        self.assertEqual(set(entries), {
+            "twin_signals", "arena_origin", "eight_protocols", "moving_spawn",
+        })
+        self.assertEqual(entries["twin_signals"]["unlock"], "always")
         self.assertEqual(entries["arena_origin"]["unlock"], "stat:tank:matches_completed:1")
+        self.assertEqual(entries["eight_protocols"]["unlock"], "stat:tank:items_used:25")
         self.assertEqual(entries["moving_spawn"]["unlock"], "stat:tank:matches_completed:10")
 
 

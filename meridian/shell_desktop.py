@@ -1,6 +1,13 @@
 ﻿from .common import *
-from .localization import is_chinese
+from .localization import is_chinese, translate
+from .volume_panel import (
+    VolumePanelState,
+    begin_close,
+    begin_open,
+    update_volume_panel,
+)
 from .version import version_label
+from .completion import global_completion
 
 
 # ── Desktop Icon Registry ────────────────────────────────────
@@ -35,6 +42,10 @@ class DesktopMixin:
         self.desktop_pressed_action = None
         self.desktop_volume_open = False
         self.desktop_volume_dragging = False
+        self.desktop_volume_state = VolumePanelState()
+        self.desktop_volume_geometry = update_volume_panel(
+            self.desktop_volume_state, 0, "off"
+        )
         self.shutdown_confirm_open = False
         self.shutdown_confirm_pressed = None
         self.desktop_esc_lock_frames = 0
@@ -115,48 +126,102 @@ class DesktopMixin:
             34,
         )
 
-    def _get_desktop_volume_panel_rect(self):
+    def _get_desktop_volume_panel_base_rect(self):
         tab = self._get_desktop_volume_tab_rect()
-        return pygame.Rect(tab.right + 8, tab.y - 12, 214, 58)
+        return pygame.Rect(tab.right + 8, tab.bottom - 138, 330, 150)
 
-    def _get_desktop_volume_slider_rect(self):
+    def _get_desktop_volume_panel_rect(self):
+        base = self._get_desktop_volume_panel_base_rect()
+        width = round(base.width * self.desktop_volume_geometry.width_ratio)
+        return pygame.Rect(base.x, base.y, max(0, width), base.height)
+
+    def _get_desktop_volume_close_rect(self):
         panel = self._get_desktop_volume_panel_rect()
-        return pygame.Rect(panel.x + 54, panel.centery - 4, 138, 8)
+        return pygame.Rect(panel.right - 34, panel.y + 8, 24, 24)
 
-    def _set_desktop_volume_from_pos(self, pos):
-        slider = self._get_desktop_volume_slider_rect()
-        value = (pos[0] - slider.left) / max(1, slider.width)
-        self.audio.set_music_volume(value)
+    def _desktop_volume_rows(self):
+        panel = self._get_desktop_volume_panel_rect()
+        values = (
+            ("master", "MASTER", self.audio.master_volume, self.audio.set_master_volume),
+            ("music", "MUSIC", self.audio.music_volume, self.audio.set_music_volume),
+            ("sfx", "SFX", self.audio.sfx_volume, self.audio.set_sfx_volume),
+        )
+        rows = []
+        for index, (key, label, value, setter) in enumerate(values):
+            offset = round(self.desktop_volume_geometry.row_offsets[index])
+            y = panel.y + 42 + index * 34
+            track_left = panel.x + 88 + offset
+            track_right = panel.right - 58 + offset
+            rows.append({
+                "key": key,
+                "label": translate(label),
+                "value": value,
+                "setter": setter,
+                "track": pygame.Rect(track_left, y, max(1, track_right - track_left), 8),
+            })
+        return rows
+
+    def _cancel_desktop_volume_drag(self):
+        self.desktop_volume_state.drag_target = None
+        self.desktop_volume_dragging = False
+
+    def _update_desktop_volume_panel(self, dt_ms=1000 / 60):
+        self.desktop_volume_geometry = update_volume_panel(
+            self.desktop_volume_state, dt_ms, self.animation_level
+        )
+        self.desktop_volume_open = self.desktop_volume_state.open
+        return self.desktop_volume_geometry
+
+    def _set_desktop_volume_from_pos(self, key, pos):
+        row = next(row for row in self._desktop_volume_rows() if row["key"] == key)
+        track = row["track"]
+        value = (pos[0] - track.left) / max(1, track.width)
+        row["setter"](value)
+        if key == "master":
+            self.master_volume = self.audio.master_volume
+
+    def _close_desktop_volume_panel(self):
+        self._cancel_desktop_volume_drag()
+        begin_close(self.desktop_volume_state)
+        self.desktop_volume_open = False
 
     def _handle_desktop_volume_event(self, event):
         tab = self._get_desktop_volume_tab_rect()
-        panel = self._get_desktop_volume_panel_rect()
-        slider = self._get_desktop_volume_slider_rect()
+        interactive = self.desktop_volume_geometry.interactive_rect is not None
 
         if event.type == pygame.MOUSEMOTION:
-            if self.desktop_volume_dragging:
-                self._set_desktop_volume_from_pos(event.pos)
+            if self.desktop_volume_state.drag_target is not None:
+                self._set_desktop_volume_from_pos(
+                    self.desktop_volume_state.drag_target, event.pos
+                )
                 return True
-            if tab.collidepoint(event.pos) or panel.collidepoint(event.pos):
-                self.desktop_volume_open = True
             return False
 
         if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
             if tab.collidepoint(event.pos):
-                self.desktop_volume_open = not self.desktop_volume_open
+                if self.desktop_volume_state.phase != "open":
+                    begin_open(self.desktop_volume_state)
+                    self.desktop_volume_open = True
                 return True
-            if self.desktop_volume_open and slider.inflate(12, 18).collidepoint(event.pos):
-                self.desktop_volume_dragging = True
-                self._set_desktop_volume_from_pos(event.pos)
+            if interactive and self._get_desktop_volume_close_rect().collidepoint(event.pos):
+                self._close_desktop_volume_panel()
                 return True
-            if self.desktop_volume_open and not panel.collidepoint(event.pos):
-                self.desktop_volume_open = False
+            if interactive:
+                for row in self._desktop_volume_rows():
+                    if row["track"].inflate(12, 18).collidepoint(event.pos):
+                        self.desktop_volume_state.drag_target = row["key"]
+                        self.desktop_volume_dragging = True
+                        self._set_desktop_volume_from_pos(row["key"], event.pos)
+                        return True
             return False
 
         if event.type == pygame.MOUSEBUTTONUP and event.button == 1:
-            if self.desktop_volume_dragging:
-                self._set_desktop_volume_from_pos(event.pos)
-                self.desktop_volume_dragging = False
+            if self.desktop_volume_state.drag_target is not None:
+                self._set_desktop_volume_from_pos(
+                    self.desktop_volume_state.drag_target, event.pos
+                )
+                self._cancel_desktop_volume_drag()
+                self._save_now()
                 return True
         return False
 
@@ -242,12 +307,14 @@ class DesktopMixin:
         if self.desktop_slide_active: return
         if target_page < 0 or target_page >= len(self.desktop_pages): return
         if target_page == self.desktop_page: return
+        self._cancel_desktop_volume_drag()
         self.desktop_slide_active = True
         self.desktop_slide_from_page = self.desktop_page; self.desktop_slide_to_page = target_page
         self.desktop_slide_direction = 1 if target_page > self.desktop_page else -1
         self.desktop_slide_frame = 0; self.desktop_pressed_action = None
 
     def _update_desktop_slide(self):
+        self._update_desktop_volume_panel()
         if not self.desktop_slide_active: return
         self.desktop_slide_frame += 1
         if self.desktop_slide_frame >= self.desktop_slide_max_frames:
@@ -821,40 +888,65 @@ class DesktopMixin:
     def _draw_desktop_volume_control(self):
         tab = self._get_desktop_volume_tab_rect()
         panel = self._get_desktop_volume_panel_rect()
-        slider = self._get_desktop_volume_slider_rect()
         mouse_pos = self._logical_mouse_pos()
-        visible = (
-            self.desktop_volume_open
-            or self.desktop_volume_dragging
-            or tab.collidepoint(mouse_pos)
-            or panel.collidepoint(mouse_pos)
-        )
+        visible = panel.width > 0
 
         if visible:
             pygame.draw.rect(self.screen, C.OUTLINE, panel)
             pygame.draw.rect(self.screen, C.DESK_PANEL_DARK, panel.inflate(-4, -4))
             pygame.draw.rect(self.screen, C.DESK_ACCENT, panel.inflate(-10, -10), 2)
 
-            label = render_pixel_text(self.font_small, "BGM", C.DESK_TEXT, scale=1)
-            self.screen.blit(label, (panel.x + 16, panel.centery - label.get_height() // 2))
-
-            pygame.draw.rect(self.screen, C.OUTLINE, slider.inflate(4, 4))
-            pygame.draw.rect(self.screen, C.DESK_MUTED, slider)
-            fill_w = int(slider.width * self.audio.music_volume)
-            if fill_w > 0:
-                pygame.draw.rect(
-                    self.screen,
-                    C.DESK_ACCENT_LIGHT,
-                    (slider.x, slider.y, fill_w, slider.height),
+            content = pygame.Surface(panel.size, pygame.SRCALPHA)
+            for row in self._desktop_volume_rows():
+                track = row["track"].move(-panel.x, -panel.y)
+                label = render_pixel_text(
+                    self.font_small, row["label"], C.DESK_TEXT, scale=1
                 )
-            knob_x = slider.x + fill_w
-            pygame.draw.rect(self.screen, C.OUTLINE, (knob_x - 5, slider.centery - 10, 10, 20))
-            pygame.draw.rect(self.screen, C.GOLD, (knob_x - 2, slider.centery - 7, 4, 14))
+                content.blit(label, (12, track.centery - label.get_height() // 2))
+                pygame.draw.rect(content, C.OUTLINE, track.inflate(4, 4))
+                pygame.draw.rect(content, C.DESK_MUTED, track)
+                fill_w = round(track.width * row["value"])
+                if fill_w > 0:
+                    pygame.draw.rect(
+                        content,
+                        C.DESK_ACCENT_LIGHT,
+                        (track.x, track.y, fill_w, track.height),
+                    )
+                knob_x = track.x + fill_w
+                pygame.draw.rect(
+                    content, C.OUTLINE, (knob_x - 4, track.centery - 8, 8, 16)
+                )
+                pygame.draw.rect(
+                    content, C.GOLD, (knob_x - 2, track.centery - 6, 4, 12)
+                )
+                percentage = render_pixel_text(
+                    self.font_small,
+                    f"{round(row['value'] * 100):03d}%",
+                    C.DESK_TEXT,
+                    scale=1,
+                )
+                content.blit(
+                    percentage,
+                    (panel.width - percentage.get_width() - 10,
+                     track.centery - percentage.get_height() // 2),
+                )
+
+            close_rect = self._get_desktop_volume_close_rect().move(-panel.x, -panel.y)
+            pygame.draw.rect(content, C.OUTLINE, close_rect)
+            pygame.draw.rect(content, C.DESK_PANEL_DARK, close_rect.inflate(-4, -4))
+            cx, cy = close_rect.center
+            pygame.draw.polygon(
+                content,
+                C.DESK_ACCENT_LIGHT,
+                [(cx + 5, cy - 7), (cx - 5, cy), (cx + 5, cy + 7)],
+            )
+            content.set_alpha(round(255 * self.desktop_volume_geometry.content_alpha))
+            self.screen.blit(content, panel.topleft)
 
         pygame.draw.rect(self.screen, C.OUTLINE, tab)
         pygame.draw.rect(
             self.screen,
-            C.DESK_ICON_HOVER if visible else C.DESK_PANEL_DARK,
+            C.DESK_ICON_HOVER if visible or tab.collidepoint(mouse_pos) else C.DESK_PANEL_DARK,
             tab.inflate(-4, -4),
         )
         cx, cy = tab.center
@@ -864,13 +956,22 @@ class DesktopMixin:
             C.DESK_ACCENT_LIGHT,
             [(cx - 4, cy - 4), (cx + 2, cy - 9), (cx + 2, cy + 9), (cx - 4, cy + 4)],
         )
-        if self.audio.music_volume > 0.02:
+        if self.audio.master_volume > 0.02:
             pygame.draw.arc(self.screen, C.DESK_ACCENT_LIGHT, (cx - 2, cy - 8, 15, 16), -0.8, 0.8, 2)
+
+    def _completion_desktop_variant(self):
+        return "resonant" if global_completion(self.save_data) >= 100 else "normal"
 
     def _draw_desktop(self):
         self._draw_stage_background()
         self._draw_handheld_shell()
         self._draw_desktop_wallpaper()
+        if self._completion_desktop_variant() == "resonant":
+            color = C.DESK_ACCENT_LIGHT
+            pygame.draw.rect(self.screen, color, DESKTOP_SCREEN_RECT, 2)
+            if getattr(self, "animation_level", "full") != "off":
+                inset = 5 + (self.anim_tick // 8) % 3
+                pygame.draw.rect(self.screen, C.GOLD_LIGHT, DESKTOP_SCREEN_RECT.inflate(-inset * 2, -inset * 2), 1)
         self._draw_desktop_status_bar()
         screen_rect = DESKTOP_SCREEN_RECT; old_clip = self.screen.get_clip()
         self.screen.set_clip(screen_rect)

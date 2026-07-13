@@ -1,4 +1,4 @@
-from meridian.version import __version__, version_label
+from meridian.version import DEVELOPMENT_VERSION, __version__, version_label
 
 
 def test_canonical_version_number():
@@ -6,4 +6,5 @@ def test_canonical_version_number():
 
 
 def test_version_label_includes_product_name():
-    assert version_label() == "MERIDIAN 3.2.0"
+    assert DEVELOPMENT_VERSION == "3.3.0"
+    assert version_label() == "MERIDIAN 3.3.0 DEV"

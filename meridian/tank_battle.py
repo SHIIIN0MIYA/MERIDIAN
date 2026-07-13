@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import math
 import random
 
 from .arcade_common import (
@@ -14,6 +13,7 @@ from .arcade_common import (
 )
 from .common import C, WINDOW_H, WINDOW_W, pygame, render_pixel_text
 from .localization import get_chinese_font, is_chinese, translate
+from .ui_components import anchored_blit, draw_pixel_panel, fit_pixel_text
 from .tank_engine import (
     ARENA_COLS,
     ARENA_ROWS,
@@ -23,6 +23,8 @@ from .tank_engine import (
     TankBattleEngine,
     Terrain,
 )
+from .tank_items_ui import draw_item_icon
+from .tank_vfx import TankVfxState, consume_engine_events, draw_tank_vfx, update_vfx
 
 
 TANK_PALETTE = {
@@ -57,6 +59,11 @@ _SOUND_VOLUMES = {
     "tank_item": 0.66,
     "tank_alarm": 0.72,
 }
+_ITEM_SOUNDS = {
+    "repair": "tank_repair", "shield": "tank_shield_break",
+    "speed": "tank_overdrive", "mine": "tank_mine_arm", "emp": "tank_emp",
+    "piercing": "tank_piercing", "smoke": "tank_smoke", "warp": "tank_warp",
+}
 
 _PLAYER_KEYS = {
     "red": {"left": pygame.K_a, "right": pygame.K_d, "up": pygame.K_w, "down": pygame.K_s},
@@ -73,6 +80,7 @@ class TankBattleMixin:
         self.tank_pressed_action = None
         self.tank_paused = False
         self.tank_particles = []
+        self.tank_vfx = TankVfxState()
         self.tank_shake_frames = 0
         self.tank_shake_x = self.tank_shake_y = 0
         self._tank_key_clock = 0
@@ -111,6 +119,22 @@ class TankBattleMixin:
             arcade_button((660, 550, 210, 52), "MENU", "menu"),
         ]
 
+    def _protected_tank_layouts(self):
+        """Return non-overlapping Tank menu, pause, and result content groups."""
+        end_panel = pygame.Rect(250, 132, 780, 516)
+        return {
+            "menu_buttons": [button["rect"] for button in self._tank_buttons("menu")],
+            "pause_content": [
+                pygame.Rect(450, 300, 380, 48),
+                pygame.Rect(450, 388, 380, 32),
+            ],
+            "end_cards": [
+                pygame.Rect(end_panel.x + 54 + index * 348, 362, 324, 112)
+                for index in range(2)
+            ],
+            "end_buttons": [button["rect"] for button in self._tank_buttons("end")],
+        }
+
     def _start_tank_battle(self):
         getattr(self, "_pending_run_states", {}).pop("tank", None)
         self.tank_engine = TankBattleEngine()
@@ -144,6 +168,9 @@ class TankBattleMixin:
             self.state = target
 
     def _handle_tank_menu_event(self, event):
+        if self.prologue_active:
+            self._handle_prologue_event(event)
+            return
         if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
             self._go_desktop()
             return
@@ -216,6 +243,7 @@ class TankBattleMixin:
         commands = {player: self._tank_command(player) for player in ("red", "blue")}
         events = self.tank_engine.update(max(0, int(dt_ms)), commands)
         self._handle_tank_engine_events(events)
+        update_vfx(self.tank_vfx, dt_ms)
         self.audio.set_tank_phase(self.tank_engine.music_phase)
         if self.tank_engine.phase is MatchPhase.ENDED:
             target = getattr(self, "TANK_END", "tank_end")
@@ -233,19 +261,25 @@ class TankBattleMixin:
         self.tank_particles[:] = [p for p in self.tank_particles if p["life"] > 0]
 
     def _handle_tank_engine_events(self, events):
+        display_events = []
         for event in events:
             self._record_tank_engine_event(event)
-            sound = _SOUNDS.get(event.kind)
+            sound = (_ITEM_SOUNDS.get(str(event.data.get("item", "")))
+                     or _SOUNDS.get(event.kind))
             if sound:
                 self.audio.play(sound, _SOUND_VOLUMES.get(sound, 0.7))
             if event.kind in {"tank_hit", "tank_destroyed", "mine_triggered"}:
                 self.tank_shake_frames = max(self.tank_shake_frames, 8)
-            if event.kind in _SOUNDS:
-                tank = self.tank_engine.tanks.get(event.player_id or "red")
-                if tank:
-                    for index in range(6):
-                        angle = index * math.tau / 6
-                        self.tank_particles.append({"x": tank.x, "y": tank.y, "vx": math.cos(angle) * .05, "vy": math.sin(angle) * .05, "life": 14})
+            tank = self.tank_engine.tanks.get(event.player_id or "red")
+            data = dict(event.data)
+            if tank:
+                data.setdefault("x", tank.x)
+                data.setdefault("y", tank.y)
+            display_events.append(type(event)(event.kind, event.player_id, data))
+        consume_engine_events(
+            self.tank_vfx, display_events, getattr(self, "animation_level", "full"),
+            seed=self.tank_engine.elapsed_ms + len(display_events),
+        )
 
     def _record_tank_engine_event(self, event):
         record = getattr(self, "_record_stat", None)
@@ -359,6 +393,10 @@ class TankBattleMixin:
         self._tank_item_pulses = {"red": False, "blue": False}
 
     def _draw_tank_menu(self):
+        if self._check_and_show_prologue("tank"):
+            self._draw_prologue_screen()
+            return
+
         outer = draw_arcade_frame(self, "TANK DUEL", "LOCAL TWO-PLAYER ARENA", TANK_PALETTE)
         if is_chinese():
             # Force the bundled 12px CJK bitmap face and integer nearest scaling.
@@ -372,8 +410,10 @@ class TankBattleMixin:
             self.screen.blit(title, (outer.centerx - title.get_width() // 2,
                                      title_plate.centery - title.get_height() // 2))
         arena_card = pygame.Rect(154, 164, 972, 142)
-        pygame.draw.rect(self.screen, C.OUTLINE, arena_card, 5)
-        pygame.draw.rect(self.screen, C.TANK_PANEL_DARK, arena_card.inflate(-10, -10))
+        draw_pixel_panel(
+            self.screen, arena_card,
+            {"outline": C.OUTLINE, "panel": C.TANK_PANEL_DARK}, border=5,
+        )
         pygame.draw.rect(self.screen, C.TANK_ACCENT, arena_card.inflate(-20, -20), 2)
         self._draw_tank_emblem(outer.centerx, 226)
         versus = render_pixel_text(self.font_menu_title, "VS", C.TANK_ACCENT_LIGHT, scale=3)
@@ -400,8 +440,10 @@ class TankBattleMixin:
         draw_arcade_frame(self, "CONTROLS", "TWO CREWS / ONE KEYBOARD", TANK_PALETTE)
         lines = ["RED: W A S D    ITEM: F", "BLUE: ARROW KEYS    ITEM: ENTER", "MOVE IN 8 DIRECTIONS", "P: PAUSE    ESC: MENU"]
         panel = pygame.Rect(220, 164, 840, 448)
-        pygame.draw.rect(self.screen, C.OUTLINE, panel, 5)
-        pygame.draw.rect(self.screen, C.TANK_PANEL_DARK, panel.inflate(-10, -10))
+        draw_pixel_panel(
+            self.screen, panel,
+            {"outline": C.OUTLINE, "panel": C.TANK_PANEL_DARK}, border=5,
+        )
         for index, line in enumerate(lines):
             text = render_pixel_text(self.font_status, line, C.TANK_TEXT, scale=2)
             self.screen.blit(text, (panel.centerx - text.get_width() // 2, 202 + index * 48))
@@ -410,15 +452,22 @@ class TankBattleMixin:
         for index, item in enumerate(ItemType):
             col, row = index % 4, index // 4
             card = pygame.Rect(panel.x + 34 + col * 196, 420 + row * 72, 176, 50)
-            pygame.draw.rect(self.screen, C.OUTLINE, card, 2)
-            pygame.draw.rect(self.screen, C.TANK_PANEL, card.inflate(-4, -4))
+            draw_pixel_panel(
+                self.screen, card,
+                {"outline": C.OUTLINE, "panel": C.TANK_PANEL}, border=2,
+            )
             label_key = {"repair": "REPAIR KIT", "speed": "OVERDRIVE"}.get(
                 item.value, item.value.upper()
             )
             label = render_pixel_text(
-                self.font_small, translate(label_key), C.TANK_ACCENT_LIGHT, scale=2,
+                self.font_small, translate(label_key), C.TANK_ACCENT_LIGHT, scale=1,
             )
-            self.screen.blit(label, (card.centerx - label.get_width() // 2,
+            draw_item_icon(
+                self.screen, item, pygame.Rect(card.x + 8, card.y + 8, 34, 34),
+                {"accent": C.TANK_ACCENT_LIGHT, "dark": C.TANK_PANEL_DARK,
+                 "outline": C.OUTLINE},
+            )
+            self.screen.blit(label, (card.x + 48,
                                      card.centery - label.get_height() // 2))
 
     def _draw_tank_playing(self):
@@ -452,6 +501,7 @@ class TankBattleMixin:
             pygame.draw.rect(self.screen, C.TANK_ACCENT_LIGHT, (px - 3, py - 3, 6, 6))
         for player_id, tank in self.tank_engine.tanks.items():
             self._draw_tank_entity(arena, tile, player_id, tank)
+        draw_tank_vfx(self, arena, tile, self.tank_vfx)
         for particle in self.tank_particles:
             px, py = self._world_point(arena, tile, particle["x"], particle["y"])
             pygame.draw.rect(self.screen, C.TANK_ACCENT_LIGHT, (px - 2, py - 2, 4, 4))
@@ -481,8 +531,10 @@ class TankBattleMixin:
         shade.fill(C.OVERLAY_END)
         self.screen.blit(shade, (0, 0))
         panel = pygame.Rect(250, 132, 780, 516)
-        pygame.draw.rect(self.screen, C.OUTLINE, panel, 5)
-        pygame.draw.rect(self.screen, C.TANK_PANEL, panel.inflate(-10, -10))
+        draw_pixel_panel(
+            self.screen, panel,
+            {"outline": C.OUTLINE, "panel": C.TANK_PANEL}, border=5,
+        )
         pygame.draw.rect(self.screen, C.TANK_ACCENT, panel.inflate(-22, -22), 2)
         pygame.draw.line(self.screen, C.TANK_ACCENT, (panel.x + 36, 334),
                          (panel.right - 36, 334), 2)
@@ -499,23 +551,35 @@ class TankBattleMixin:
         score = render_pixel_text(self.font_status, score_label, C.TANK_TEXT, scale=3)
         self.screen.blit(score, (panel.centerx - score.get_width() // 2, 272))
         for index, player in enumerate(("red", "blue")):
-            shots = self._tank_player_shots[player]
-            accuracy = round(self._tank_player_hits[player] * 100 / shots) if shots else 0
-            summary = (
-                f"{translate(player.upper())}  {translate('ACCURACY')} {accuracy}%  "
-                f"{translate('ITEMS USED')} {self._tank_player_items_used[player]}"
-            )
             color = C.TANK_RED_LIGHT if player == "red" else C.TANK_BLUE_LIGHT
             card = pygame.Rect(panel.x + 54 + index * 348, 362, 324, 112)
-            pygame.draw.rect(self.screen, C.OUTLINE, card, 3)
-            pygame.draw.rect(self.screen, C.TANK_PANEL_DARK, card.inflate(-6, -6))
+            draw_pixel_panel(
+                self.screen, card,
+                {"outline": C.OUTLINE, "panel": C.TANK_PANEL_DARK}, border=3,
+            )
             pygame.draw.rect(self.screen, color, (card.x + 12, card.y + 14, 7, card.height - 28))
-            line = render_pixel_text(self.font_small, summary, color, scale=2)
-            self.screen.blit(line, (card.centerx - line.get_width() // 2 + 5,
-                                    card.centery - line.get_height() // 2))
+            first_label, second_label = self._tank_end_summary_lines(player)
+            text_box = pygame.Rect(card.x + 30, card.y + 14, card.width - 42, 36)
+            first_line = fit_pixel_text(
+                self.font_small, first_label, color, text_box.width, preferred_scale=2,
+            )
+            anchored_blit(self.screen, first_line, text_box, "center")
+            text_box.y = card.y + 61
+            second_line = fit_pixel_text(
+                self.font_small, second_label, color, text_box.width, preferred_scale=2,
+            )
+            anchored_blit(self.screen, second_line, text_box, "center")
         mouse = self._logical_mouse_pos()
         for button in self._tank_buttons("end"):
             draw_arcade_button(self, button, TANK_PALETTE, button["rect"].collidepoint(mouse), self.tank_pressed_action == button["action"])
+
+    def _tank_end_summary_lines(self, player):
+        shots = self._tank_player_shots[player]
+        accuracy = round(self._tank_player_hits[player] * 100 / shots) if shots else 0
+        return (
+            f"{translate(player.upper())}  {translate('ACCURACY')} {accuracy}%",
+            f"{translate('ITEMS USED')} {self._tank_player_items_used[player]}",
+        )
 
     def _draw_tank_hud(self):
         pygame.draw.rect(self.screen, C.TANK_PANEL, (40, 28, 1200, 66))
@@ -571,19 +635,11 @@ class TankBattleMixin:
         pickup = self.tank_engine.pickup
         px, py = self._world_point(arena, tile, pickup.x, pickup.y)
         pygame.draw.rect(self.screen, C.OUTLINE, (px - 10, py - 10, 20, 20))
-        item = pickup.item.value
-        colors = {
-            "repair": C.TANK_RED_LIGHT, "shield": C.TANK_BLUE_LIGHT,
-            "speed": C.TANK_ACCENT_LIGHT, "mine": C.TANK_ACCENT,
-            "emp": (180, 125, 255), "piercing": (255, 225, 105),
-            "smoke": (145, 160, 150), "warp": (100, 245, 225),
-        }
-        color = colors.get(item, C.TANK_ACCENT_LIGHT)
-        pygame.draw.rect(self.screen, color, (px - 7, py - 7, 14, 14))
-        glyphs = {"repair": "+", "shield": "O", "speed": ">", "mine": "X",
-                  "emp": "E", "piercing": "P", "smoke": "S", "warp": "W"}
-        glyph = render_pixel_text(self.font_small, glyphs.get(item, "?"), C.OUTLINE, scale=1)
-        self.screen.blit(glyph, (px - glyph.get_width() // 2, py - glyph.get_height() // 2))
+        draw_item_icon(
+            self.screen, pickup.item, pygame.Rect(px - 10, py - 10, 20, 20),
+            {"accent": C.TANK_ACCENT_LIGHT, "dark": C.TANK_PANEL_DARK,
+             "outline": C.OUTLINE}, active=True,
+        )
 
     def _draw_tank_entity(self, arena, tile, player_id, tank):
         px, py = self._world_point(arena, tile, tank.x, tank.y)

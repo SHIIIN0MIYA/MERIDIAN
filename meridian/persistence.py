@@ -16,6 +16,7 @@ SCHEMA_VERSION: int = 5
 def default_settings() -> dict[str, Any]:
     return {
         "language": "en",
+        "master_volume": 1.0,
         "music_volume": 0.55,
         "sfx_volume": 1.0,
         "muted": False,

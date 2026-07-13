@@ -303,6 +303,14 @@ def _build_effects() -> dict[str, pygame.mixer.Sound]:
         "tank_pickup": _cached("sfx_tank_pickup", lambda: _tone_sequence([261.63, 392.0, 523.25], 0.07, 0.24, "triangle")),
         "tank_item": _cached("sfx_tank_item", lambda: _sweep(180, 740, 0.18, 0.25, pulse=True)),
         "tank_alarm": _cached("sfx_tank_alarm", lambda: _tone_sequence([110, 164.81, 110, 164.81], 0.13, 0.30)),
+        "tank_repair": _cached("sfx_tank_repair", lambda: _tone_sequence([330, 440, 660], 0.06, 0.22)),
+        "tank_shield_break": _cached("sfx_tank_shield_break", lambda: _sweep(920, 240, 0.18, 0.26, noise=0.12)),
+        "tank_overdrive": _cached("sfx_tank_overdrive", lambda: _sweep(180, 920, 0.20, 0.24, pulse=True)),
+        "tank_mine_arm": _cached("sfx_tank_mine_arm", lambda: _tone_sequence([160, 160, 240], 0.07, 0.22)),
+        "tank_emp": _cached("sfx_tank_emp", lambda: _sweep(1100, 90, 0.28, 0.28, pulse=True)),
+        "tank_piercing": _cached("sfx_tank_piercing", lambda: _sweep(420, 1450, 0.16, 0.23)),
+        "tank_smoke": _cached("sfx_tank_smoke", lambda: _sweep(180, 70, 0.32, 0.18, noise=0.38)),
+        "tank_warp": _cached("sfx_tank_warp", lambda: _tone_sequence([880, 330, 990], 0.07, 0.24, "triangle")),
     }
     roots = {"gomoku": 196.00, "snake": 220.00, "breakout": 174.61, "2048": 246.94, "mines": 146.83, "tetris": 196.00, "air": 164.81}
     for game, root in roots.items():
@@ -339,6 +347,7 @@ class AudioManager:
 
     def __init__(self) -> None:
         self.enabled: bool = pygame.mixer.get_init() is not None
+        self.master_volume: float = 1.0
         self.music_volume: float = 0.55
         self.sfx_volume: float = 1.0
         self.muted: bool = False
@@ -435,13 +444,17 @@ class AudioManager:
         progress = max(0.0, min(1.0, elapsed / self.crossfade_duration_ms))
         active = self.music_channels[self.active_music_index]
         if self.current_track is not None:
-            active.set_volume((0.0 if self.muted else self.music_volume * self.scene_volume_scale) * progress)
+            active.set_volume(self.effective_music_volume() * progress)
         if self.previous_music_index is not None:
             previous = self.music_channels[self.previous_music_index]
-            previous.set_volume((0.0 if self.muted else self.music_volume * self.scene_volume_scale) * (1.0 - progress))
+            previous.set_volume(self.effective_music_volume() * (1.0 - progress))
             if progress >= 1.0:
                 previous.stop()
                 self.previous_music_index = None
+
+    def set_master_volume(self, value: float) -> None:
+        self.master_volume = max(0.0, min(1.0, float(value)))
+        self._update_crossfade()
 
     def set_music_volume(self, value: float) -> None:
         self.music_volume = max(0.0, min(1.0, float(value)))
@@ -454,6 +467,17 @@ class AudioManager:
         self.muted = bool(muted)
         self._update_crossfade()
 
+    def effective_music_volume(self) -> float:
+        if self.muted:
+            return 0.0
+        return self.master_volume * self.music_volume * self.scene_volume_scale
+
+    def effective_sfx_volume(self, event_gain: float = 1.0) -> float:
+        if self.muted:
+            return 0.0
+        gain = max(0.0, min(1.0, float(event_gain)))
+        return self.master_volume * self.sfx_volume * gain
+
     def begin_shutdown(self) -> None:
         self.play_music(None)
         self.play("power_off", 0.9)
@@ -464,8 +488,7 @@ class AudioManager:
             return
         channel = pygame.mixer.find_channel()
         if channel is not None:
-            effective = 0.0 if self.muted else volume * self.sfx_volume
-            channel.set_volume(max(0.0, min(1.0, effective)))
+            channel.set_volume(self.effective_sfx_volume(volume))
             channel.play(sound)
 
     def play_gameover(self, game_name: str) -> None:

@@ -142,7 +142,7 @@ register_device_lore(
         "Yet it hums.",
         "Its screen is not a screen. Scholars call it a 'resonance lens' "
         "— a window that gazes into worlds not our own.",
-        "Seven shards of reality are trapped within. Each game module "
+        "Fragments of many realities are trapped within. Each game module "
         "is not a program but a stable portal into one of these worlds.",
     ],
     content_zh=[
@@ -151,7 +151,7 @@ register_device_lore(
         "但它却在低鸣。",
         "它的屏幕并非屏幕。学者们称其为「共鸣透镜」——"
         "一面凝视异界的窗口。",
-        "七块现实碎片被封存在其中。每一个游戏模块都不是程序，"
+        "来自诸界的现实碎片被封存在其中。每一个游戏模块都不是程序，"
         "而是通向其中一个世界的稳定门户。",
     ],
     unlock="always",
@@ -164,19 +164,19 @@ register_device_lore(
     content_en=[
         "At the heart of MERIDIAN lies a crystal that pulses in "
         "rhythms no instrument can measure. This is the Nexus — "
-        "the anchor that holds seven worlds in equilibrium.",
+        "the anchor that holds its known worlds in equilibrium.",
         "When the device boots, it is not loading software. It is "
         "calibrating resonance. Each 'game' you play is a negotiation "
         "with the physics of another universe.",
-        "Should the Nexus ever fail, the seven worlds would drift "
+        "Should the Nexus ever fail, the linked worlds would drift "
         "apart — or collapse into one another.",
     ],
     content_zh=[
         "MERIDIAN 的核心是一颗以任何仪器都无法测量的节奏脉动的晶体。"
-        "这就是「连接之核」——维持七个世界平衡的锚点。",
+        "这就是「连接之核」——维持已知诸界平衡的锚点。",
         "设备启动时，并非在加载软件，而是在校准共鸣频率。"
         "你玩的每一个「游戏」，都是在与另一个宇宙的物理法则进行交涉。",
-        "如果连接之核失效，七个世界将会漂移离散——"
+        "如果连接之核失效，相连的诸界将会漂移离散——"
         "或者彼此坍缩为一。",
     ],
     unlock="launches_5",
@@ -605,18 +605,18 @@ register_game_world(
                 "first time, it locked onto the war-torn skies of "
                 "a world consumed by autonomous machines.",
                 "Some believe MERIDIAN was built specifically to "
-                "reach WARDEN — that the other six worlds were "
+                "reach WARDEN — that its other known worlds were "
                 "discovered later, by accident.",
                 "The truth may be the opposite: WARDEN was the "
-                "accident. The other six were always the goal.",
+                "accident. The wider network was always the goal.",
             ],
             "content_zh": [
                 "WARDEN 的世界是 MERIDIAN 触碰到的第一个世界。"
                 "当设备首次被激活时，它锁定了一片被自主机器吞噬的战争天空。",
                 "有些人相信 MERIDIAN 是专门为连接 WARDEN 而建造的——"
-                "其他六个世界是后来偶然发现的。",
+                "其他已知世界是后来偶然发现的。",
                 "真相可能恰恰相反：WARDEN 才是那个「偶然」。"
-                "其他六个世界，从一开始就是目标。",
+                "那张更广阔的世界网络，从一开始就是目标。",
             ],
             "unlock": "achievement:air_campaign",
         },
@@ -632,25 +632,41 @@ register_game_world(
     "tank",
     world_name_en="IRON ARENA",
     world_name_zh="钢铁斗场",
-    world_summary_en="Two roaming war machines contest a bell-bound arena where no spawn stays safe.",
-    world_summary_zh="两台游弋战车在钟声约束的斗场中交锋，没有出生点能永远安全。",
+    world_summary_en="Two halves of one command signal fight through a self-rebuilding arena until the final bell preserves only the score.",
+    world_summary_zh="同一道指挥信号分裂成红蓝双方，在自我重构的斗场中交锋，直至终场钟声只留下比分。",
     prologue_en=[
         "THE IRON ARENA ACCEPTS TWO SIGNALS.",
-        "RED AND BLUE WAKE BENEATH THE SAME SKY.",
-        "NO SPAWN IS SAFE FOREVER.",
-        "ONLY THE LAST SCORE SURVIVES THE BELL.",
+        "RED AND BLUE ARE SPLIT ECHOES OF ONE COMMAND.",
+        "THEIR FIRE-CONTROL CORES NEVER STOP CYCLING.",
+        "FALLEN HULLS RETURN THROUGH MOVING RECONSTRUCTION GATES.",
+        "WHEN THE FINAL BELL SOUNDS, ONLY THE HIGHER SCORE SURVIVES.",
     ],
     prologue_zh=[
         "钢铁斗场接纳了两道信号。",
-        "红与蓝在同一片天空下苏醒。",
-        "没有任何出生点永远安全。",
-        "钟声落下时，唯有比分得以留存。",
+        "红与蓝，是同一道指挥意志分裂出的回声。",
+        "双方的自动火控核心永不停歇。",
+        "被击毁的车体将从不断迁移的重构门中归来。",
+        "终场钟声响起时，唯有更高的比分得以留存。",
     ],
     menu_flavor_en="Engines wake beneath the bell. The arena is already moving.",
     menu_flavor_zh="钟声之下，引擎苏醒；斗场早已开始移动。",
     desktop_subtitle_en="LOCAL TANK DUEL",
     desktop_subtitle_zh="本地坦克对决",
     lore_entries=[
+        {
+            "id": "twin_signals",
+            "title_en": "THE TWIN SIGNALS",
+            "title_zh": "孪生信号",
+            "content_en": [
+                "Red and Blue were never nations. They are opposing echoes split from one damaged command intelligence, each convinced the other is the corrupted half.",
+                "The Iron Arena keeps both signals alive because neither can prove which one carried the original order.",
+            ],
+            "content_zh": [
+                "红方与蓝方从来不是两个国家。他们是同一套受损指挥智能分裂出的对立回声，并且都认定对方才是遭到污染的那一半。",
+                "钢铁斗场让两道信号同时延续，因为谁也无法证明自己保留了最初的命令。",
+            ],
+            "unlock": "always",
+        },
         {
             "id": "arena_origin",
             "title_en": "THE FIRST BELL",
@@ -664,6 +680,20 @@ register_game_world(
                 "MERIDIAN 将这段时限保存为规则：钟声沉寂之时，比分便成为历史。",
             ],
             "unlock": "stat:tank:matches_completed:1",
+        },
+        {
+            "id": "eight_protocols",
+            "title_en": "THE EIGHT FIELD PROTOCOLS",
+            "title_zh": "八项战场协议",
+            "content_en": [
+                "Repair, shield, overdrive, mine, disruption, piercing, smoke and warp were written as eight emergency protocols for ending the old war.",
+                "The arena scattered them around its central beacon. Every ceasefire instrument became another reason to fight for the middle.",
+            ],
+            "content_zh": [
+                "维修、护盾、过载、地雷、干扰、穿甲、烟幕与跃迁，原本是为终结旧战争而制定的八项紧急协议。",
+                "斗场却将它们散布在中央信标周围。每一种停火工具，最终都成了争夺中心的另一个理由。",
+            ],
+            "unlock": "stat:tank:items_used:25",
         },
         {
             "id": "moving_spawn",
@@ -728,15 +758,15 @@ def collect_lore_translations():
     zh_map["lore_of"] = "/"
 
     # Boot / Shell
-    zh_map["MERIDIAN OS v2.4 — NEXUS LINK ESTABLISHING"] = \
-        "MERIDIAN OS v2.4 — 正在建立连接..."
+    zh_map["MERIDIAN — NEXUS LINK ESTABLISHING"] = \
+        "MERIDIAN — 正在建立连接..."
     zh_map["CALIBRATING RESONANCE CRYSTAL..."] = "正在校准共鸣晶体..."
     zh_map["SCANNING DIMENSIONAL FOLDS..."] = "正在扫描维度褶皱..."
     zh_map["STABILIZING WORLD ANCHORS..."] = "正在稳定世界锚点..."
     zh_map["ESTABLISHING NEXUS LINK..."] = "正在建立核心连接..."
     zh_map["ALL REALMS STABLE"] = "所有位面已稳定"
-    zh_map["Seven windows into seven worlds. MERIDIAN sees them all."] = \
-        "七扇窗，七个世界。MERIDIAN 凝视着一切。"
+    zh_map["Countless windows face many worlds. MERIDIAN keeps watching."] = \
+        "无数扇窗口朝向诸界，MERIDIAN 始终凝视。"
     zh_map["NEXUS AUTHENTICATION"] = "连接验证"
     zh_map["RESONANCE MISMATCH"] = "共鸣不匹配"
     zh_map["NEXUS ACCESS GRANTED"] = "连接授权通过"
@@ -932,4 +962,38 @@ register_lore_entry("air", "air_sovereign",
         "自主战争网络并非邪恶。它只是运行到了逻辑极致的安保协议。"
         "它击落的每一架飞机，它都会哀悼。但哀悼只是另一个需要优化的变量。",
     ],
+)
+
+# Cross-world resonance files. These remain locked until completion thresholds.
+register_device_lore(
+    "resonance_25", title_en="First Resonance", title_zh="初次共振",
+    content_en=["Signals from the Board, Code Abyss and Star Fortress share one pulse.",
+                "MERIDIAN is not holding separate games; it is stabilizing adjacent realities."],
+    content_zh=["棋境、代码深渊与星穹壁垒传来了同一节拍。",
+                "MERIDIAN 保存的并非彼此孤立的游戏，而是相邻现实的稳定回声。"],
+    unlock="completion:25",
+)
+register_device_lore(
+    "resonance_50", title_en="Converging Routes", title_zh="交汇航路",
+    content_en=["The Numen Sea and Minefield answer the same coordinates as the falling city.",
+                "Every mastered rule sharpens the path between worlds."],
+    content_zh=["数灵海与雷区回应着方块之城的同一组坐标。",
+                "每一条被掌握的规则，都让世界之间的航路更加清晰。"],
+    unlock="completion:50",
+)
+register_device_lore(
+    "resonance_75", title_en="Another Signal", title_zh="又一信号",
+    content_en=["The war sky and mirrored tank arena reveal another frequency.",
+                "Conflict, growth and memory are different faces of one resonance engine."],
+    content_zh=["战火长空与镜像坦克竞技场揭示了又一种频率。",
+                "冲突、成长与记忆，只是同一台共振引擎的不同侧面。"],
+    unlock="completion:75",
+)
+register_device_lore(
+    "resonance_100", title_en="Meridian", title_zh="子午共鸣",
+    content_en=["Every known world stands in balance. None was conquered; each was understood.",
+                "The keeper has completed the circuit, and MERIDIAN can finally answer as a whole."],
+    content_zh=["所有已知世界均已达成平衡。它们并未被征服，而是被理解。",
+                "持有者补完了回路，MERIDIAN 终于能够以完整之声回应。"],
+    unlock="completion:100",
 )

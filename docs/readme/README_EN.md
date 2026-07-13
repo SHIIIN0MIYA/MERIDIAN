@@ -4,8 +4,8 @@
 
 <h1 align="center">🌐 MERIDIAN · 子午线</h1>
 
-<p align="center"><strong>Seven Worlds. One Device.</strong></p>
-<p align="center"><em>七界 · 一器</em></p>
+<p align="center"><strong>Many Worlds. One Device.</strong></p>
+<p align="center"><em>诸界 · 一器</em></p>
 
 <p align="center">
   <img src="https://github.com/CrescentXiong-1/MERIDIAN/actions/workflows/ci.yml/badge.svg" alt="CI Status">
@@ -32,7 +32,7 @@
 
 - [Introduction](#-introduction)
 - [Worldbuilding](#-worldbuilding)
-- [The Seven Worlds](#-the-seven-worlds)
+- [Connected Worlds](#-connected-worlds)
 - [Features](#-features)
 - [Quick Start](#-quick-start)
 - [Controls](#-controls)
@@ -50,13 +50,13 @@
 
 ## 🌌 Introduction
 
-**MERIDIAN** is a handheld device of unknown origin. Its "screen" is not an ordinary display — it is a **Resonance Lens**. Seven shards of reality are sealed within seven classic arcade games, each serving as a stable portal into an independent world.
+**MERIDIAN** is a handheld device of unknown origin. Its "screen" is not an ordinary display — it is a **Resonance Lens**. Fragments from many realities are sealed within its game modules, each serving as a stable portal into an independent world.
 
 This is not an ordinary game console. It is a **cross-dimensional observation device**.
 
 Built with **Python + Pygame**, this project is a complete multi-game platform simulator. It combines:
 
-- 🎮 **Seven fully-recreated classic arcade games**
+- 🎮 **A growing collection of fully recreated classic arcade games**
 - 📚 **A deep worldbuilding narrative system**, each game with its own lore
 - 🏆 **50+ achievement system** tracking player progress across games
 - 🌍 **Complete bilingual support** (Simplified Chinese / English)
@@ -75,7 +75,7 @@ MERIDIAN is more than a game collection — it has a complete **meta-narrative**
 - **Desktop Environment**: Status bar displays the "MERIDIAN" device identifier
 - **Prologue System**: Each game shows a 3-5 line worldbuilding prologue on first visit
 - **Lore Archive**: An independent reader on the second desktop page, containing:
-  - 8 category tabs (Artifact Origin + Seven Worlds)
+  - Category tabs generated from the artifact and every registered world
   - Device background stories (Origin / Nexus Core / The Bearer)
   - 1-2 deep lore entries per world
   - Hidden entries unlocked via stats or achievements
@@ -84,7 +84,7 @@ MERIDIAN is more than a game collection — it has a complete **meta-narrative**
 
 ---
 
-## 🎮 The Seven Worlds
+## 🎮 Connected Worlds
 
 | Icon | Game | World Name | Lore |
 |:---:|------|------------|------|
@@ -418,7 +418,7 @@ See [CHANGELOG.md](../../CHANGELOG.md) for the full history.
 
 ### Latest: V3.1.0 (2026-07-02) — "MERIDIAN"
 
-- 🌌 **Worldview System**: Meta-narrative framework, seven worlds lore, prologue system, Lore archive
+- 🌌 **Worldview System**: Meta-narrative framework, connected-world lore, prologue system, Lore archive
 - 🔌 **Extension API**: 5 registration functions, zero-modification new-game integration
 - 🏆 **Achievement Wall**: Introduced in V3.0.0, polished in V3.1.0
 - 💾 **Game Resume**: All 7 games support mid-session save and resume
@@ -475,5 +475,5 @@ The bundled **Fusion Pixel Font** is licensed under the [SIL Open Font License 1
 ---
 
 <p align="center">
-  <sub>MERIDIAN · Seven Worlds. One Device. · 七界 · 一器</sub>
+  <sub>MERIDIAN · Many Worlds. One Device. · 诸界 · 一器</sub>
 </p>

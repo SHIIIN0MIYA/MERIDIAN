@@ -20,7 +20,7 @@ class BootMixin:
 
     def _localized_boot_text(self):
         if is_chinese():
-            return "MERIDIAN OS v2.4 — \u6b63\u5728\u5efa\u7acb\u8fde\u63a5..."
+            return "MERIDIAN — \u6b63\u5728\u5efa\u7acb\u8fde\u63a5..."
         return BOOT_TEXT_MERIDIAN
 
     def _localized_shutdown_text(self):

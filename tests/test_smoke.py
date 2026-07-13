@@ -118,6 +118,24 @@ class ArchitectureSmokeTests(unittest.TestCase):
             game.state = state
             game.draw()
 
+    def test_boot_title_has_no_embedded_os_version_in_either_language(self):
+        from meridian.localization import set_language
+
+        game = Game()
+        try:
+            set_language("en")
+            english = game._localized_boot_text()
+            set_language("zh_hans")
+            chinese = game._localized_boot_text()
+        finally:
+            set_language("en")
+
+        self.assertEqual(english, "MERIDIAN — NEXUS LINK ESTABLISHING")
+        self.assertEqual(chinese, "MERIDIAN — 正在建立连接...")
+        for text in (english, chinese):
+            self.assertNotIn(" OS", text.upper())
+            self.assertNotRegex(text, r"v\d+(?:\.\d+)+")
+
     def test_audio_manager_accepts_keyboard_and_mouse_input(self):
         game = Game()
         game.audio.handle_input_event(
@@ -145,6 +163,19 @@ class ArchitectureSmokeTests(unittest.TestCase):
         self.assertEqual(game.audio.music_volume, 0.0)
         game.audio.set_music_volume(2)
         self.assertEqual(game.audio.music_volume, 1.0)
+        game.audio.set_master_volume(-1)
+        self.assertEqual(game.audio.master_volume, 0.0)
+        game.audio.set_master_volume(2)
+        self.assertEqual(game.audio.master_volume, 1.0)
+
+    def test_loaded_master_volume_reaches_audio_manager(self):
+        game = Game()
+        game.save_data["settings"]["master_volume"] = 0.35
+
+        game._apply_loaded_data()
+
+        self.assertEqual(game.master_volume, 0.35)
+        self.assertEqual(game.audio.master_volume, 0.35)
 
     def test_tank_music_layers_effects_and_phase_switching_are_available(self):
         from meridian.audio import TANK_DUEL_MOTIF, TANK_TRACK_SPECS, THEME_MELODY

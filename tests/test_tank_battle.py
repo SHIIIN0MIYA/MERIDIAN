@@ -69,8 +69,31 @@ def game():
     harness._logical_mouse_pos = lambda: (-1, -1)
     harness._go_desktop = lambda: None
     harness._start_transition = lambda state, *_args: setattr(harness, "state", state)
+    harness.prologue_active = False
+    harness._check_and_show_prologue = lambda _game_id: False
     harness._init_tank_battle()
     return harness
+
+
+def test_first_tank_menu_visit_opens_world_prologue(game):
+    game._check_and_show_prologue = lambda game_id: game_id == "tank"
+    game._draw_prologue_screen = lambda: setattr(game, "prologue_drawn", True)
+
+    game._draw_tank_menu()
+
+    assert game.prologue_drawn is True
+
+
+def test_tank_menu_input_is_consumed_while_prologue_is_open(game):
+    handled = []
+    game.prologue_active = True
+    game._handle_prologue_event = handled.append
+
+    event = keydown(pygame.K_RETURN)
+    game._handle_tank_menu_event(event)
+
+    assert handled == [event]
+    assert game.state == "tank_menu"
 
 
 def test_red_opposite_keys_use_latest_then_fall_back(game):
@@ -151,6 +174,26 @@ def test_item_edge_reaches_exactly_one_normal_update(game):
 )
 def test_engine_events_use_fixed_sound_names(game, kind, sound):
     game._handle_tank_engine_events([EngineEvent(kind, "red")])
+    assert game.audio.names == [sound]
+
+
+@pytest.mark.parametrize(
+    ("item", "sound"),
+    (
+        (ItemType.REPAIR, "tank_repair"),
+        (ItemType.SHIELD, "tank_shield_break"),
+        (ItemType.SPEED, "tank_overdrive"),
+        (ItemType.MINE, "tank_mine_arm"),
+        (ItemType.EMP, "tank_emp"),
+        (ItemType.PIERCING, "tank_piercing"),
+        (ItemType.SMOKE, "tank_smoke"),
+        (ItemType.WARP, "tank_warp"),
+    ),
+)
+def test_each_item_uses_a_dedicated_sound(game, item, sound):
+    game._handle_tank_engine_events([
+        EngineEvent("item_used", "red", {"item": item.value}),
+    ])
     assert game.audio.names == [sound]
     assert 0.0 < game.audio.volumes[0] < 1.0
 
@@ -279,8 +322,8 @@ def test_end_page_draws_localized_winner_accuracy_and_item_counts(game):
         game._draw_tank_end()
     texts = [call.args[1] for call in render.call_args_list]
     assert "RED WINS" in texts
-    assert any("RED" in text and "75%" in text and "2" in text for text in texts)
-    assert any("BLUE" in text and "0%" in text and "1" in text for text in texts)
+    assert game._tank_end_summary_lines("red") == ("RED  ACCURACY 75%", "ITEMS USED 2")
+    assert game._tank_end_summary_lines("blue") == ("BLUE  ACCURACY 0%", "ITEMS USED 1")
 
 
 def test_end_page_is_fully_localized_in_chinese(game):
@@ -297,10 +340,14 @@ def test_end_page_is_fully_localized_in_chinese(game):
 
     texts = [call.args[1] for call in render.call_args_list]
     assert "红方胜利" in texts
-    summaries = [text for text in texts if "%" in text]
-    assert any("红方" in text and "命中率" in text and "使用道具" in text for text in summaries)
-    assert any("蓝方" in text and "命中率" in text and "使用道具" in text for text in summaries)
-    assert all("ACCURACY" not in text and "ITEMS USED" not in text for text in summaries)
+    red_lines = game._tank_end_summary_lines("red")
+    blue_lines = game._tank_end_summary_lines("blue")
+    assert red_lines == ("红方  命中率 75%", "使用道具 2")
+    assert blue_lines == ("蓝方  命中率 50%", "使用道具 1")
+    assert all(
+        "ACCURACY" not in text and "ITEMS USED" not in text
+        for text in (*red_lines, *blue_lines)
+    )
     set_language("en")
 
 

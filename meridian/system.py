@@ -8,6 +8,14 @@ from .persistence import SaveManager
 from .localization import set_language, get_chinese_font, is_chinese
 from . import lore as _lore
 from .tank_engine import TankSnapshotError
+from .ui_components import anchored_blit, draw_pixel_panel, fit_pixel_text
+from .completion import WORLD_IDS, global_completion, world_completion
+
+
+CROSS_WORLD_THRESHOLDS = (
+    (25, "resonance_25"), (50, "resonance_50"),
+    (75, "resonance_75"), (100, "resonance_100"),
+)
 
 
 ACHIEVEMENTS = [
@@ -128,6 +136,8 @@ class SystemMixin:
         settings = self.save_data["settings"]
         self.language = settings.get("language", "en")
         set_language(self.language)
+        self.master_volume = max(0.0, min(1.0, float(settings["master_volume"])))
+        self.audio.set_master_volume(self.master_volume)
         self.audio.set_music_volume(settings["music_volume"])
         self.audio.set_sfx_volume(settings["sfx_volume"])
         self.audio.set_muted(settings["muted"])
@@ -219,8 +229,10 @@ class SystemMixin:
 
     def _capture_data(self):
         data = self.save_data
+        self.master_volume = max(0.0, min(1.0, float(self.master_volume)))
         data["settings"].update({
             "language": self.language,
+            "master_volume": self.master_volume,
             "music_volume": self.audio.music_volume,
             "sfx_volume": self.audio.sfx_volume,
             "muted": self.audio.muted,
@@ -327,6 +339,34 @@ class SystemMixin:
         elif key == "games_completed":
             stats["global"]["games_completed"] += amount
         self._check_achievements()
+        self._unlock_completion_lore()
+
+    def _unlock_completion_lore(self):
+        if getattr(self, "dev_mode", False):
+            return []
+        percent = global_completion(self.save_data)
+        unlocked = self.save_data.setdefault("lore", {}).setdefault("unlocked_entries", [])
+        new_ids = []
+        for threshold, entry_id in CROSS_WORLD_THRESHOLDS:
+            if percent >= threshold and entry_id not in unlocked:
+                unlocked.append(entry_id)
+                new_ids.append(entry_id)
+                entry = _lore.get_lore_entry(entry_id)
+                if entry:
+                    title = entry["title_zh" if is_chinese() else "title_en"]
+                    self.achievement_notifications.append({"title": title, "frame": 0})
+        if new_ids:
+            self._save_now()
+        return new_ids
+
+    def _completion_world_cards(self):
+        cards = []
+        for game_id in WORLD_IDS:
+            score = world_completion(game_id, self.save_data)
+            cards.append({"game_id": game_id, "total": score.total,
+                          "achievement": score.achievement,
+                          "objectives": score.objectives, "lore": score.lore})
+        return cards
 
     def _achievement_progress(self, definition):
         _, _, _, game, key, target = definition
@@ -493,6 +533,30 @@ class SystemMixin:
         ])
         return buttons
 
+    def _protected_system_layouts(self):
+        """Return sibling rect groups whose separation protects system-page usability."""
+        lore = self._lore_reader_layout()
+        panel = lore["panel"]
+        tabs = lore["tab_rects"]
+        entries = [
+            pygame.Rect(
+                panel.x + 26,
+                lore["list_y"] + index * (lore["entry_h"] + lore["entry_gap"]),
+                panel.width - 52,
+                lore["entry_h"],
+            )
+            for index in range(lore["visible_entries"])
+        ]
+        prev_rect, next_rect = self._get_achievement_wall_page_rects()
+        return {
+            "settings_buttons": [button["rect"] for button in self._get_system_settings_buttons()],
+            "profile_buttons": [button["rect"] for button in self._get_profile_buttons()],
+            "achievement_badges": [badge["rect"] for badge in self._get_achievement_wall_badges()],
+            "achievement_navigation": [prev_rect, next_rect],
+            "lore_tabs": tabs,
+            "lore_entries": entries,
+        }
+
     def _settings_value(self, action):
         values = {
             "cycle_gomoku": f"{self.board_size} x {self.board_size}",
@@ -623,30 +687,41 @@ class SystemMixin:
         if pressed:
             rect.y += 3
         pygame.draw.rect(self.screen, C.OUTLINE, rect.move(4, 4))
-        pygame.draw.rect(self.screen, C.OUTLINE, rect)
         fill = C.DESK_ICON_HOVER if hovered or button.get("selected") else C.DESK_PANEL_DARK
-        pygame.draw.rect(self.screen, fill, rect.inflate(-4, -4))
+        draw_pixel_panel(
+            self.screen, rect, {"outline": C.OUTLINE, "panel": fill}, border=2
+        )
         pygame.draw.rect(self.screen, C.DESK_ACCENT_LIGHT, rect.inflate(-10, -10), 2)
         label = button["label"]
         if label.startswith("cycle_"):
             label = self._settings_value(label)
-        text = render_pixel_text(self.font_small, label, C.DESK_TEXT, scale=2)
-        if text.get_width() > rect.width - 18:
-            text = render_pixel_text(self.font_small, label, C.DESK_TEXT, scale=1)
-        self.screen.blit(text, (rect.centerx - text.get_width() // 2, rect.centery - text.get_height() // 2))
+        text = fit_pixel_text(
+            self.font_small, label, C.DESK_TEXT, rect.width - 18, preferred_scale=2
+        )
+        anchored_blit(self.screen, text, rect, "center")
 
     def _draw_system_settings(self):
         self.screen.fill(C.DESK_BG_BOTTOM)
         panel = pygame.Rect(50, 38, 1180, 644)
-        pygame.draw.rect(self.screen, C.OUTLINE, panel, 5)
-        pygame.draw.rect(self.screen, C.DESK_PANEL, panel.inflate(-10, -10))
+        draw_pixel_panel(
+            self.screen, panel,
+            {"outline": C.OUTLINE, "panel": C.DESK_PANEL}, border=5,
+        )
         pygame.draw.rect(self.screen, C.DESK_ACCENT, panel.inflate(-22, -22), 2)
-        title = render_pixel_text(self.font_menu_title, "SYSTEM SETTINGS", C.DESK_ACCENT_LIGHT, scale=3)
-        self.screen.blit(title, (panel.centerx - title.get_width() // 2, panel.y + 28))
-        left = render_pixel_text(self.font_status, "SYSTEM", C.GOLD_LIGHT, scale=2)
-        right = render_pixel_text(self.font_status, "GAME OPTIONS", C.GOLD_LIGHT, scale=2)
-        self.screen.blit(left, (350 - left.get_width() // 2, 132))
-        self.screen.blit(right, (930 - right.get_width() // 2, 132))
+        title = fit_pixel_text(
+            self.font_menu_title, "SYSTEM SETTINGS", C.DESK_ACCENT_LIGHT,
+            panel.width - 80, preferred_scale=3,
+        )
+        anchored_blit(
+            self.screen, title, pygame.Rect(panel.x, panel.y + 28, panel.width, title.get_height()),
+            "center",
+        )
+        left = fit_pixel_text(self.font_status, "SYSTEM", C.GOLD_LIGHT, 400, preferred_scale=2)
+        right = fit_pixel_text(
+            self.font_status, "GAME OPTIONS", C.GOLD_LIGHT, 400, preferred_scale=2
+        )
+        anchored_blit(self.screen, left, pygame.Rect(150, 132, 400, left.get_height()), "center")
+        anchored_blit(self.screen, right, pygame.Rect(730, 132, 400, right.get_height()), "center")
         labels = ["MUSIC", "SFX", "MASTER MUTE", "DISPLAY", "ANIMATION", "SHAKE", "LANGUAGE"]
         game_labels = ["GOMOKU BOARD", "SNAKE SPEED", "SNAKE SKIN", "BREAKOUT MODE", "BREAKOUT LEVEL", "MINES BOARD"]
         for index, y in enumerate([158, 210, 262, 314, 366, 418, 470]):
@@ -685,10 +760,12 @@ class SystemMixin:
             if event.key == pygame.K_ESCAPE:
                 self._go_system_desktop()
             elif event.key in (pygame.K_LEFT, pygame.K_a):
-                self.profile_tab = "achievements"
+                tabs = ("achievements", "statistics", "completion")
+                self.profile_tab = tabs[(tabs.index(self.profile_tab) - 1) % len(tabs)]
                 self.profile_scroll = 0
             elif event.key in (pygame.K_RIGHT, pygame.K_d):
-                self.profile_tab = "statistics"
+                tabs = ("achievements", "statistics", "completion")
+                self.profile_tab = tabs[(tabs.index(self.profile_tab) + 1) % len(tabs)]
                 self.profile_scroll = 0
             elif event.key in (pygame.K_UP, pygame.K_w):
                 self.profile_scroll = max(0, self.profile_scroll - 1)
@@ -716,8 +793,9 @@ class SystemMixin:
 
     def _get_profile_buttons(self):
         return [
-            {"rect": pygame.Rect(90, 104, 250, 48), "label": "ACHIEVEMENTS", "action": "achievements", "selected": self.profile_tab == "achievements"},
-            {"rect": pygame.Rect(360, 104, 250, 48), "label": "STATISTICS", "action": "statistics", "selected": self.profile_tab == "statistics"},
+            {"rect": pygame.Rect(90, 104, 220, 48), "label": "ACHIEVEMENTS", "action": "achievements", "selected": self.profile_tab == "achievements"},
+            {"rect": pygame.Rect(330, 104, 220, 48), "label": "STATISTICS", "action": "statistics", "selected": self.profile_tab == "statistics"},
+            {"rect": pygame.Rect(570, 104, 220, 48), "label": "COMPLETION", "action": "completion", "selected": self.profile_tab == "completion"},
             {"rect": pygame.Rect(960, 104, 220, 48), "label": "BACK", "action": "back"},
         ]
 
@@ -733,17 +811,46 @@ class SystemMixin:
     def _draw_profile(self):
         self.screen.fill(C.DESK_BG_BOTTOM)
         outer = pygame.Rect(46, 34, 1188, 652)
-        pygame.draw.rect(self.screen, C.OUTLINE, outer, 5)
-        pygame.draw.rect(self.screen, C.DESK_PANEL, outer.inflate(-10, -10))
+        draw_pixel_panel(
+            self.screen, outer,
+            {"outline": C.OUTLINE, "panel": C.DESK_PANEL}, border=5,
+        )
         pygame.draw.rect(self.screen, C.DESK_ACCENT, outer.inflate(-22, -22), 2)
-        title = render_pixel_text(self.font_menu_title, "PLAYER PROFILE", C.DESK_ACCENT_LIGHT, scale=3)
-        self.screen.blit(title, (outer.centerx - title.get_width() // 2, 42))
+        title = fit_pixel_text(
+            self.font_menu_title, "PLAYER PROFILE", C.DESK_ACCENT_LIGHT,
+            outer.width - 80, preferred_scale=3,
+        )
+        anchored_blit(
+            self.screen, title, pygame.Rect(outer.x, 42, outer.width, title.get_height()), "center"
+        )
         for button in self._get_profile_buttons():
             self._draw_system_button(button)
         if self.profile_tab == "achievements":
             self._draw_achievement_list()
-        else:
+        elif self.profile_tab == "statistics":
             self._draw_statistics_list()
+        else:
+            self._draw_completion_profile()
+
+    def _draw_completion_profile(self):
+        percent = global_completion(self.save_data)
+        title = render_pixel_text(self.font_status, f"{translate('GLOBAL COMPLETION')}  {percent}%", C.GOLD_LIGHT, scale=2)
+        self.screen.blit(title, (WINDOW_W // 2 - title.get_width() // 2, 166))
+        pygame.draw.rect(self.screen, C.OUTLINE, (170, 198, 940, 18))
+        pygame.draw.rect(self.screen, C.DESK_ACCENT_LIGHT, (174, 202, int(932 * percent / 100), 10))
+        for index, card_data in enumerate(self._completion_world_cards()):
+            col, row = index % 4, index // 4
+            rect = pygame.Rect(82 + col * 286, 242 + row * 178, 264, 154)
+            draw_pixel_panel(self.screen, rect, {"outline": C.OUTLINE, "panel": C.DESK_PANEL_DARK}, 3)
+            key = "AIR RAID" if card_data["game_id"] == "air" else card_data["game_id"].upper()
+            heading = fit_pixel_text(self.font_status, f"{translate(key)}  {card_data['total']}%", C.DESK_ACCENT_LIGHT, rect.width - 24, 2)
+            anchored_blit(self.screen, heading, pygame.Rect(rect.x, rect.y + 14, rect.width, 30), "center")
+            parts = (f"{translate('ACHIEVEMENTS')} {card_data['achievement']}%",
+                     f"{translate('OBJECTIVES')} {card_data['objectives']}%",
+                     f"LORE {card_data['lore']}%")
+            for line_index, value in enumerate(parts):
+                line = fit_pixel_text(self.font_small, value, C.DESK_TEXT, rect.width - 24, 1)
+                self.screen.blit(line, (rect.x + 16, rect.y + 58 + line_index * 26))
 
     def _draw_achievement_list(self):
         unlocked = self.save_data["achievements"]
@@ -1286,6 +1393,8 @@ class SystemMixin:
 
     def _is_lore_unlocked(self, entry):
         # All lore is always available — this is a world archive, not a reward system.
+        if str(entry.get("unlock", "")).startswith("completion:"):
+            return entry["id"] in self.save_data.get("lore", {}).get("unlocked_entries", [])
         return True
 
     def _unlock_lore_entry(self, entry_id):
@@ -1297,14 +1406,36 @@ class SystemMixin:
 
     def _lore_reader_layout(self):
         panel = pygame.Rect(30, 30, WINDOW_W - 60, WINDOW_H - 60)
+        categories = self._lore_categories
+        category_count = max(1, len(categories))
+        tab_gap = 8
+        tab_h = 32
+        tab_rows = max(1, (category_count + 7) // 8)
+        tab_columns = max(1, (category_count + tab_rows - 1) // tab_rows)
+        tab_area_w = panel.width - 52
+        tab_w = (tab_area_w - tab_gap * (tab_columns - 1)) // tab_columns
+        tab_y = panel.y + 104
+        tab_rects = [
+            pygame.Rect(
+                panel.x + 26 + (index % tab_columns) * (tab_w + tab_gap),
+                tab_y + (index // tab_columns) * (tab_h + tab_gap),
+                tab_w,
+                tab_h,
+            )
+            for index in range(category_count)
+        ]
+        entry_h = 40
+        entry_gap = 8
+        list_y = tab_y + tab_rows * (tab_h + tab_gap) + 14
+        list_space = panel.bottom - 48 - list_y
+        visible_entries = max(1, min(8, (list_space + entry_gap) // (entry_h + entry_gap)))
         return {
             "panel": panel,
-            "tab_w": 130,
-            "tab_y": panel.y + 104,
-            "list_y": panel.y + 156,
-            "entry_h": 40,
-            "entry_gap": 8,
-            "visible_entries": 8,
+            "tab_rects": tab_rects,
+            "list_y": list_y,
+            "entry_h": entry_h,
+            "entry_gap": entry_gap,
+            "visible_entries": visible_entries,
         }
 
     def _lore_category_label(self, cat_id, cat_key):
@@ -1409,14 +1540,8 @@ class SystemMixin:
             if self.lore_pressed_action == "click":
                 layout = self._lore_reader_layout()
                 panel = layout["panel"]
-                tab_w = layout["tab_w"]
-                tab_y = layout["tab_y"]
                 # Check category tabs
-                for i, (cat_id, cat_key) in enumerate(self._lore_categories):
-                    tx = panel.x + 26 + i * (tab_w + 8)
-                    if tx + tab_w > panel.right - 10:
-                        break
-                    tab_rect = pygame.Rect(tx, tab_y, tab_w, 32)
+                for i, tab_rect in enumerate(layout["tab_rects"]):
                     if tab_rect.collidepoint(event.pos):
                         self.lore_category_index = i
                         self.lore_entry_index = 0
@@ -1491,19 +1616,13 @@ class SystemMixin:
         self.screen.blit(title, (panel.centerx - title.get_width() // 2, panel.y + 14))
 
         # Subtitle / description
-        desc_text = "MERIDIAN \u2014 \u4e03\u754c\u8bb0\u5f55" if is_chinese() else "MERIDIAN \u2014 CHRONICLES OF SEVEN WORLDS"
+        desc_text = "MERIDIAN — 诸界记录" if is_chinese() else "MERIDIAN — CHRONICLES OF MANY WORLDS"
         desc = self._render_lore_fitted_text(self.font_small, desc_text, C.LORE_MUTED, panel.width - 240, scale=1)
         self.screen.blit(desc, (panel.centerx - desc.get_width() // 2, panel.y + 76))
 
         # Category tabs — moved down to avoid overlap
-        tab_w = layout["tab_w"]
         cats = self._lore_categories
-        tab_y = layout["tab_y"]
-        for i, (cat_id, cat_key) in enumerate(cats):
-            tx = panel.x + 26 + i * (tab_w + 8)
-            if tx + tab_w > panel.right - 10:
-                break
-            tab_rect = pygame.Rect(tx, tab_y, tab_w, 32)
+        for i, ((cat_id, cat_key), tab_rect) in enumerate(zip(cats, layout["tab_rects"])):
             selected = i == self.lore_category_index
             fill = C.LORE_PANEL if selected else C.LORE_PANEL_DARK
             border = C.LORE_TITLE if selected else C.LORE_MUTED
