@@ -95,6 +95,18 @@ class SaveManagerTests(unittest.TestCase):
         self.assertEqual(migrated["statistics"]["tank"], default_statistics()["tank"])
         self.assertEqual(migrated["progress"]["tank"], {"run_active": False, "run_state": None})
 
+    def test_old_save_gains_master_volume_without_changing_category_levels(self):
+        old = default_data()
+        old["settings"].pop("master_volume", None)
+        old["settings"]["music_volume"] = 0.3
+        old["settings"]["sfx_volume"] = 0.7
+
+        migrated = self.manager.migrate(old)
+
+        self.assertEqual(migrated["settings"]["master_volume"], 1.0)
+        self.assertEqual(migrated["settings"]["music_volume"], 0.3)
+        self.assertEqual(migrated["settings"]["sfx_volume"], 0.7)
+
 
 class RuntimePersistenceTests(unittest.TestCase):
     def setUp(self):
@@ -115,6 +127,7 @@ class RuntimePersistenceTests(unittest.TestCase):
 
     def test_settings_records_and_stats_reload(self):
         game = Game()
+        game.master_volume = 0.4
         game.audio.set_music_volume(0.2)
         game.snake_speed_mode = "fast"
         game.snake_best = 17
@@ -122,10 +135,26 @@ class RuntimePersistenceTests(unittest.TestCase):
         game._save_now()
 
         restored = Game()
+        self.assertAlmostEqual(restored.master_volume, 0.4)
         self.assertAlmostEqual(restored.audio.music_volume, 0.2)
         self.assertEqual(restored.snake_speed_mode, "fast")
         self.assertEqual(restored.snake_best, 17)
         self.assertEqual(restored._stat("snake", "food_eaten"), 12)
+
+    def test_master_volume_is_clamped_when_loaded_and_captured(self):
+        data = default_data()
+        data["settings"]["master_volume"] = 2.0
+        data["records"]["snake"]["best_score"] = 23
+        self.manager = SaveManager(self.path)
+        self.manager.save(data)
+
+        game = Game()
+
+        self.assertEqual(game.master_volume, 1.0)
+        game.master_volume = -0.5
+        captured = game._capture_data()
+        self.assertEqual(captured["settings"]["master_volume"], 0.0)
+        self.assertEqual(captured["records"]["snake"]["best_score"], 23)
 
     def test_language_setting_persists_and_applies(self):
         game = Game()

@@ -128,6 +128,7 @@ class SystemMixin:
         settings = self.save_data["settings"]
         self.language = settings.get("language", "en")
         set_language(self.language)
+        self.master_volume = max(0.0, min(1.0, float(settings["master_volume"])))
         self.audio.set_music_volume(settings["music_volume"])
         self.audio.set_sfx_volume(settings["sfx_volume"])
         self.audio.set_muted(settings["muted"])
@@ -219,8 +220,10 @@ class SystemMixin:
 
     def _capture_data(self):
         data = self.save_data
+        self.master_volume = max(0.0, min(1.0, float(self.master_volume)))
         data["settings"].update({
             "language": self.language,
+            "master_volume": self.master_volume,
             "music_volume": self.audio.music_volume,
             "sfx_volume": self.audio.sfx_volume,
             "muted": self.audio.muted,
