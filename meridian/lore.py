@@ -758,8 +758,8 @@ def collect_lore_translations():
     zh_map["lore_of"] = "/"
 
     # Boot / Shell
-    zh_map["MERIDIAN OS v2.4 — NEXUS LINK ESTABLISHING"] = \
-        "MERIDIAN OS v2.4 — 正在建立连接..."
+    zh_map["MERIDIAN — NEXUS LINK ESTABLISHING"] = \
+        "MERIDIAN — 正在建立连接..."
     zh_map["CALIBRATING RESONANCE CRYSTAL..."] = "正在校准共鸣晶体..."
     zh_map["SCANNING DIMENSIONAL FOLDS..."] = "正在扫描维度褶皱..."
     zh_map["STABILIZING WORLD ANCHORS..."] = "正在稳定世界锚点..."
