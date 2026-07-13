@@ -145,6 +145,19 @@ class ArchitectureSmokeTests(unittest.TestCase):
         self.assertEqual(game.audio.music_volume, 0.0)
         game.audio.set_music_volume(2)
         self.assertEqual(game.audio.music_volume, 1.0)
+        game.audio.set_master_volume(-1)
+        self.assertEqual(game.audio.master_volume, 0.0)
+        game.audio.set_master_volume(2)
+        self.assertEqual(game.audio.master_volume, 1.0)
+
+    def test_loaded_master_volume_reaches_audio_manager(self):
+        game = Game()
+        game.save_data["settings"]["master_volume"] = 0.35
+
+        game._apply_loaded_data()
+
+        self.assertEqual(game.master_volume, 0.35)
+        self.assertEqual(game.audio.master_volume, 0.35)
 
     def test_tank_music_layers_effects_and_phase_switching_are_available(self):
         from meridian.audio import TANK_DUEL_MOTIF, TANK_TRACK_SPECS, THEME_MELODY

@@ -129,6 +129,7 @@ class SystemMixin:
         self.language = settings.get("language", "en")
         set_language(self.language)
         self.master_volume = max(0.0, min(1.0, float(settings["master_volume"])))
+        self.audio.set_master_volume(self.master_volume)
         self.audio.set_music_volume(settings["music_volume"])
         self.audio.set_sfx_volume(settings["sfx_volume"])
         self.audio.set_muted(settings["muted"])

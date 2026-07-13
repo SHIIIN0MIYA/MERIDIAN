@@ -339,6 +339,7 @@ class AudioManager:
 
     def __init__(self) -> None:
         self.enabled: bool = pygame.mixer.get_init() is not None
+        self.master_volume: float = 1.0
         self.music_volume: float = 0.55
         self.sfx_volume: float = 1.0
         self.muted: bool = False
@@ -435,13 +436,17 @@ class AudioManager:
         progress = max(0.0, min(1.0, elapsed / self.crossfade_duration_ms))
         active = self.music_channels[self.active_music_index]
         if self.current_track is not None:
-            active.set_volume((0.0 if self.muted else self.music_volume * self.scene_volume_scale) * progress)
+            active.set_volume(self.effective_music_volume() * progress)
         if self.previous_music_index is not None:
             previous = self.music_channels[self.previous_music_index]
-            previous.set_volume((0.0 if self.muted else self.music_volume * self.scene_volume_scale) * (1.0 - progress))
+            previous.set_volume(self.effective_music_volume() * (1.0 - progress))
             if progress >= 1.0:
                 previous.stop()
                 self.previous_music_index = None
+
+    def set_master_volume(self, value: float) -> None:
+        self.master_volume = max(0.0, min(1.0, float(value)))
+        self._update_crossfade()
 
     def set_music_volume(self, value: float) -> None:
         self.music_volume = max(0.0, min(1.0, float(value)))
@@ -454,6 +459,17 @@ class AudioManager:
         self.muted = bool(muted)
         self._update_crossfade()
 
+    def effective_music_volume(self) -> float:
+        if self.muted:
+            return 0.0
+        return self.master_volume * self.music_volume * self.scene_volume_scale
+
+    def effective_sfx_volume(self, event_gain: float = 1.0) -> float:
+        if self.muted:
+            return 0.0
+        gain = max(0.0, min(1.0, float(event_gain)))
+        return self.master_volume * self.sfx_volume * gain
+
     def begin_shutdown(self) -> None:
         self.play_music(None)
         self.play("power_off", 0.9)
@@ -464,8 +480,7 @@ class AudioManager:
             return
         channel = pygame.mixer.find_channel()
         if channel is not None:
-            effective = 0.0 if self.muted else volume * self.sfx_volume
-            channel.set_volume(max(0.0, min(1.0, effective)))
+            channel.set_volume(self.effective_sfx_volume(volume))
             channel.play(sound)
 
     def play_gameover(self, game_name: str) -> None:
