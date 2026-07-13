@@ -8,11 +8,9 @@
 <p align="center"><em>诸界 · 一器</em></p>
 
 <p align="center">
-  <img src="https://github.com/CrescentXiong-1/MERIDIAN/actions/workflows/ci.yml/badge.svg" alt="CI Status">
   <img src="https://img.shields.io/badge/python-3.10%20%7C%203.11%20%7C%203.12-blue" alt="Python">
   <img src="https://img.shields.io/badge/pygame-2.x-green" alt="Pygame">
   <img src="https://img.shields.io/badge/license-MIT-yellow" alt="License">
-  <img src="https://img.shields.io/badge/tests-50%2B-brightgreen" alt="Tests">
   <img src="https://img.shields.io/badge/lines-~15%2C700-orange" alt="Lines of Code">
 </p>
 
@@ -40,7 +38,6 @@
 - [Architecture](#-architecture)
 - [Extension API](#-extension-api)
 - [Building](#-building)
-- [Testing](#-testing)
 - [Changelog](#-changelog)
 - [Contributing](#-contributing)
 - [License](#-license)
@@ -262,14 +259,8 @@ MERIDIAN/
 ├── assets/                      # Static assets
 │   └── fonts/                   # Fusion Pixel Font (SIL Open License 1.1)
 │
-├── tests/                       # Test suite (50+ tests)
-│   ├── conftest.py              # Shared fixtures + SDL dummy driver
-│   ├── test_smoke.py            # Smoke tests
-│   ├── test_arcade_games.py     # Arcade game tests
-│   └── test_persistence.py      # Persistence system tests
-│
-└── .github/workflows/
-    └── ci.yml                   # GitHub Actions CI (Windows, Python 3.10–3.12)
+└── tools/
+    └── check_release.py         # Local release metadata checker
 ```
 
 ---
@@ -384,34 +375,6 @@ python -m PyInstaller --noconfirm --clean MERIDIAN.spec
 
 ---
 
-## 🧪 Testing
-
-The project includes **50+ unit tests** covering core modules:
-
-```bash
-# Run all tests
-python -m pytest tests/ -v
-
-# Run specific test files
-python -m pytest tests/test_smoke.py -v
-python -m pytest tests/test_arcade_games.py -v
-python -m pytest tests/test_persistence.py -v
-```
-
-### Test Coverage
-
-| Test File | Content |
-|-----------|---------|
-| `test_smoke.py` | Smoke tests: game launch, state transitions, basic rendering |
-| `test_arcade_games.py` | Arcade games: menu interaction, game logic, save resume |
-| `test_persistence.py` | Persistence: read/write saves, version migration, crash recovery |
-
-### CI / CD
-
-Automated testing via GitHub Actions on **Windows** against **Python 3.10 / 3.11 / 3.12**. Triggered on every push and pull request.
-
----
-
 ## 📝 Changelog
 
 See [CHANGELOG.md](../../CHANGELOG.md) for the full history.
@@ -453,7 +416,6 @@ This project uses [Conventional Commits](https://www.conventionalcommits.org/):
 
 - Use the extension API to register new games rather than modifying `app.py` directly
 - Provide both Chinese and English versions for worldbuilding text
-- Ensure `python -m pytest tests/ -v` passes
 - Increment `SCHEMA_VERSION` and provide migration logic when changing save schema
 
 ---

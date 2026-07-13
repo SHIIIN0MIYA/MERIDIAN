@@ -8,7 +8,6 @@
 <p align="center"><em>Many Worlds. One Device.</em></p>
 
 <p align="center">
-  <img src="https://github.com/CrescentXiong-1/MERIDIAN/actions/workflows/ci.yml/badge.svg" alt="CI Status">
   <img src="https://img.shields.io/badge/python-3.10%20%7C%203.11%20%7C%203.12-blue" alt="Python">
   <img src="https://img.shields.io/badge/pygame-2.x-green" alt="Pygame">
   <img src="https://img.shields.io/badge/license-MIT-yellow" alt="License">
@@ -40,7 +39,6 @@
 - [架构设计](#-架构设计)
 - [扩展接口](#-扩展接口)
 - [打包构建](#-打包构建)
-- [测试](#-测试)
 - [更新日志](#-更新日志)
 - [贡献指南](#-贡献指南)
 - [开源协议](#-开源协议)
@@ -271,19 +269,8 @@ MERIDIAN/
 ├── assets/                      # 静态资源
 │   └── fonts/                   # Fusion Pixel Font（SIL Open License 1.1）
 │
-├── tests/                       # 自动化测试套件
-│   ├── conftest.py              # 共享 fixtures + SDL 虚拟驱动
-│   ├── test_smoke.py            # 冒烟测试
-│   ├── test_arcade_games.py     # 街机游戏测试
-│   ├── test_persistence.py      # 持久化系统测试
-│   ├── test_tank_battle.py      # 坦克界面与跨模块验收测试
-│   ├── test_tank_engine_movement.py
-│   ├── test_tank_engine_combat.py
-│   ├── test_tank_engine_items.py
-│   └── test_tank_engine_persistence.py
-│
-└── .github/workflows/
-    └── ci.yml                   # GitHub Actions CI（Windows, Python 3.10-3.12）
+└── tools/
+    └── check_release.py         # 本地发布元数据检查
 ```
 
 ---
@@ -400,39 +387,7 @@ python -m PyInstaller --noconfirm --clean MERIDIAN.spec
 
 ---
 
-## 🧪 测试
-
-项目包含覆盖八款游戏、存档、本地化与系统集成的自动化测试：
-
-```bash
-# 运行全部测试
-python -m pytest tests/ -v
-
-# 运行特定测试文件
-python -m pytest tests/test_smoke.py -v
-python -m pytest tests/test_arcade_games.py -v
-python -m pytest tests/test_persistence.py -v
-python -m pytest tests/test_tank_engine_*.py tests/test_tank_battle.py -v
-```
-
-### 测试覆盖范围
-
-| 测试文件 | 内容 |
-|----------|------|
-| `test_smoke.py` | 冒烟测试：游戏启动、状态流转、基本渲染 |
-| `test_arcade_games.py` | 街机游戏：菜单交互、游戏逻辑、存档恢复 |
-| `test_persistence.py` | 持久化：读写存档、版本迁移、崩溃恢复 |
-| `test_tank_engine_movement.py` | 坦克规则：八向移动、碰撞与后按键优先 |
-| `test_tank_engine_combat.py` | 坦克规则：自动射击、伤害、重生与骤死 |
-| `test_tank_engine_items.py` | 坦克规则：拾取、单道具槽与四类道具 |
-| `test_tank_engine_persistence.py` | 坦克规则：对局快照校验与恢复 |
-| `test_tank_battle.py` | 坦克表现层：输入、界面、音效与完整状态闭环 |
-
-### CI / CD
-
-通过 GitHub Actions 在 **Windows** 平台上对 **Python 3.10 / 3.11 / 3.12** 进行自动化测试。每次 Push 和 Pull Request 均触发。
-
-### 本地发布检查
+## 🔎 本地发布检查
 
 在仓库根目录运行只读的发布检查器：
 
@@ -440,12 +395,11 @@ python -m pytest tests/test_tank_engine_*.py tests/test_tank_battle.py -v
 python tools/check_release.py
 ```
 
-该命令只检查版本与 `CHANGELOG.md` metadata，以及工作区和本地版本标签的 Git 状态。它不运行测试、不打标签、不推送，也不打包。完整质量门槛需由人工另行运行：
+该命令只检查版本与 `CHANGELOG.md` metadata，以及工作区和本地版本标签的 Git 状态。它不打标签、不推送，也不打包。源码静态检查可另行运行：
 
 ```bash
-python -m pytest tests/ -q -p no:cacheprovider
-python -m ruff check MERIDIAN.py meridian tests tools
-python -m compileall -q MERIDIAN.py meridian tests tools
+python -m ruff check MERIDIAN.py meridian tools
+python -m compileall -q MERIDIAN.py meridian tools
 ```
 
 ---
@@ -490,7 +444,6 @@ python -m compileall -q MERIDIAN.py meridian tests tools
 
 - 新游戏请使用扩展接口注册，避免直接修改 `app.py`
 - 世界观文本请同时提供中英双语版本
-- 确保 `python -m pytest tests/ -v` 全部通过
 - 存档 Schema 变更需递增 `SCHEMA_VERSION` 并提供迁移逻辑
 
 ---

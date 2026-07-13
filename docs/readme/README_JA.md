@@ -8,7 +8,6 @@
 <p align="center"><em>诸界 · 一器 · Many Worlds. One Device.</em></p>
 
 <p align="center">
-  <img src="https://github.com/CrescentXiong-1/MERIDIAN/actions/workflows/ci.yml/badge.svg" alt="CI ステータス">
   <img src="https://img.shields.io/badge/python-3.10%20%7C%203.11%20%7C%203.12-blue" alt="Python">
   <img src="https://img.shields.io/badge/pygame-2.x-green" alt="Pygame">
   <img src="https://img.shields.io/badge/ライセンス-MIT-yellow" alt="ライセンス">
@@ -40,7 +39,6 @@
 - [アーキテクチャ](#-アーキテクチャ)
 - [拡張API](#-拡張api)
 - [ビルド](#-ビルド)
-- [テスト](#-テスト)
 - [変更履歴](#-変更履歴)
 - [コントリビューション](#-コントリビューション)
 - [ライセンス](#-ライセンス)
@@ -262,14 +260,8 @@ MERIDIAN/
 ├── assets/                      # 静的アセット
 │   └── fonts/                   # Fusion Pixel Font（SIL Open License 1.1）
 │
-├── tests/                       # テストスイート（50以上のテスト）
-│   ├── conftest.py              # 共有フィクスチャ + SDLダミードライバー
-│   ├── test_smoke.py            # スモークテスト
-│   ├── test_arcade_games.py     # アーケードゲームテスト
-│   └── test_persistence.py      # 永続化システムテスト
-│
-└── .github/workflows/
-    └── ci.yml                   # GitHub Actions CI（Windows, Python 3.10–3.12）
+└── tools/
+    └── check_release.py         # ローカルリリースメタデータ確認
 ```
 
 ---
@@ -381,34 +373,6 @@ python -m PyInstaller --noconfirm --clean MERIDIAN.spec
 ```
 
 > ⚠️ ビルド前に `pygame` がインストールされ、`MERIDIAN.spec` のパスが正しいことを確認してください。
-
----
-
-## 🧪 テスト
-
-プロジェクトには **50以上のユニットテスト** が含まれています：
-
-```bash
-# 全テストを実行
-python -m pytest tests/ -v
-
-# 特定のテストファイルを実行
-python -m pytest tests/test_smoke.py -v
-python -m pytest tests/test_arcade_games.py -v
-python -m pytest tests/test_persistence.py -v
-```
-
-### テストカバレッジ
-
-| テストファイル | 内容 |
-|---------------|------|
-| `test_smoke.py` | スモークテスト：起動、状態遷移、基本レンダリング |
-| `test_arcade_games.py` | アーケードゲーム：メニュー操作、ゲームロジック、セーブ再開 |
-| `test_persistence.py` | 永続化：セーブ読み書き、バージョン移行、クラッシュリカバリ |
-
-### CI / CD
-
-GitHub Actionsによる **Windows** 上での **Python 3.10 / 3.11 / 3.12** に対する自動テスト。毎回のプッシュとプルリクエストで実行されます。
 
 ---
 

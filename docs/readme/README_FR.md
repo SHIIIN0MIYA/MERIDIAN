@@ -8,11 +8,9 @@
 <p align="center"><em>诸界 · 一器 · Many Worlds. One Device.</em></p>
 
 <p align="center">
-  <img src="https://github.com/CrescentXiong-1/MERIDIAN/actions/workflows/ci.yml/badge.svg" alt="Statut CI">
   <img src="https://img.shields.io/badge/python-3.10%20%7C%203.11%20%7C%203.12-blue" alt="Python">
   <img src="https://img.shields.io/badge/pygame-2.x-green" alt="Pygame">
   <img src="https://img.shields.io/badge/licence-MIT-yellow" alt="Licence">
-  <img src="https://img.shields.io/badge/tests-50%2B-brightgreen" alt="Tests">
   <img src="https://img.shields.io/badge/lignes-~15%20700-orange" alt="Lignes de code">
 </p>
 
@@ -40,7 +38,6 @@
 - [Architecture](#-architecture)
 - [API d'extension](#-api-dextension)
 - [Compilation](#-compilation)
-- [Tests](#-tests)
 - [Journal des modifications](#-journal-des-modifications)
 - [Contribuer](#-contribuer)
 - [Licence](#-licence)
@@ -262,14 +259,8 @@ MERIDIAN/
 ├── assets/                      # Ressources statiques
 │   └── fonts/                   # Fusion Pixel Font (SIL Open License 1.1)
 │
-├── tests/                       # Suite de tests (50+ tests)
-│   ├── conftest.py              # Fixtures partagées + pilote SDL factice
-│   ├── test_smoke.py            # Tests de fumée
-│   ├── test_arcade_games.py     # Tests de jeux d'arcade
-│   └── test_persistence.py      # Tests du système de persistance
-│
-└── .github/workflows/
-    └── ci.yml                   # GitHub Actions CI (Windows, Python 3.10–3.12)
+└── tools/
+    └── check_release.py         # Vérification locale des métadonnées de version
 ```
 
 ---
@@ -381,34 +372,6 @@ python -m PyInstaller --noconfirm --clean MERIDIAN.spec
 ```
 
 > ⚠️ Assurez-vous que `pygame` est installé et que les chemins dans `MERIDIAN.spec` sont corrects.
-
----
-
-## 🧪 Tests
-
-Le projet inclut **plus de 50 tests unitaires** couvrant les modules principaux :
-
-```bash
-# Exécuter tous les tests
-python -m pytest tests/ -v
-
-# Exécuter des fichiers de test spécifiques
-python -m pytest tests/test_smoke.py -v
-python -m pytest tests/test_arcade_games.py -v
-python -m pytest tests/test_persistence.py -v
-```
-
-### Couverture de Tests
-
-| Fichier de Test | Contenu |
-|-----------------|---------|
-| `test_smoke.py` | Tests de fumée : lancement, transitions d'état, rendu de base |
-| `test_arcade_games.py` | Jeux d'arcade : interaction menu, logique de jeu, reprise de sauvegarde |
-| `test_persistence.py` | Persistance : lecture/écriture, migration de version, récupération crash |
-
-### CI / CD
-
-Tests automatisés via GitHub Actions sur **Windows** contre **Python 3.10 / 3.11 / 3.12**. Déclenchés à chaque push et pull request.
 
 ---
 

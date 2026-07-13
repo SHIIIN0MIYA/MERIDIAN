@@ -8,7 +8,6 @@
 <p align="center"><em>诸界 · 一器 · Many Worlds. One Device.</em></p>
 
 <p align="center">
-  <img src="https://github.com/CrescentXiong-1/MERIDIAN/actions/workflows/ci.yml/badge.svg" alt="حالة CI">
   <img src="https://img.shields.io/badge/python-3.10%20%7C%203.11%20%7C%203.12-blue" alt="Python">
   <img src="https://img.shields.io/badge/pygame-2.x-green" alt="Pygame">
   <img src="https://img.shields.io/badge/الترخيص-MIT-yellow" alt="الترخيص">
@@ -40,7 +39,6 @@
 - [الهندسة المعمارية](#-الهندسة-المعمارية)
 - [واجهة برمجة التطبيقات للتوسيع](#-واجهة-برمجة-التطبيقات-للتوسيع)
 - [البناء](#-البناء)
-- [الاختبارات](#-الاختبارات)
 - [سجل التغييرات](#-سجل-التغييرات)
 - [المساهمة](#-المساهمة)
 - [الترخيص](#-الترخيص)
@@ -262,14 +260,8 @@ MERIDIAN/
 ├── assets/                      # الموارد الثابتة
 │   └── fonts/                   # خط Fusion Pixel Font (رخصة SIL Open License 1.1)
 │
-├── tests/                       # مجموعة الاختبارات (أكثر من 50 اختباراً)
-│   ├── conftest.py              # تجهيزات مشتركة + مشغل SDL وهمي
-│   ├── test_smoke.py            # اختبارات الدخان
-│   ├── test_arcade_games.py     # اختبارات ألعاب الأركيد
-│   └── test_persistence.py      # اختبارات نظام الحفظ
-│
-└── .github/workflows/
-    └── ci.yml                   # GitHub Actions CI (Windows, Python 3.10–3.12)
+└── tools/
+    └── check_release.py         # فحص بيانات الإصدار محلياً
 ```
 
 ---
@@ -381,34 +373,6 @@ python -m PyInstaller --noconfirm --clean MERIDIAN.spec
 ```
 
 > ⚠️ تأكد من تثبيت `pygame` وأن المسارات في `MERIDIAN.spec` صحيحة.
-
----
-
-## 🧪 الاختبارات
-
-يتضمن المشروع **أكثر من 50 اختبار وحدة**:
-
-```bash
-# تشغيل جميع الاختبارات
-python -m pytest tests/ -v
-
-# تشغيل ملفات اختبار محددة
-python -m pytest tests/test_smoke.py -v
-python -m pytest tests/test_arcade_games.py -v
-python -m pytest tests/test_persistence.py -v
-```
-
-### تغطية الاختبارات
-
-| ملف الاختبار | المحتوى |
-|--------------|---------|
-| `test_smoke.py` | اختبارات الدخان: التشغيل، انتقالات الحالة، العرض الأساسي |
-| `test_arcade_games.py` | ألعاب الأركيد: تفاعل القائمة، منطق اللعبة، استئناف الحفظ |
-| `test_persistence.py` | الحفظ: القراءة/الكتابة، ترحيل الإصدار، استرداد الأعطال |
-
-### CI / CD
-
-اختبار تلقائي عبر GitHub Actions على **Windows** ضد **Python 3.10 / 3.11 / 3.12**. يتم التشغيل عند كل push و pull request.
 
 ---
 

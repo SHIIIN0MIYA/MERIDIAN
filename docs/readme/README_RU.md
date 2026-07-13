@@ -8,7 +8,6 @@
 <p align="center"><em>诸界 · 一器 · Many Worlds. One Device.</em></p>
 
 <p align="center">
-  <img src="https://github.com/CrescentXiong-1/MERIDIAN/actions/workflows/ci.yml/badge.svg" alt="Статус CI">
   <img src="https://img.shields.io/badge/python-3.10%20%7C%203.11%20%7C%203.12-blue" alt="Python">
   <img src="https://img.shields.io/badge/pygame-2.x-green" alt="Pygame">
   <img src="https://img.shields.io/badge/лицензия-MIT-yellow" alt="Лицензия">
@@ -40,7 +39,6 @@
 - [Архитектура](#-архитектура)
 - [API расширений](#-api-расширений)
 - [Сборка](#-сборка)
-- [Тестирование](#-тестирование)
 - [История изменений](#-история-изменений)
 - [Участие в разработке](#-участие-в-разработке)
 - [Лицензия](#-лицензия)
@@ -262,14 +260,8 @@ MERIDIAN/
 ├── assets/                      # Статические ресурсы
 │   └── fonts/                   # Fusion Pixel Font (SIL Open License 1.1)
 │
-├── tests/                       # Набор тестов (50+ тестов)
-│   ├── conftest.py              # Общие фикстуры + фиктивный драйвер SDL
-│   ├── test_smoke.py            # Дымовые тесты
-│   ├── test_arcade_games.py     # Тесты аркадных игр
-│   └── test_persistence.py      # Тесты системы сохранения
-│
-└── .github/workflows/
-    └── ci.yml                   # GitHub Actions CI (Windows, Python 3.10–3.12)
+└── tools/
+    └── check_release.py         # Локальная проверка метаданных релиза
 ```
 
 ---
@@ -381,34 +373,6 @@ python -m PyInstaller --noconfirm --clean MERIDIAN.spec
 ```
 
 > ⚠️ Убедитесь, что `pygame` установлен и пути в `MERIDIAN.spec` корректны.
-
----
-
-## 🧪 Тестирование
-
-Проект включает **более 50 модульных тестов**:
-
-```bash
-# Запуск всех тестов
-python -m pytest tests/ -v
-
-# Запуск отдельных файлов
-python -m pytest tests/test_smoke.py -v
-python -m pytest tests/test_arcade_games.py -v
-python -m pytest tests/test_persistence.py -v
-```
-
-### Покрытие тестов
-
-| Тестовый файл | Содержание |
-|---------------|------------|
-| `test_smoke.py` | Дымовые тесты: запуск, переходы состояний, базовый рендеринг |
-| `test_arcade_games.py` | Аркадные игры: меню, игровая логика, восстановление сохранений |
-| `test_persistence.py` | Сохранение: чтение/запись, миграция версий, восстановление после сбоев |
-
-### CI / CD
-
-Автоматическое тестирование через GitHub Actions на **Windows** для **Python 3.10 / 3.11 / 3.12**. Запускается при каждом push и pull request.
 
 ---
 
