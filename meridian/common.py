@@ -9,7 +9,9 @@ import sys  # noqa: F401 (exported via star import)
 import math
 import random
 from .localization import (
-    contains_chinese, get_chinese_font, translate,
+    contains_chinese, get_chinese_font,
+    is_chinese,  # noqa: F401 (exported via star import)
+    translate,
 )
 
 pygame.init()
