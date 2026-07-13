@@ -1,5 +1,6 @@
 ﻿from .common import *
 from .localization import is_chinese
+from .version import version_label
 
 
 # ── Desktop Icon Registry ────────────────────────────────────
@@ -351,7 +352,7 @@ class DesktopMixin:
         pygame.draw.line(self.screen, C.DESK_ACCENT, (bar_rect.x + 8, bar_rect.bottom - 3), (bar_rect.right - 8, bar_rect.bottom - 3), 2)
 
         left_text = self._get_desktop_time_text()
-        center_text = DECK_TITLE
+        center_text = version_label()
         right_text = self._get_battery_text()
 
         # Clock pulse during hour celebration

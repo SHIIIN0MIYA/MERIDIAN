@@ -432,20 +432,35 @@ python -m pytest tests/test_tank_engine_*.py tests/test_tank_battle.py -v
 
 通过 GitHub Actions 在 **Windows** 平台上对 **Python 3.10 / 3.11 / 3.12** 进行自动化测试。每次 Push 和 Pull Request 均触发。
 
+### 本地发布检查
+
+在仓库根目录运行只读的发布检查器：
+
+```bash
+python tools/check_release.py
+```
+
+该命令只检查版本与 `CHANGELOG.md` metadata，以及工作区和本地版本标签的 Git 状态。它不运行测试、不打标签、不推送，也不打包。完整质量门槛需由人工另行运行：
+
+```bash
+python -m pytest tests/ -q -p no:cacheprovider
+python -m ruff check MERIDIAN.py meridian tests tools
+python -m compileall -q MERIDIAN.py meridian tests tools
+```
+
 ---
 
 ## 📝 更新日志
 
 详见 [CHANGELOG.md](CHANGELOG.md)
 
-### 最新版本 V3.1.0 (2026-07-02) — 「MERIDIAN」
+### 最新版本 V3.2.0 (2026-07-13) — 「Tank Duel」
 
-- 🌌 **世界观系统**：元叙事框架，八界设定，序章系统，异界档案
-- 🔌 **扩展接口**：5 个注册函数，新游戏零修改集成
-- 🏆 **成就墙**：V3.0.0 引入，V3.1.0 优化视觉
-- 💾 **中断恢复**：全部 8 款游戏支持存档恢复
-- ✈️ **Air Raid 剧情**：8 章故事线 + 档案阅读器
-- 🎨 **视觉增强**：桌面粒子、退出过渡动画、色彩统一
+- 🎮 **本地双人对战**：红方 WASD、蓝方方向键，支持八向移动、后按键优先与自动射击
+- 🧰 **八种战术道具**：修复、护盾、加速、地雷、EMP、穿甲弹、烟雾与传送，采用单道具槽
+- ⚔️ **完整对局规则**：3 分钟、每方 3 HP、随机安全重生、平局骤死与中心镜像地图
+- 🏆 **完整系统集成**：新增 12 项成就、中英文文本、动态配乐、专属转场与对局统计
+- 💾 **中断恢复**：存档 Schema 升级至 v5，支持 Tank Duel 对局快照恢复
 
 ---
 
