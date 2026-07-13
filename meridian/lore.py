@@ -7,6 +7,8 @@ Register a new game world with one call::
 Built-in worlds are auto-registered at module import.
 """
 
+from .lore_expansions import ARCHIVE_EXPANSIONS
+
 # ============================================================
 #  World Registry
 # ============================================================
@@ -997,3 +999,15 @@ register_device_lore(
                 "持有者补完了回路，MERIDIAN 终于能够以完整之声回应。"],
     unlock="completion:100",
 )
+
+
+# Enrich every archive entry after registration while keeping the core world
+# declarations readable. Localization collects these extended passages too.
+for _entry_id, _passages in ARCHIVE_EXPANSIONS.items():
+    _entry = get_lore_entry(_entry_id)
+    if _entry is None:
+        raise KeyError(f"Lore expansion references unknown entry: {_entry_id}")
+    _entry["content_en"].extend(_passages["en"])
+    _entry["content_zh"].extend(_passages["zh"])
+
+del _entry_id, _passages, _entry

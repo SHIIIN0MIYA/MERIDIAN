@@ -1504,6 +1504,23 @@ class SystemMixin:
             wrapped.pop()
         return wrapped
 
+    def _lore_story_pages(self, entry, font, max_width, max_lines=10):
+        lines = self._lore_story_wrapped_lines(entry, font, max_width)
+        page_count = max(1, (len(lines) + max_lines - 1) // max_lines)
+        base_size, larger_pages = divmod(len(lines), page_count)
+        pages = []
+        cursor = 0
+        for page_index in range(page_count):
+            size = base_size + (1 if page_index < larger_pages else 0)
+            page = lines[cursor:cursor + size]
+            cursor += size
+            while page and page[0] == "":
+                page.pop(0)
+            while page and page[-1] == "":
+                page.pop()
+            pages.append(page)
+        return pages
+
     def _handle_lore_reader_event(self, event):
         if event.type == pygame.KEYDOWN:
             if event.key == pygame.K_ESCAPE:
@@ -1587,8 +1604,8 @@ class SystemMixin:
                 if entry:
                     story_font = get_chinese_font(16)
                     panel = pygame.Rect(100, 50, WINDOW_W - 200, WINDOW_H - 100)
-                    lines = self._lore_story_wrapped_lines(entry, story_font, panel.width - 100)
-                    max_page = max(0, (len(lines) - 1) // 10)
+                    pages = self._lore_story_pages(entry, story_font, panel.width - 100)
+                    max_page = len(pages) - 1
                     self.lore_reading_page = min(self.lore_reading_page + 1, max_page)
             elif event.key in (pygame.K_LEFT, pygame.K_a):
                 self.lore_reading_page = max(0, self.lore_reading_page - 1)
@@ -1704,11 +1721,10 @@ class SystemMixin:
 
         # Content
         story_font = get_chinese_font(16)
-        lines = self._lore_story_wrapped_lines(entry, story_font, panel.width - 100)
-        lines_per_page = 10
-        start = self.lore_reading_page * lines_per_page
-        page_lines = lines[start:start + lines_per_page]
-        max_page = max(0, (len(lines) - 1) // lines_per_page)
+        pages = self._lore_story_pages(entry, story_font, panel.width - 100)
+        self.lore_reading_page = min(self.lore_reading_page, len(pages) - 1)
+        page_lines = pages[self.lore_reading_page]
+        max_page = len(pages) - 1
 
         for li, line in enumerate(page_lines):
             y = panel.y + 92 + li * 36
