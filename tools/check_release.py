@@ -9,7 +9,8 @@ import sys
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
-RELEASE_TAG = "v3.2.0"
+RELEASE_VERSION = "3.2.0"
+RELEASE_TAG = f"v{RELEASE_VERSION}"
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
@@ -31,6 +32,8 @@ def _load_version(repo: Path) -> str:
 def check_metadata(repo: Path) -> list[str]:
     """Return release metadata problems without changing the repository."""
     version = _load_version(repo)
+    if version != RELEASE_VERSION:
+        return [f"version does not match release target {RELEASE_VERSION}"]
     changelog = repo / "CHANGELOG.md"
     if not changelog.is_file():
         return ["CHANGELOG.md is missing"]
