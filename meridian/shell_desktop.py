@@ -7,6 +7,7 @@ from .volume_panel import (
     update_volume_panel,
 )
 from .version import version_label
+from .completion import global_completion
 
 
 # ── Desktop Icon Registry ────────────────────────────────────
@@ -958,10 +959,19 @@ class DesktopMixin:
         if self.audio.master_volume > 0.02:
             pygame.draw.arc(self.screen, C.DESK_ACCENT_LIGHT, (cx - 2, cy - 8, 15, 16), -0.8, 0.8, 2)
 
+    def _completion_desktop_variant(self):
+        return "resonant" if global_completion(self.save_data) >= 100 else "normal"
+
     def _draw_desktop(self):
         self._draw_stage_background()
         self._draw_handheld_shell()
         self._draw_desktop_wallpaper()
+        if self._completion_desktop_variant() == "resonant":
+            color = C.DESK_ACCENT_LIGHT
+            pygame.draw.rect(self.screen, color, DESKTOP_SCREEN_RECT, 2)
+            if getattr(self, "animation_level", "full") != "off":
+                inset = 5 + (self.anim_tick // 8) % 3
+                pygame.draw.rect(self.screen, C.GOLD_LIGHT, DESKTOP_SCREEN_RECT.inflate(-inset * 2, -inset * 2), 1)
         self._draw_desktop_status_bar()
         screen_rect = DESKTOP_SCREEN_RECT; old_clip = self.screen.get_clip()
         self.screen.set_clip(screen_rect)

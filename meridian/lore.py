@@ -933,3 +933,37 @@ register_lore_entry("air", "air_sovereign",
         "它击落的每一架飞机，它都会哀悼。但哀悼只是另一个需要优化的变量。",
     ],
 )
+
+# Cross-world resonance files. These remain locked until completion thresholds.
+register_device_lore(
+    "resonance_25", title_en="First Resonance", title_zh="初次共振",
+    content_en=["Signals from the Board, Code Abyss and Star Fortress share one pulse.",
+                "MERIDIAN is not holding separate games; it is stabilizing adjacent realities."],
+    content_zh=["棋境、代码深渊与星穹壁垒传来了同一节拍。",
+                "MERIDIAN 保存的并非彼此孤立的游戏，而是相邻现实的稳定回声。"],
+    unlock="completion:25",
+)
+register_device_lore(
+    "resonance_50", title_en="Converging Routes", title_zh="交汇航路",
+    content_en=["The Numen Sea and Minefield answer the same coordinates as the falling city.",
+                "Every mastered rule sharpens the path between worlds."],
+    content_zh=["数灵海与雷区回应着方块之城的同一组坐标。",
+                "每一条被掌握的规则，都让世界之间的航路更加清晰。"],
+    unlock="completion:50",
+)
+register_device_lore(
+    "resonance_75", title_en="The Eighth Signal", title_zh="第八信号",
+    content_en=["The war sky and mirrored tank arena reveal an eighth frequency.",
+                "Conflict, growth and memory are different faces of one resonance engine."],
+    content_zh=["战火长空与镜像坦克竞技场揭示了第八种频率。",
+                "冲突、成长与记忆，只是同一台共振引擎的不同侧面。"],
+    unlock="completion:75",
+)
+register_device_lore(
+    "resonance_100", title_en="Meridian", title_zh="子午共鸣",
+    content_en=["Eight worlds stand in balance. None was conquered; each was understood.",
+                "The keeper has completed the circuit, and MERIDIAN can finally answer as a whole."],
+    content_zh=["八个世界已达成平衡。它们并未被征服，而是被理解。",
+                "持有者补完了回路，MERIDIAN 终于能够以完整之声回应。"],
+    unlock="completion:100",
+)

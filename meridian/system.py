@@ -9,6 +9,13 @@ from .localization import set_language, get_chinese_font, is_chinese
 from . import lore as _lore
 from .tank_engine import TankSnapshotError
 from .ui_components import anchored_blit, draw_pixel_panel, fit_pixel_text
+from .completion import WORLD_IDS, global_completion, world_completion
+
+
+CROSS_WORLD_THRESHOLDS = (
+    (25, "resonance_25"), (50, "resonance_50"),
+    (75, "resonance_75"), (100, "resonance_100"),
+)
 
 
 ACHIEVEMENTS = [
@@ -332,6 +339,34 @@ class SystemMixin:
         elif key == "games_completed":
             stats["global"]["games_completed"] += amount
         self._check_achievements()
+        self._unlock_completion_lore()
+
+    def _unlock_completion_lore(self):
+        if getattr(self, "dev_mode", False):
+            return []
+        percent = global_completion(self.save_data)
+        unlocked = self.save_data.setdefault("lore", {}).setdefault("unlocked_entries", [])
+        new_ids = []
+        for threshold, entry_id in CROSS_WORLD_THRESHOLDS:
+            if percent >= threshold and entry_id not in unlocked:
+                unlocked.append(entry_id)
+                new_ids.append(entry_id)
+                entry = _lore.get_lore_entry(entry_id)
+                if entry:
+                    title = entry["title_zh" if is_chinese() else "title_en"]
+                    self.achievement_notifications.append({"title": title, "frame": 0})
+        if new_ids:
+            self._save_now()
+        return new_ids
+
+    def _completion_world_cards(self):
+        cards = []
+        for game_id in WORLD_IDS:
+            score = world_completion(game_id, self.save_data)
+            cards.append({"game_id": game_id, "total": score.total,
+                          "achievement": score.achievement,
+                          "objectives": score.objectives, "lore": score.lore})
+        return cards
 
     def _achievement_progress(self, definition):
         _, _, _, game, key, target = definition
@@ -735,10 +770,12 @@ class SystemMixin:
             if event.key == pygame.K_ESCAPE:
                 self._go_system_desktop()
             elif event.key in (pygame.K_LEFT, pygame.K_a):
-                self.profile_tab = "achievements"
+                tabs = ("achievements", "statistics", "completion")
+                self.profile_tab = tabs[(tabs.index(self.profile_tab) - 1) % len(tabs)]
                 self.profile_scroll = 0
             elif event.key in (pygame.K_RIGHT, pygame.K_d):
-                self.profile_tab = "statistics"
+                tabs = ("achievements", "statistics", "completion")
+                self.profile_tab = tabs[(tabs.index(self.profile_tab) + 1) % len(tabs)]
                 self.profile_scroll = 0
             elif event.key in (pygame.K_UP, pygame.K_w):
                 self.profile_scroll = max(0, self.profile_scroll - 1)
@@ -766,8 +803,9 @@ class SystemMixin:
 
     def _get_profile_buttons(self):
         return [
-            {"rect": pygame.Rect(90, 104, 250, 48), "label": "ACHIEVEMENTS", "action": "achievements", "selected": self.profile_tab == "achievements"},
-            {"rect": pygame.Rect(360, 104, 250, 48), "label": "STATISTICS", "action": "statistics", "selected": self.profile_tab == "statistics"},
+            {"rect": pygame.Rect(90, 104, 220, 48), "label": "ACHIEVEMENTS", "action": "achievements", "selected": self.profile_tab == "achievements"},
+            {"rect": pygame.Rect(330, 104, 220, 48), "label": "STATISTICS", "action": "statistics", "selected": self.profile_tab == "statistics"},
+            {"rect": pygame.Rect(570, 104, 220, 48), "label": "COMPLETION", "action": "completion", "selected": self.profile_tab == "completion"},
             {"rect": pygame.Rect(960, 104, 220, 48), "label": "BACK", "action": "back"},
         ]
 
@@ -799,8 +837,30 @@ class SystemMixin:
             self._draw_system_button(button)
         if self.profile_tab == "achievements":
             self._draw_achievement_list()
-        else:
+        elif self.profile_tab == "statistics":
             self._draw_statistics_list()
+        else:
+            self._draw_completion_profile()
+
+    def _draw_completion_profile(self):
+        percent = global_completion(self.save_data)
+        title = render_pixel_text(self.font_status, f"{translate('GLOBAL COMPLETION')}  {percent}%", C.GOLD_LIGHT, scale=2)
+        self.screen.blit(title, (WINDOW_W // 2 - title.get_width() // 2, 166))
+        pygame.draw.rect(self.screen, C.OUTLINE, (170, 198, 940, 18))
+        pygame.draw.rect(self.screen, C.DESK_ACCENT_LIGHT, (174, 202, int(932 * percent / 100), 10))
+        for index, card_data in enumerate(self._completion_world_cards()):
+            col, row = index % 4, index // 4
+            rect = pygame.Rect(82 + col * 286, 242 + row * 178, 264, 154)
+            draw_pixel_panel(self.screen, rect, {"outline": C.OUTLINE, "panel": C.DESK_PANEL_DARK}, 3)
+            key = "AIR RAID" if card_data["game_id"] == "air" else card_data["game_id"].upper()
+            heading = fit_pixel_text(self.font_status, f"{translate(key)}  {card_data['total']}%", C.DESK_ACCENT_LIGHT, rect.width - 24, 2)
+            anchored_blit(self.screen, heading, pygame.Rect(rect.x, rect.y + 14, rect.width, 30), "center")
+            parts = (f"{translate('ACHIEVEMENTS')} {card_data['achievement']}%",
+                     f"{translate('OBJECTIVES')} {card_data['objectives']}%",
+                     f"LORE {card_data['lore']}%")
+            for line_index, value in enumerate(parts):
+                line = fit_pixel_text(self.font_small, value, C.DESK_TEXT, rect.width - 24, 1)
+                self.screen.blit(line, (rect.x + 16, rect.y + 58 + line_index * 26))
 
     def _draw_achievement_list(self):
         unlocked = self.save_data["achievements"]
@@ -1343,6 +1403,8 @@ class SystemMixin:
 
     def _is_lore_unlocked(self, entry):
         # All lore is always available — this is a world archive, not a reward system.
+        if str(entry.get("unlock", "")).startswith("completion:"):
+            return entry["id"] in self.save_data.get("lore", {}).get("unlocked_entries", [])
         return True
 
     def _unlock_lore_entry(self, entry_id):
