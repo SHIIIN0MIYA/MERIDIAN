@@ -171,6 +171,7 @@ ZH: dict[str, str] = {
     "SYSTEM SETTINGS": "系统设置",
     "SYSTEM": "系统",
     "GAME OPTIONS": "游戏选项",
+    "MASTER": "主音量",
     "MUSIC": "音乐音量",
     "SFX": "音效音量",
     "MASTER MUTE": "全部静音",

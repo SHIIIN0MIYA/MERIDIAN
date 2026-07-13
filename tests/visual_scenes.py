@@ -15,6 +15,7 @@ from meridian.tank_engine import (
     MatchPhase,
     SmokeState,
 )
+from meridian.volume_panel import VolumePanelState, update_volume_panel
 
 
 SCENE_NAMES: tuple[str, ...] = (
@@ -25,6 +26,26 @@ SCENE_NAMES: tuple[str, ...] = (
 )
 
 _VISUAL_RANDOM_SEED = 330
+
+VOLUME_PANEL_KEYFRAMES = {
+    "collapsed": (False, "closed", 0.0),
+    "overshoot": (True, "opening", 340.0),
+    "settled": (True, "open", 0.0),
+    "closing": (False, "closing_content", 60.0),
+}
+
+
+def inject_volume_panel_keyframe(game: Game, keyframe: str):
+    """Inject a deterministic component frame without adding a fullscreen scene."""
+    is_open, phase, elapsed_ms = VOLUME_PANEL_KEYFRAMES[keyframe]
+    game.animation_level = "full"
+    game.desktop_volume_state = VolumePanelState(is_open, phase, elapsed_ms, None)
+    game.desktop_volume_geometry = update_volume_panel(
+        game.desktop_volume_state, 0, game.animation_level
+    )
+    game.desktop_volume_open = game.desktop_volume_state.open
+    game.desktop_volume_dragging = False
+    return game.desktop_volume_geometry
 
 
 def _scene_desktop_page_1(game: Game) -> None:
