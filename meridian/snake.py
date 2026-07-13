@@ -412,7 +412,9 @@ class SnakeMixin:
     def _start_snake_game(self, restore_state=None):
         mid = SNAKE_GRID_COUNT // 2
         if restore_state:
-            self.snake = restore_state["body"]
+            # JSON restores coordinate tuples as lists.  Normalize every body
+            # segment before collision checks build a set from the snake.
+            self.snake = [tuple(segment) for segment in restore_state["body"]]
             self.snake_dir = tuple(restore_state["dir"])
             self.snake_next_dir = tuple(restore_state["next_dir"])
             self.snake_food = tuple(restore_state["food"]) if restore_state.get("food") else (0, 0)
@@ -431,7 +433,8 @@ class SnakeMixin:
         self.snake_score_jump = 0
         self.snake_score_jump_frame = 0
 
-        self._spawn_snake_food()
+        if not restore_state or self.snake_food in self.snake:
+            self._spawn_snake_food()
 
         self.state = self.SNAKE_PLAYING
         self._record_stat("snake", "games_started")
