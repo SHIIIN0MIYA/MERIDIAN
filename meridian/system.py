@@ -112,6 +112,7 @@ class SystemMixin:
         self.achievement_wall_detail_closing = False
         self.achievement_wall_page = 0
         self._pending_run_states = {}
+        self._run_state_save_suppressed = set()
         self.tank_restore_notice = None
         self._last_persisted_snapshot = ""
         self._last_save_check = pygame.time.get_ticks()
@@ -179,6 +180,10 @@ class SystemMixin:
         for game_id in ("gomoku", "snake", "breakout", "2048", "mines", "tetris", "air", "tank"):
             progress = self.save_data.get("progress", {}).get(game_id, {})
             if progress.get("run_active") and progress.get("run_state") is not None:
+                if self._is_completed_run_state(game_id, progress["run_state"]):
+                    progress["run_active"] = False
+                    progress["run_state"] = None
+                    continue
                 if game_id == "tank":
                     try:
                         self._restore_tank_run_state(progress["run_state"])
@@ -190,6 +195,32 @@ class SystemMixin:
                         self._pending_run_states[game_id] = progress["run_state"]
                 else:
                     self._pending_run_states[game_id] = progress["run_state"]
+
+    @staticmethod
+    def _is_completed_run_state(game_id, run_state):
+        if game_id == "gomoku":
+            return run_state.get("winner", 0) != 0
+        if game_id != "mines":
+            return False
+
+        grid = run_state.get("grid", [])
+        revealed = run_state.get("revealed", [])
+        if not grid or len(grid) != len(revealed):
+            return False
+
+        safe_cells = 0
+        revealed_safe_cells = 0
+        for row, revealed_row in zip(grid, revealed):
+            if len(row) != len(revealed_row):
+                return False
+            for cell, is_revealed in zip(row, revealed_row):
+                if cell == -1:
+                    if is_revealed:
+                        return True
+                else:
+                    safe_cells += 1
+                    revealed_safe_cells += int(bool(is_revealed))
+        return safe_cells > 0 and revealed_safe_cells == safe_cells
 
     def _apply_snake_preferences(self):
         self.snake_base_interval = {"slow": 11, "normal": 8, "fast": 6}.get(self.snake_speed_mode, 8)
@@ -274,7 +305,7 @@ class SystemMixin:
         }
         # Capture in-progress game run state
         game_id = self._game_id_from_state()
-        if game_id:
+        if game_id and game_id not in self._run_state_save_suppressed:
             capture_method = getattr(self, f"_capture_{game_id}_run_state", None)
             if capture_method:
                 data["progress"][game_id]["run_state"] = capture_method()
@@ -285,7 +316,12 @@ class SystemMixin:
         progress = self.save_data["progress"].get(game_id, {})
         progress["run_active"] = False
         progress["run_state"] = None
-        self._save_now()
+        self._pending_run_states.pop(game_id, None)
+        self._run_state_save_suppressed.add(game_id)
+        try:
+            self._save_now()
+        finally:
+            self._run_state_save_suppressed.discard(game_id)
 
     def _save_now(self):
         if getattr(self, "dev_mode", False):

@@ -734,6 +734,7 @@ class GomokuMixin:
                 self._record_stat("gomoku", "draws")
             if self.board_size == 19 and self.board.winner in (1, 2):
                 self._record_stat("gomoku", "wins_on_19")
+        self._clear_run_state("gomoku")
 
     def _add_drop_animation(self, r, c, player):
         self.animations.append({
