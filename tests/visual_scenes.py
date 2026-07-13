@@ -9,7 +9,12 @@ import pygame
 
 from meridian.app import Game
 from meridian.localization import set_language
-from meridian.tank_engine import MatchPhase
+from meridian.tank_engine import (
+    BulletState,
+    ItemType,
+    MatchPhase,
+    SmokeState,
+)
 
 
 SCENE_NAMES: tuple[str, ...] = (
@@ -22,43 +27,126 @@ SCENE_NAMES: tuple[str, ...] = (
 _VISUAL_RANDOM_SEED = 330
 
 
-def _state(state_name: str, **attributes: object) -> Callable[[Game], None]:
-    def configure(game: Game) -> None:
-        game.state = getattr(game, state_name)
-        for name, value in attributes.items():
-            setattr(game, name, value)
-
-    return configure
+def _scene_desktop_page_1(game: Game) -> None:
+    game.state = game.DESKTOP
+    game.desktop_page = 0
 
 
-def _tank_sudden_death(game: Game) -> None:
+def _scene_desktop_page_2(game: Game) -> None:
+    game.state = game.DESKTOP
+    game.desktop_page = 1
+
+
+def _scene_system_settings(game: Game) -> None:
+    game.state = game.SYSTEM_SETTINGS
+    if hasattr(game.audio, "master_volume"):
+        game.audio.master_volume = 0.8
+    game.audio.set_music_volume(0.4)
+    game.audio.set_sfx_volume(0.65)
+    game.animation_level = "full"
+
+
+def _scene_profile_statistics(game: Game) -> None:
+    game.state = game.PROFILE
+    game.profile_tab = "statistics"
+    game.profile_scroll = 0
+
+
+def _scene_achievement_wall(game: Game) -> None:
+    game.state = game.ACHIEVEMENT_WALL
+    game.achievement_wall_page = 0
+    game.achievement_wall_detail_index = None
+    unlocked_at = "2033-03-30T12:34:00"
+    game.save_data["achievements"] = {
+        achievement_id: {"unlocked_at": unlocked_at}
+        for achievement_id in (
+            "gomoku_first_game", "snake_5", "tank_first_clash",
+        )
+    }
+
+
+def _scene_lore_list(game: Game) -> None:
+    game.state = game.LORE_READER
+    game.lore_category_index = 0
+    game.lore_entry_index = 0
+    game.lore_scroll = 0
+    game.lore_reading_entry_id = None
+
+
+def _scene_tank_menu(game: Game) -> None:
+    game.state = game.TANK_MENU
+    game.tank_pressed_action = None
+
+
+def _scene_tank_controls(game: Game) -> None:
+    game.state = game.TANK_CONTROLS
+    game.tank_pressed_action = None
+
+
+def _fixed_tank_match(game: Game) -> None:
+    engine = game.tank_engine
+    engine.phase = MatchPhase.REGULATION
+    engine.elapsed_ms = 108_000
+    engine.remaining_ms = 72_000
+    engine.score.update(red=2, blue=1)
+    engine.winner = None
+    engine.paused = False
+    engine.tanks["red"].hp = 2
+    engine.tanks["red"].held_item = ItemType.PIERCING
+    engine.tanks["blue"].hp = 1
+    engine.tanks["blue"].held_item = ItemType.SMOKE
+    engine.bullets = [BulletState("red", 9.5, 5.5, 1.0, 0.0, True)]
+    engine.smokes = [SmokeState("blue", 18.5, 8.5, 90_000)]
+    game.tank_paused = False
+
+
+def _scene_tank_playing(game: Game) -> None:
     game.state = game.TANK_PLAYING
+    _fixed_tank_match(game)
+
+
+def _scene_tank_paused(game: Game) -> None:
+    game.state = game.TANK_PLAYING
+    _fixed_tank_match(game)
+    game.tank_paused = True
+    game.tank_engine.paused = True
+
+
+def _scene_tank_sudden_death(game: Game) -> None:
+    game.state = game.TANK_PLAYING
+    _fixed_tank_match(game)
     game.tank_engine.phase = MatchPhase.SUDDEN_DEATH
     game.tank_engine.remaining_ms = 0
+    game.tank_engine.score.update(red=3, blue=3)
+    game.tank_engine.tanks["red"].hp = 1
+    game.tank_engine.tanks["blue"].hp = 1
     game._tank_in_sudden_death = True
 
 
-def _tank_end(game: Game) -> None:
+def _scene_tank_end(game: Game) -> None:
     game.state = game.TANK_END
+    _fixed_tank_match(game)
     game.tank_engine.phase = MatchPhase.ENDED
     game.tank_engine.remaining_ms = 0
-    game.tank_engine.score.update(red=3, blue=2)
+    game.tank_engine.score.update(red=4, blue=3)
     game.tank_engine.winner = "red"
+    game.tank_engine.tanks["red"].hp = 2
+    game.tank_engine.tanks["blue"].hp = 0
 
 
 SCENE_BUILDERS: dict[str, Callable[[Game], None]] = {
-    "desktop_page_1": _state("DESKTOP", desktop_page=0),
-    "desktop_page_2": _state("DESKTOP", desktop_page=1),
-    "system_settings": _state("SYSTEM_SETTINGS"),
-    "profile_statistics": _state("PROFILE", profile_tab="statistics", profile_scroll=0),
-    "achievement_wall": _state("ACHIEVEMENT_WALL", achievement_wall_page=0),
-    "lore_list": _state("LORE_READER", lore_category_index=0, lore_entry_index=0, lore_scroll=0),
-    "tank_menu": _state("TANK_MENU"),
-    "tank_controls": _state("TANK_CONTROLS"),
-    "tank_playing": _state("TANK_PLAYING"),
-    "tank_paused": _state("TANK_PLAYING", tank_paused=True),
-    "tank_sudden_death": _tank_sudden_death,
-    "tank_end": _tank_end,
+    "desktop_page_1": _scene_desktop_page_1,
+    "desktop_page_2": _scene_desktop_page_2,
+    "system_settings": _scene_system_settings,
+    "profile_statistics": _scene_profile_statistics,
+    "achievement_wall": _scene_achievement_wall,
+    "lore_list": _scene_lore_list,
+    "tank_menu": _scene_tank_menu,
+    "tank_controls": _scene_tank_controls,
+    "tank_playing": _scene_tank_playing,
+    "tank_paused": _scene_tank_paused,
+    "tank_sudden_death": _scene_tank_sudden_death,
+    "tank_end": _scene_tank_end,
 }
 
 
