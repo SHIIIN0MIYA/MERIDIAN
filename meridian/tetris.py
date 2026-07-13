@@ -545,7 +545,7 @@ class TetrisMixin:
         panel = pygame.Rect(100, 54, WINDOW_W - 200, WINDOW_H - 108)
         self._draw_tetris_panel(panel)
         title = render_pixel_text(self.font_menu_title, "TETRIS", C.TETRIS_ACCENT_LIGHT, scale=5)
-        subtitle_text = "俄罗斯方块 · 经典落块街机" if is_chinese() else "FALLING BLOCK ARCADE"
+        subtitle_text = "经典落块街机" if is_chinese() else "FALLING BLOCK ARCADE"
         subtitle = render_pixel_text(self.font_small, subtitle_text, C.TETRIS_TEXT, scale=2)
         self.screen.blit(title, (panel.x + 90, panel.y + 68))
         self.screen.blit(subtitle, (panel.x + 94, panel.y + 164))

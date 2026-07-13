@@ -625,7 +625,7 @@ class MinesMixin:
         tx = outer.centerx - title.get_width() // 2
         ty = outer.y + (98 if is_chinese() else 120) + int(math.sin(self.anim_tick * 0.04) * 4)
         self.screen.blit(shadow, (tx + 4, ty + 4)); self.screen.blit(title, (tx, ty))
-        subtitle_text = "扫雷 · 翻开安全格并标记地雷" if is_chinese() else "OPEN SAFE CELLS AND FLAG MINES"
+        subtitle_text = "翻开安全格并标记地雷" if is_chinese() else "OPEN SAFE CELLS AND FLAG MINES"
         sub = render_pixel_text(self.font_small, subtitle_text, C.MINES_TEXT, scale=2)
         self.screen.blit(sub, (outer.centerx - sub.get_width() // 2, ty + title.get_height() + 18))
         mp = self._logical_mouse_pos()

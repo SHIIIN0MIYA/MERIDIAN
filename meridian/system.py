@@ -4,7 +4,7 @@ import datetime as dt
 import json
 
 from .common import *
-from .persistence import SaveManager, default_data, default_settings
+from .persistence import SaveManager
 from .localization import set_language, get_chinese_font, is_chinese
 from . import lore as _lore
 
@@ -757,11 +757,11 @@ class SystemMixin:
                 ("GAMES STARTED", stats["global"]["games_started"]),
                 ("GAMES COMPLETE", stats["global"]["games_completed"]),
             ]),
-            (f"GOMOKU  PLAY {self._format_duration(stats['gomoku']['play_time_ms'])}", [("GAMES", stats["gomoku"]["games_completed"]), ("BLACK WINS", stats["gomoku"]["black_wins"]), ("WHITE WINS", stats["gomoku"]["white_wins"]), ("UNDOS", stats["gomoku"]["undos"])]),
-            (f"SNAKE  PLAY {self._format_duration(stats['snake']['play_time_ms'])}", [("GAMES", stats["snake"]["games_started"]), ("BEST", stats["snake"]["best_score"]), ("FOOD", stats["snake"]["food_eaten"]), ("DEATHS", stats["snake"]["deaths"])]),
-            (f"BREAKOUT  PLAY {self._format_duration(stats['breakout']['play_time_ms'])}", [("BEST", stats["breakout"]["best_score"]), ("LEVEL", stats["breakout"]["highest_level"]), ("BRICKS", stats["breakout"]["bricks_broken"]), ("CLEARS", stats["breakout"]["levels_cleared"])]),
-            (f"2048  PLAY {self._format_duration(stats['2048']['play_time_ms'])}", [("BEST", stats["2048"]["best_score"]), ("TOP TILE", stats["2048"]["highest_tile"]), ("MOVES", stats["2048"]["moves"]), ("MERGES", stats["2048"]["merges"])]),
-            (f"MINES  PLAY {self._format_duration(stats['mines']['play_time_ms'])}", [("WINS", stats["mines"]["wins"]), ("LOSSES", stats["mines"]["losses"]), ("OPENED", stats["mines"]["cells_revealed"]), ("FLAGS", stats["mines"]["flags_placed"])]),
+            (f"{translate('GOMOKU')}  PLAY {self._format_duration(stats['gomoku']['play_time_ms'])}", [("GAMES", stats["gomoku"]["games_completed"]), ("BLACK WINS", stats["gomoku"]["black_wins"]), ("WHITE WINS", stats["gomoku"]["white_wins"]), ("UNDOS", stats["gomoku"]["undos"])]),
+            (f"{translate('SNAKE')}  PLAY {self._format_duration(stats['snake']['play_time_ms'])}", [("GAMES", stats["snake"]["games_started"]), ("BEST", stats["snake"]["best_score"]), ("FOOD", stats["snake"]["food_eaten"]), ("DEATHS", stats["snake"]["deaths"])]),
+            (f"{translate('BREAKOUT')}  PLAY {self._format_duration(stats['breakout']['play_time_ms'])}", [("BEST", stats["breakout"]["best_score"]), ("LEVEL", stats["breakout"]["highest_level"]), ("BRICKS", stats["breakout"]["bricks_broken"]), ("CLEARS", stats["breakout"]["levels_cleared"])]),
+            (f"{translate('2048')}  PLAY {self._format_duration(stats['2048']['play_time_ms'])}", [("BEST", stats["2048"]["best_score"]), ("TOP TILE", stats["2048"]["highest_tile"]), ("MOVES", stats["2048"]["moves"]), ("MERGES", stats["2048"]["merges"])]),
+            (f"{translate('MINES')}  PLAY {self._format_duration(stats['mines']['play_time_ms'])}", [("WINS", stats["mines"]["wins"]), ("LOSSES", stats["mines"]["losses"]), ("OPENED", stats["mines"]["cells_revealed"]), ("FLAGS", stats["mines"]["flags_placed"])]),
             (translate("MINES BEST 9 x 9"), [
                 (str(count), self._format_mines_time(self.mines_best_times.get((9, count))))
                 for count in MINES_COUNT_CHOICES[9]
@@ -770,8 +770,8 @@ class SystemMixin:
                 (str(count), self._format_mines_time(self.mines_best_times.get((16, count))))
                 for count in MINES_COUNT_CHOICES[16]
             ]),
-            (f"TETRIS  PLAY {self._format_duration(stats['tetris']['play_time_ms'])}", [("BEST", stats["tetris"]["best_score"]), ("LEVEL", stats["tetris"]["highest_level"]), ("LINES", stats["tetris"]["lines_cleared"]), ("TETRISES", stats["tetris"]["tetrises"])]),
-            (f"AIR RAID  PLAY {self._format_duration(stats['air']['play_time_ms'])}", [("BEST", stats["air"]["best_score"]), ("MISSION", stats["air"]["highest_level"]), ("KILLS", stats["air"]["enemies_destroyed"]), ("S RANKS", stats["air"]["s_ranks"])]),
+            (f"{translate('TETRIS')}  PLAY {self._format_duration(stats['tetris']['play_time_ms'])}", [("BEST", stats["tetris"]["best_score"]), ("LEVEL", stats["tetris"]["highest_level"]), ("LINES", stats["tetris"]["lines_cleared"]), ("TETRISES", stats["tetris"]["tetrises"])]),
+            (f"{translate('AIR RAID')}  PLAY {self._format_duration(stats['air']['play_time_ms'])}", [("BEST", stats["air"]["best_score"]), ("MISSION", stats["air"]["highest_level"]), ("KILLS", stats["air"]["enemies_destroyed"]), ("S RANKS", stats["air"]["s_ranks"])]),
         ]
 
     def _draw_statistics_list(self):
@@ -964,7 +964,7 @@ class SystemMixin:
         # Adjust icon and text positions for hovered rect
         base_rect = draw_rect
 
-        icon_rect = self._draw_achievement_badge_icon(base_rect, definition, unlocked)
+        self._draw_achievement_badge_icon(base_rect, definition, unlocked)
 
         if unlocked:
             progress, target_val = self._achievement_progress(definition)

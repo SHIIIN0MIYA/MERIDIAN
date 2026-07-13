@@ -420,7 +420,7 @@ class BreakoutMixin:
         shadow = render_pixel_text(self.font_menu_title, "BREAKOUT", C.OUTLINE, scale=5)
         tx, ty = outer.centerx - title.get_width() // 2, outer.y + 120
         self.screen.blit(shadow, (tx + 4, ty + 4)); self.screen.blit(title, (tx, ty))
-        subtitle_text = "打砖块 · 复古像素街机" if is_chinese() else "RETRO PIXEL ARCADE"
+        subtitle_text = "复古像素街机" if is_chinese() else "RETRO PIXEL ARCADE"
         subtitle = render_pixel_text(self.font_small, subtitle_text, C.BREAKOUT_TEXT, scale=2)
         self.screen.blit(subtitle, (outer.centerx - subtitle.get_width() // 2, ty + title.get_height() + 12))
         mp = self._logical_mouse_pos()

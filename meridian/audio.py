@@ -1,31 +1,34 @@
 """Procedural music and sound effects for the game deck."""
 
+from __future__ import annotations
+
 from array import array
 import math
 import random
+from typing import Callable
 
 import pygame
 
 
-SAMPLE_RATE = 44100
-MAX_SAMPLE = 32767
-_SOUND_CACHE = {}
+SAMPLE_RATE: int = 44100
+MAX_SAMPLE: int = 32767
+_SOUND_CACHE: dict[str, pygame.mixer.Sound] = {}
 
 
-def _square(frequency, time_s):
+def _square(frequency: float, time_s: float) -> float:
     return 1.0 if math.sin(math.tau * frequency * time_s) >= 0.0 else -1.0
 
 
-def _triangle(frequency, time_s):
+def _triangle(frequency: float, time_s: float) -> float:
     return 2.0 * abs(2.0 * ((time_s * frequency) % 1.0) - 1.0) - 1.0
 
 
-def _noise(index):
+def _noise(index: int) -> float:
     value = math.sin(index * 12.9898 + 78.233) * 43758.5453
     return (value - math.floor(value)) * 2.0 - 1.0
 
 
-def _make_sound(samples):
+def _make_sound(samples: list[float]) -> pygame.mixer.Sound:
     pcm = array("h")
     for sample in samples:
         encoded = int(max(-1.0, min(1.0, sample)) * MAX_SAMPLE)
@@ -33,7 +36,7 @@ def _make_sound(samples):
     return pygame.mixer.Sound(buffer=pcm.tobytes())
 
 
-def _cached(name, builder):
+def _cached(name: str, builder: Callable[[], pygame.mixer.Sound]) -> pygame.mixer.Sound:
     sound = _SOUND_CACHE.get(name)
     if sound is None:
         sound = builder()
@@ -41,7 +44,8 @@ def _cached(name, builder):
     return sound
 
 
-def _tone_sequence(notes, note_seconds=0.1, volume=0.25, wave="square", decay=0.8):
+def _tone_sequence(notes: list[float], note_seconds: float = 0.1, volume: float = 0.25,
+                  wave: str = "square", decay: float = 0.8) -> pygame.mixer.Sound:
     sample_count = int(SAMPLE_RATE * note_seconds * len(notes))
     samples = []
     oscillator = _triangle if wave == "triangle" else _square
@@ -55,7 +59,8 @@ def _tone_sequence(notes, note_seconds=0.1, volume=0.25, wave="square", decay=0.
     return _make_sound(samples)
 
 
-def _sweep(start, end, duration, volume=0.3, noise=0.0, pulse=False):
+def _sweep(start: float, end: float, duration: float, volume: float = 0.3,
+          noise: float = 0.0, pulse: bool = False) -> pygame.mixer.Sound:
     sample_count = int(SAMPLE_RATE * duration)
     samples = []
     phase = 0.0
@@ -71,7 +76,7 @@ def _sweep(start, end, duration, volume=0.3, noise=0.0, pulse=False):
     return _make_sound(samples)
 
 
-THEME_MELODY = [
+THEME_MELODY: list[float] = [
     261.63, 329.63, 392.00, 523.25,
     392.00, 329.63, 293.66, 392.00,
     261.63, 349.23, 440.00, 523.25,
@@ -79,7 +84,7 @@ THEME_MELODY = [
 ]
 
 
-def _theme_variation(style):
+def _theme_variation(style: str) -> list[float]:
     melody = list(THEME_MELODY)
     if style == "gomoku":
         melody = [note * 0.75 for note in melody]
@@ -110,7 +115,7 @@ def _theme_variation(style):
     return melody
 
 
-def _make_bgm(bass, beat_seconds, style):
+def _make_bgm(bass: list[float], beat_seconds: float, style: str) -> pygame.mixer.Sound:
     melody = _theme_variation(style)
     total_seconds = beat_seconds * len(melody)
     sample_count = int(SAMPLE_RATE * total_seconds)
@@ -170,7 +175,7 @@ def _make_bgm(bass, beat_seconds, style):
     return _make_sound(samples)
 
 
-def _build_tracks():
+def _build_tracks() -> dict[str, pygame.mixer.Sound]:
     return {
         "desktop": _cached("bgm_desktop", lambda: _make_bgm(
             [130.81, 146.83, 174.61, 123.47], 0.24, "desktop")),
@@ -191,7 +196,7 @@ def _build_tracks():
     }
 
 
-def _build_effects():
+def _build_effects() -> dict[str, pygame.mixer.Sound]:
     power_theme = [261.63, 329.63, 392.00, 523.25, 659.25]
     effects = {
         "key": _cached("sfx_key", lambda: _sweep(880, 600, 0.065, 0.18)),
@@ -247,7 +252,7 @@ def _build_effects():
 class AudioManager:
     """Switches scene music and plays shared game event effects."""
 
-    STATE_TRACKS = {
+    STATE_TRACKS: dict[str, str | None] = {
         "desktop": "desktop",
         "system_ready": "desktop",
         "password": "desktop",
@@ -264,19 +269,19 @@ class AudioManager:
         "system_settings": "desktop", "profile": "desktop",
     }
 
-    def __init__(self):
-        self.enabled = pygame.mixer.get_init() is not None
-        self.music_volume = 0.55
-        self.sfx_volume = 1.0
-        self.muted = False
-        self.current_track = None
-        self.music_channels = []
-        self.active_music_index = 0
-        self.previous_music_index = None
-        self.crossfade_started_at = 0
-        self.crossfade_duration_ms = 700
-        self.tracks = {}
-        self.effects = {}
+    def __init__(self) -> None:
+        self.enabled: bool = pygame.mixer.get_init() is not None
+        self.music_volume: float = 0.55
+        self.sfx_volume: float = 1.0
+        self.muted: bool = False
+        self.current_track: str | None = None
+        self.music_channels: list = []
+        self.active_music_index: int = 0
+        self.previous_music_index: int | None = None
+        self.crossfade_started_at: int = 0
+        self.crossfade_duration_ms: int = 700
+        self.tracks: dict = {}
+        self.effects: dict = {}
         if not self.enabled:
             return
         try:
@@ -290,11 +295,11 @@ class AudioManager:
         except pygame.error:
             self.enabled = False
 
-    def sync_state(self, state):
+    def sync_state(self, state: str) -> None:
         self.play_music(self.STATE_TRACKS.get(state))
         self._update_crossfade()
 
-    def play_music(self, track_name):
+    def play_music(self, track_name: str | None) -> None:
         if not self.enabled or not self.music_channels or track_name == self.current_track:
             return
         old_index = self.active_music_index if self.current_track is not None else None
@@ -313,7 +318,7 @@ class AudioManager:
         else:
             new_channel.stop()
 
-    def _update_crossfade(self):
+    def _update_crossfade(self) -> None:
         if not self.enabled or not self.music_channels:
             return
         elapsed = pygame.time.get_ticks() - self.crossfade_started_at
@@ -328,22 +333,22 @@ class AudioManager:
                 previous.stop()
                 self.previous_music_index = None
 
-    def set_music_volume(self, value):
+    def set_music_volume(self, value: float) -> None:
         self.music_volume = max(0.0, min(1.0, float(value)))
         self._update_crossfade()
 
-    def set_sfx_volume(self, value):
+    def set_sfx_volume(self, value: float) -> None:
         self.sfx_volume = max(0.0, min(1.0, float(value)))
 
-    def set_muted(self, muted):
+    def set_muted(self, muted: bool) -> None:
         self.muted = bool(muted)
         self._update_crossfade()
 
-    def begin_shutdown(self):
+    def begin_shutdown(self) -> None:
         self.play_music(None)
         self.play("power_off", 0.9)
 
-    def play(self, effect_name, volume=1.0):
+    def play(self, effect_name: str, volume: float = 1.0) -> None:
         sound = self.effects.get(effect_name)
         if not self.enabled or sound is None:
             return
@@ -353,15 +358,15 @@ class AudioManager:
             channel.set_volume(max(0.0, min(1.0, effective)))
             channel.play(sound)
 
-    def play_gameover(self, game_name):
+    def play_gameover(self, game_name: str) -> None:
         self.play(f"gameover_{game_name}", 0.9)
 
-    def handle_input_event(self, event):
+    def handle_input_event(self, event: pygame.event.Event) -> None:
         if event.type == pygame.KEYDOWN:
             self.play("key", 0.5)
         elif event.type == pygame.MOUSEBUTTONDOWN and event.button in (1, 2, 3):
             self.play("key", 0.45)
 
-    def stop(self):
+    def stop(self) -> None:
         for channel in self.music_channels:
             channel.stop()

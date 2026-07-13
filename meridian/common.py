@@ -1,13 +1,15 @@
-﻿import os
+from __future__ import annotations
+
+import datetime  # noqa: F401 (exported via star import)
+import os
 os.environ["SDL_VIDEO_CENTERED"] = "1"
 
-import datetime
 import pygame
-import sys
+import sys  # noqa: F401 (exported via star import)
 import math
 import random
 from .localization import (
-    GAME_SUBTITLES, contains_chinese, get_chinese_font, is_chinese, translate,
+    contains_chinese, get_chinese_font, translate,
 )
 
 pygame.init()
@@ -29,23 +31,19 @@ BOARD_PX = 504  # Fixed board pixel width for all sizes
 WINDOW_W = 1280
 WINDOW_H = 720
 
-# 瀹革缚鏅剁粩鏍ф倻閺嶅洭顣介弽?
 LEFT_BAR_X = 54
 LEFT_BAR_Y = 84
 LEFT_BAR_W = 120
 LEFT_BAR_H = 552
 
-# 濡娲忛崠鍝勭厵
 BOARD_X = 214
 BOARD_Y = 108
 
-# 閸欏厖鏅剁粩鏍ф倻閻樿埖鈧焦鐖?
 RIGHT_BAR_X = 778
 RIGHT_BAR_Y = 84
 RIGHT_BAR_W = 448
 RIGHT_BAR_H = 592
 
-# 娑撶儤妫禒锝囩垳閸忕厧顔愭穱婵堟殌
 MARGIN = 36
 UI_HEIGHT = 80
 
@@ -53,40 +51,28 @@ UI_HEIGHT = 80
 #  Animation tuning
 # ============================================================
 
-# 姒х姵鐖ｉ棃鐘虹箮娴溿倕寮堕悙鐟邦樋鐏忔垵鍎氱槐鐘插敶閿涘奔绱扮憴锕€褰傜壕浣告儧妫板嫯顫?
 MAGNET_RADIUS = 28
 
-# 妫板嫯顫嶅Λ瀣摍鐞氼偄鎯涢崥鎴滄唉閸欏鍋ｉ惃鍕偓鐔峰閿涘本鏆熼崐鑹扮Ш婢堆冩儧瀵版绉鸿箛?
 MAGNET_PULL = 0.32
 
-# 韫囶偄鎯涢崚棰佹唉閸欏鍋ｉ弮鍓佹畱閹舵牕濮╅懠鍐ㄦ纯
 MAGNET_JITTER_RADIUS = 14
 
-# 閽€钘夌摍濞夈垻姹楅幐浣虹敾鐢勬殶
 RIPPLE_MAX_FRAMES = 24
 
-# 閼虫粌鍩勬潻鐐靛殠閸斻劎鏁鹃幐浣虹敾鐢勬殶
 WIN_LINE_MAX_FRAMES = 45
 
-# 闂堢偞纭堕拃钘夌摍閸欏秹顩幐浣虹敾鐢勬殶
 INVALID_MARK_MAX_FRAMES = 24
 
-# 閹梹顥愰崝銊ф暰閹镐胶鐢荤敮褎鏆熼敍?0 FPS 娑撳瀹?0.3 缁?
 UNDO_ANIM_MAX_FRAMES = 18
 
-# 閹剙浠犻崷銊ュ嚒閺堝顥愮€涙劒绗傞弮鍓佹畱娑撳秴褰查拃钘夌摍閹绘劗銇氶柅蹇旀鎼?
 OCCUPIED_HINT_ALPHA = 95
 
-# 閼虫粌鍩勫Λ瀣摍娓氭繃顐奸梻顏嗗剨閹鎶氶弫?
 WIN_STONE_FLASH_MAX_FRAMES = 54
 
-# 濮ｅ繘顣奸懗婊冨焺濡鐡欐笟婵囶偧閻愰€涘瘨閻ㄥ嫰妫块梾鏂挎姎閺?
 WIN_STONE_FLASH_STEP = 9
 
-# 缂佹挻娼い鐢告桨閺夊灝鑴婇崙鍝勫З閻㈢粯鈧鎶氶弫?
 END_PANEL_POP_FRAMES = 22
 
-# 缂佹挻娼い鍨垼妫版﹢妫悜渚€鈧喎瀹?
 END_TITLE_FLASH_SPEED = 6
 
 # Board size options
@@ -113,19 +99,15 @@ GAME_LIBRARY = [
 
 DECK_TITLE = "MERIDIAN"
 
-# 閹哄本婧€婢舵牗顢?/ 鐏炲繐绠烽崠鍝勭厵
 HANDHELD_RECT = pygame.Rect(36, 22, WINDOW_W - 72, WINDOW_H - 44)
 DESKTOP_SCREEN_RECT = pygame.Rect(120, 78, WINDOW_W - 240, WINDOW_H - 156)
 
-# 鐏炲繐绠烽崘鍛攽闂堛垹绔风仦鈧?
 DESKTOP_STATUS_H = 34
 DESKTOP_GRID_TOP_PAD = 70
-# 閸ョ偓鐖ｉ崝鐘层亣閿涘苯鑻熸稉鏃囶唨 3 x 2 缂冩垶鐗搁弴鏉戞綆閸栤偓閸︽澘鍨庣敮鍐ㄦ躬濡楀矂娼版稉顓㈡？
 DESKTOP_ICON_SIZE = 124
 DESKTOP_ICON_GAP_X = 92
 DESKTOP_ICON_GAP_Y = 70
 
-# 閻㈢敻鍣烘禒?100% 閹哄鍩?0% 閻ㄥ嫭鈧粯妞傞梹鍖＄窗40 閸掑棝鎸?
 BATTERY_DRAIN_MS = 40 * 60 * 1000
 
 # ============================================================
@@ -145,23 +127,17 @@ SHUTDOWN_TEXT_MERIDIAN = "NEXUS CLOSING... WORLDS RETURN TO SLUMBER."
 SYSTEM_READY_SUBTITLE = "ALL REALMS STABLE"
 SYSTEM_READY_FLAVOR = "Seven windows into seven worlds. MERIDIAN sees them all."
 
-# 瀵偓閺堣櫣鏅棃銏＄瑤娴滎喗妞傞梹?
 BOOT_FADE_IN_FRAMES = 42
 
-# 閹垫挸鐡ч崺铏诡攨闂傛挳娈ч敍姘崇殶閹?
 BOOT_TYPE_BASE_DELAY = 6
 
-# 閹垫挸鐣€涙鎮楅敍宀€鐓弳鍌氫粻妞ゅ尅绱濋崓蹇撳櫙婢跺洤鎯庨崝?
 BOOT_ENTER_PAUSE_FRAMES = 22
 
-# 閸氼垰濮╂潻娑樺閺夆剝鈧粯妞傞梹鍖＄窗10 缁?
 BOOT_PROGRESS_TOTAL_FRAMES = 60 * 10
 SYSTEM_READY_PULSE_FRAMES = 90
 
-# 閸忚櫕婧€閸掔娀娅庨弬鍥х摟閸╄櫣顢呴梻鎾
 SHUTDOWN_DELETE_DELAY = 4
 
-# 閸忚櫕婧€濞撴劙绮﹂弮鍫曟毐
 SHUTDOWN_FADE_FRAMES = 60
 
 # ============================================================
@@ -175,7 +151,6 @@ SNAKE_BOARD_PX = SNAKE_GRID_COUNT * SNAKE_CELL_SIZE
 SNAKE_X = BOARD_X
 SNAKE_Y = BOARD_Y
 
-# 鐠愵亜鎮嗛摂鍥┬╅崝銊┾偓鐔峰閿涙碍鏆熺€涙绉虹亸蹇氱Ш韫?
 SNAKE_MOVE_INTERVAL_FRAMES = 8
 BREAKOUT_END_POP_FRAMES = 22
 
@@ -247,11 +222,11 @@ PASSWORD_ERROR_SHAKE_FRAMES = 30
 PASSWORD_ERROR_FLASH_INTERVAL = 6
 
 
-def get_cell_size(board_count):
+def get_cell_size(board_count: int) -> int:
     return BOARD_PX // (board_count - 1)
 
 
-def get_star_points(board_count):
+def get_star_points(board_count: int) -> list[tuple[int, int]]:
     if board_count == 19:
         pts = [3, 9, 15]
     elif board_count == 15:
@@ -294,7 +269,6 @@ class C:
     BTN_SELECT = (218, 165, 32)
     BTN_BORDER = (30, 15, 5)
 
-    # Desktop-only palette閿涙艾鎷版禍鏂跨摍濡灏崚鍡礉娴ｅ棔绮涙穱婵囧瘮婢跺秴褰滈崓蹇曠妞?
     DESK_BG_TOP = (24, 32, 46)
     DESK_BG_BOTTOM = (55, 28, 52)
     DESK_PANEL = (30, 38, 58)
@@ -495,7 +469,8 @@ class C:
 # ============================================================
 #  Helper Functions
 # ============================================================
-def create_pixel_stone(base_color, highlight, shadow, size):
+def create_pixel_stone(base_color: tuple[int, int, int], highlight: tuple[int, int, int],
+                      shadow: tuple[int, int, int], size: int) -> pygame.Surface:
     """Draw a pixel-art circle onto a small surface."""
     surf = pygame.Surface((size, size), pygame.SRCALPHA)
     cx = cy = (size - 1) / 2.0
@@ -518,7 +493,7 @@ def create_pixel_stone(base_color, highlight, shadow, size):
     return surf
 
 
-def create_wood_texture(w, h):
+def create_wood_texture(w: int, h: int) -> pygame.Surface:
     """Generate a wood-grain texture surface."""
     surf = pygame.Surface((w, h))
     surf.fill(C.BOARD)
@@ -547,7 +522,8 @@ def create_wood_texture(w, h):
     return surf
 
 
-def draw_decorative_border(surf, rect, color, thickness):
+def draw_decorative_border(surf: pygame.Surface, rect: pygame.Rect,
+                          color: tuple[int, int, int], thickness: int) -> None:
     """Thick pixel-art border with cuphead-style corner squares."""
     x, y, w, h = rect
     pygame.draw.rect(surf, color, (x, y, w, h), thickness)
@@ -558,7 +534,8 @@ def draw_decorative_border(surf, rect, color, thickness):
         pygame.draw.rect(surf, C.GOLD, (cx + inner, cy + inner, sq - inner * 2, sq - inner * 2))
 
 
-def render_pixel_text(font, text, color, scale=2):
+def render_pixel_text(font: pygame.font.Font, text: str, color: tuple[int, int, int],
+                     scale: int = 2) -> pygame.Surface:
     """Render text small then scale up for pixel look."""
     text = translate(str(text))
     render_font = get_chinese_font(12) if contains_chinese(text) else font
@@ -567,14 +544,15 @@ def render_pixel_text(font, text, color, scale=2):
     return pygame.transform.scale(small, (w, h))
 
 
-def ease_out_back(t):
+def ease_out_back(t: float) -> float:
     """Ease-out-back easing for pop animations."""
     c1 = 1.70158
     c3 = c1 + 1
     return 1 + c3 * (t - 1) ** 3 + c1 * (t - 1) ** 2
 
 
-def render_vertical_pixel_text(font, text, color, scale=2, gap=6):
+def render_vertical_pixel_text(font: pygame.font.Font, text: str, color: tuple[int, int, int],
+                              scale: int = 2, gap: int = 6) -> pygame.Surface:
     """Render text vertically, one character per row."""
     chars = []
 
@@ -602,7 +580,8 @@ def render_vertical_pixel_text(font, text, color, scale=2, gap=6):
     return surf
 
 
-def draw_restrained_meteors(surf, rect, tick, max_meteors=2, alpha_scale=1.0):
+def draw_restrained_meteors(surf: pygame.Surface, rect: pygame.Rect, tick: int,
+                           max_meteors: int = 2, alpha_scale: float = 1.0) -> None:
     """Draw meteor traces as timed twinkling star dots, not moving sprites."""
     max_meteors = max(0, min(2, int(max_meteors)))
     if max_meteors == 0 or rect.width <= 0 or rect.height <= 0:
@@ -715,7 +694,8 @@ def draw_restrained_meteors(surf, rect, tick, max_meteors=2, alpha_scale=1.0):
 #  Particle (win celebration sparkles)
 # ============================================================
 class Particle:
-    def __init__(self, x, y, color, vx, vy, life):
+    def __init__(self, x: float, y: float, color: tuple[int, int, int],
+                 vx: float, vy: float, life: int) -> None:
         self.x = x
         self.y = y
         self.color = color
@@ -724,14 +704,14 @@ class Particle:
         self.life = life
         self.max_life = life
 
-    def update(self):
+    def update(self) -> bool:
         self.x += self.vx
         self.y += self.vy
         self.vy += 0.12  # gravity
         self.life -= 1
         return self.life > 0
 
-    def draw(self, surf, shake_x=0, shake_y=0):
+    def draw(self, surf: pygame.Surface, shake_x: int = 0, shake_y: int = 0) -> None:
         alpha = max(0, int(255 * self.life / self.max_life))
         size = max(1, int(3 * self.life / self.max_life))
         px, py = int(self.x + shake_x), int(self.y + shake_y)
@@ -746,29 +726,29 @@ class Particle:
 #  Board Logic
 # ============================================================
 class Board:
-    def __init__(self, board_count):
-        self.board_count = board_count
-        self.grid = [[0] * board_count for _ in range(board_count)]
-        self.current_player = 1  # 1=Black, 2=White
-        self.winner = 0          # 0=none, 1/2=winner, -1=draw
-        self.win_stones = []
-        self.last_move = None
-        self.move_history = []
-        self.move_count = 0
+    def __init__(self, board_count: int) -> None:
+        self.board_count: int = board_count
+        self.grid: list[list[int]] = [[0] * board_count for _ in range(board_count)]
+        self.current_player: int = 1  # 1=Black, 2=White
+        self.winner: int = 0          # 0=none, 1/2=winner, -1=draw
+        self.win_stones: list[tuple[int, int]] = []
+        self.last_move: tuple[int, int] | None = None
+        self.move_history: list[tuple[int, int, int]] = []
+        self.move_count: int = 0
 
     @property
-    def cell_size(self):
+    def cell_size(self) -> int:
         return get_cell_size(self.board_count)
 
     @property
-    def stone_size(self):
+    def stone_size(self) -> int:
         return self.cell_size - 4
 
     @property
-    def star_points(self):
+    def star_points(self) -> list[tuple[int, int]]:
         return get_star_points(self.board_count)
 
-    def place_stone(self, row, col):
+    def place_stone(self, row: int, col: int) -> bool:
         if not (0 <= row < self.board_count and 0 <= col < self.board_count):
             return False
         if self.grid[row][col] != 0 or self.winner != 0:
@@ -785,7 +765,7 @@ class Board:
             self.current_player = 3 - self.current_player
         return True
 
-    def undo(self):
+    def undo(self) -> bool:
         """Undo the last move. Returns True if successful."""
         if not self.move_history:
             return False
@@ -801,7 +781,7 @@ class Board:
         self.current_player = player
         return True
 
-    def _check_win(self, row, col):
+    def _check_win(self, row: int, col: int) -> bool:
         player = self.grid[row][col]
         dirs = [(0, 1), (1, 0), (1, 1), (1, -1)]
         for dr, dc in dirs:
@@ -818,15 +798,15 @@ class Board:
                 return True
         return False
 
-    def reset(self):
+    def reset(self) -> None:
         self.__init__(self.board_count)
 
-    def is_empty(self, r, c):
+    def is_empty(self, r: int, c: int) -> bool:
         if 0 <= r < self.board_count and 0 <= c < self.board_count:
             return self.grid[r][c] == 0
         return False
 
-    def has_moves(self):
+    def has_moves(self) -> bool:
         return self.move_count > 0
 
 
