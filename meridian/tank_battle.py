@@ -104,10 +104,10 @@ class TankBattleMixin:
         if page == "menu":
             if "tank" in getattr(self, "_pending_run_states", {}):
                 return [
-                    arcade_button((520, 310, 240, 52), "CONTINUE", "continue"),
-                    arcade_button((520, 374, 240, 52), "NEW MATCH", "start"),
-                    arcade_button((520, 438, 240, 52), "CONTROLS", "controls"),
-                    arcade_button((520, 502, 240, 52), "DESKTOP", "desktop"),
+                    arcade_button((520, 350, 240, 52), "CONTINUE", "continue"),
+                    arcade_button((520, 414, 240, 52), "NEW MATCH", "start"),
+                    arcade_button((520, 478, 240, 52), "CONTROLS", "controls"),
+                    arcade_button((520, 542, 240, 52), "DESKTOP", "desktop"),
                 ]
             return [
                 arcade_button((520, 350, 240, 52), "START DUEL", "start"),
@@ -434,7 +434,7 @@ class TankBattleMixin:
             notice = render_pixel_text(
                 self.font_status, self.tank_restore_notice, C.TANK_ACCENT_LIGHT, scale=2,
             )
-            self.screen.blit(notice, (outer.centerx - notice.get_width() // 2, 580))
+            self.screen.blit(notice, (outer.centerx - notice.get_width() // 2, 612))
 
     def _draw_tank_controls(self):
         draw_arcade_frame(self, "CONTROLS", "TWO CREWS / ONE KEYBOARD", TANK_PALETTE)
