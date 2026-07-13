@@ -537,17 +537,7 @@ class SystemMixin:
         """Return sibling rect groups whose separation protects system-page usability."""
         lore = self._lore_reader_layout()
         panel = lore["panel"]
-        tabs = []
-        for index, _category in enumerate(self._lore_categories):
-            rect = pygame.Rect(
-                panel.x + 26 + index * (lore["tab_w"] + 8),
-                lore["tab_y"],
-                lore["tab_w"],
-                32,
-            )
-            if rect.right > panel.right - 10:
-                break
-            tabs.append(rect)
+        tabs = lore["tab_rects"]
         entries = [
             pygame.Rect(
                 panel.x + 26,
@@ -1416,14 +1406,36 @@ class SystemMixin:
 
     def _lore_reader_layout(self):
         panel = pygame.Rect(30, 30, WINDOW_W - 60, WINDOW_H - 60)
+        categories = self._lore_categories
+        category_count = max(1, len(categories))
+        tab_gap = 8
+        tab_h = 32
+        tab_rows = max(1, (category_count + 7) // 8)
+        tab_columns = max(1, (category_count + tab_rows - 1) // tab_rows)
+        tab_area_w = panel.width - 52
+        tab_w = (tab_area_w - tab_gap * (tab_columns - 1)) // tab_columns
+        tab_y = panel.y + 104
+        tab_rects = [
+            pygame.Rect(
+                panel.x + 26 + (index % tab_columns) * (tab_w + tab_gap),
+                tab_y + (index // tab_columns) * (tab_h + tab_gap),
+                tab_w,
+                tab_h,
+            )
+            for index in range(category_count)
+        ]
+        entry_h = 40
+        entry_gap = 8
+        list_y = tab_y + tab_rows * (tab_h + tab_gap) + 14
+        list_space = panel.bottom - 48 - list_y
+        visible_entries = max(1, min(8, (list_space + entry_gap) // (entry_h + entry_gap)))
         return {
             "panel": panel,
-            "tab_w": 130,
-            "tab_y": panel.y + 104,
-            "list_y": panel.y + 156,
-            "entry_h": 40,
-            "entry_gap": 8,
-            "visible_entries": 8,
+            "tab_rects": tab_rects,
+            "list_y": list_y,
+            "entry_h": entry_h,
+            "entry_gap": entry_gap,
+            "visible_entries": visible_entries,
         }
 
     def _lore_category_label(self, cat_id, cat_key):
@@ -1527,15 +1539,8 @@ class SystemMixin:
         if event.type == pygame.MOUSEBUTTONUP and event.button == 1:
             if self.lore_pressed_action == "click":
                 layout = self._lore_reader_layout()
-                panel = layout["panel"]
-                tab_w = layout["tab_w"]
-                tab_y = layout["tab_y"]
                 # Check category tabs
-                for i, (cat_id, cat_key) in enumerate(self._lore_categories):
-                    tx = panel.x + 26 + i * (tab_w + 8)
-                    if tx + tab_w > panel.right - 10:
-                        break
-                    tab_rect = pygame.Rect(tx, tab_y, tab_w, 32)
+                for i, tab_rect in enumerate(layout["tab_rects"]):
                     if tab_rect.collidepoint(event.pos):
                         self.lore_category_index = i
                         self.lore_entry_index = 0
@@ -1610,19 +1615,13 @@ class SystemMixin:
         self.screen.blit(title, (panel.centerx - title.get_width() // 2, panel.y + 14))
 
         # Subtitle / description
-        desc_text = "MERIDIAN \u2014 \u4e03\u754c\u8bb0\u5f55" if is_chinese() else "MERIDIAN \u2014 CHRONICLES OF SEVEN WORLDS"
+        desc_text = "MERIDIAN — 诸界记录" if is_chinese() else "MERIDIAN — CHRONICLES OF MANY WORLDS"
         desc = self._render_lore_fitted_text(self.font_small, desc_text, C.LORE_MUTED, panel.width - 240, scale=1)
         self.screen.blit(desc, (panel.centerx - desc.get_width() // 2, panel.y + 76))
 
         # Category tabs — moved down to avoid overlap
-        tab_w = layout["tab_w"]
         cats = self._lore_categories
-        tab_y = layout["tab_y"]
-        for i, (cat_id, cat_key) in enumerate(cats):
-            tx = panel.x + 26 + i * (tab_w + 8)
-            if tx + tab_w > panel.right - 10:
-                break
-            tab_rect = pygame.Rect(tx, tab_y, tab_w, 32)
+        for i, ((cat_id, cat_key), tab_rect) in enumerate(zip(cats, layout["tab_rects"])):
             selected = i == self.lore_category_index
             fill = C.LORE_PANEL if selected else C.LORE_PANEL_DARK
             border = C.LORE_TITLE if selected else C.LORE_MUTED

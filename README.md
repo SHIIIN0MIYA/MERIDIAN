@@ -4,8 +4,8 @@
 
 <h1 align="center">🌐 MERIDIAN · 子午线</h1>
 
-<p align="center"><strong>八界 · 一器</strong></p>
-<p align="center"><em>Eight Worlds. One Device.</em></p>
+<p align="center"><strong>诸界 · 一器</strong></p>
+<p align="center"><em>Many Worlds. One Device.</em></p>
 
 <p align="center">
   <img src="https://github.com/CrescentXiong-1/MERIDIAN/actions/workflows/ci.yml/badge.svg" alt="CI Status">
@@ -32,7 +32,7 @@
 
 - [简介](#-简介)
 - [世界观](#-世界观)
-- [八界一览](#-八界一览)
+- [异界一览](#-异界一览)
 - [功能亮点](#-功能亮点)
 - [快速开始](#-快速开始)
 - [操作说明](#-操作说明)
@@ -50,7 +50,7 @@
 
 ## 🌌 简介
 
-**MERIDIAN（子午线）** 是一台来历不明的掌上器物。它的"屏幕"并非普通显示屏，而是一面 **共鸣透镜**——八块现实碎片被封存在八个经典街机游戏中，每一个游戏都是通向一个独立世界的稳定门户。
+**MERIDIAN（子午线）** 是一台来历不明的掌上器物。它的"屏幕"并非普通显示屏，而是一面 **共鸣透镜**——来自诸界的现实碎片被封存在不同游戏模块中，每一个模块都是通向一个独立世界的稳定门户。
 
 这不是一台普通的游戏机。它是一台**跨维度观测设备**。
 
@@ -77,7 +77,7 @@ MERIDIAN 不仅仅是一个游戏合集——它拥有一套完整的**元叙事
 - **桌面环境**：状态栏显示「MERIDIAN」设备标识
 - **序章系统**：每个游戏首次进入时展示3-5行世界观序章
 - **异界档案（LORE）**：桌面第二页的独立阅读器，包含：
-  - 9 个分类标签（器物起源 + 八界）
+  - 根据器物与已发现异界动态生成分类标签
   - 设备背景故事（器物起源 / 连接之核 / 持器者）
   - 每界 1-2 条深层故事条目
   - 通过游戏统计或成就解锁隐藏内容
@@ -86,7 +86,7 @@ MERIDIAN 不仅仅是一个游戏合集——它拥有一套完整的**元叙事
 
 ---
 
-## 🎮 八界一览
+## 🎮 异界一览
 
 | 图标 | 游戏 | 世界名称 | 世界观设定 |
 |:---:|------|----------|------------|
@@ -512,5 +512,5 @@ python -m compileall -q MERIDIAN.py meridian tests tools
 ---
 
 <p align="center">
-  <sub>MERIDIAN · 八界 · 一器 · Eight Worlds. One Device.</sub>
+  <sub>MERIDIAN · 诸界 · 一器 · Many Worlds. One Device.</sub>
 </p>

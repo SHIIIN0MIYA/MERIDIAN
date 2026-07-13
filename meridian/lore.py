@@ -142,7 +142,7 @@ register_device_lore(
         "Yet it hums.",
         "Its screen is not a screen. Scholars call it a 'resonance lens' "
         "— a window that gazes into worlds not our own.",
-        "Seven shards of reality are trapped within. Each game module "
+        "Fragments of many realities are trapped within. Each game module "
         "is not a program but a stable portal into one of these worlds.",
     ],
     content_zh=[
@@ -151,7 +151,7 @@ register_device_lore(
         "但它却在低鸣。",
         "它的屏幕并非屏幕。学者们称其为「共鸣透镜」——"
         "一面凝视异界的窗口。",
-        "七块现实碎片被封存在其中。每一个游戏模块都不是程序，"
+        "来自诸界的现实碎片被封存在其中。每一个游戏模块都不是程序，"
         "而是通向其中一个世界的稳定门户。",
     ],
     unlock="always",
@@ -164,19 +164,19 @@ register_device_lore(
     content_en=[
         "At the heart of MERIDIAN lies a crystal that pulses in "
         "rhythms no instrument can measure. This is the Nexus — "
-        "the anchor that holds seven worlds in equilibrium.",
+        "the anchor that holds its known worlds in equilibrium.",
         "When the device boots, it is not loading software. It is "
         "calibrating resonance. Each 'game' you play is a negotiation "
         "with the physics of another universe.",
-        "Should the Nexus ever fail, the seven worlds would drift "
+        "Should the Nexus ever fail, the linked worlds would drift "
         "apart — or collapse into one another.",
     ],
     content_zh=[
         "MERIDIAN 的核心是一颗以任何仪器都无法测量的节奏脉动的晶体。"
-        "这就是「连接之核」——维持七个世界平衡的锚点。",
+        "这就是「连接之核」——维持已知诸界平衡的锚点。",
         "设备启动时，并非在加载软件，而是在校准共鸣频率。"
         "你玩的每一个「游戏」，都是在与另一个宇宙的物理法则进行交涉。",
-        "如果连接之核失效，七个世界将会漂移离散——"
+        "如果连接之核失效，相连的诸界将会漂移离散——"
         "或者彼此坍缩为一。",
     ],
     unlock="launches_5",
@@ -605,18 +605,18 @@ register_game_world(
                 "first time, it locked onto the war-torn skies of "
                 "a world consumed by autonomous machines.",
                 "Some believe MERIDIAN was built specifically to "
-                "reach WARDEN — that the other six worlds were "
+                "reach WARDEN — that its other known worlds were "
                 "discovered later, by accident.",
                 "The truth may be the opposite: WARDEN was the "
-                "accident. The other six were always the goal.",
+                "accident. The wider network was always the goal.",
             ],
             "content_zh": [
                 "WARDEN 的世界是 MERIDIAN 触碰到的第一个世界。"
                 "当设备首次被激活时，它锁定了一片被自主机器吞噬的战争天空。",
                 "有些人相信 MERIDIAN 是专门为连接 WARDEN 而建造的——"
-                "其他六个世界是后来偶然发现的。",
+                "其他已知世界是后来偶然发现的。",
                 "真相可能恰恰相反：WARDEN 才是那个「偶然」。"
-                "其他六个世界，从一开始就是目标。",
+                "那张更广阔的世界网络，从一开始就是目标。",
             ],
             "unlock": "achievement:air_campaign",
         },
@@ -765,8 +765,8 @@ def collect_lore_translations():
     zh_map["STABILIZING WORLD ANCHORS..."] = "正在稳定世界锚点..."
     zh_map["ESTABLISHING NEXUS LINK..."] = "正在建立核心连接..."
     zh_map["ALL REALMS STABLE"] = "所有位面已稳定"
-    zh_map["Seven windows into seven worlds. MERIDIAN sees them all."] = \
-        "七扇窗，七个世界。MERIDIAN 凝视着一切。"
+    zh_map["Countless windows face many worlds. MERIDIAN keeps watching."] = \
+        "无数扇窗口朝向诸界，MERIDIAN 始终凝视。"
     zh_map["NEXUS AUTHENTICATION"] = "连接验证"
     zh_map["RESONANCE MISMATCH"] = "共鸣不匹配"
     zh_map["NEXUS ACCESS GRANTED"] = "连接授权通过"
@@ -982,18 +982,18 @@ register_device_lore(
     unlock="completion:50",
 )
 register_device_lore(
-    "resonance_75", title_en="The Eighth Signal", title_zh="第八信号",
-    content_en=["The war sky and mirrored tank arena reveal an eighth frequency.",
+    "resonance_75", title_en="Another Signal", title_zh="又一信号",
+    content_en=["The war sky and mirrored tank arena reveal another frequency.",
                 "Conflict, growth and memory are different faces of one resonance engine."],
-    content_zh=["战火长空与镜像坦克竞技场揭示了第八种频率。",
+    content_zh=["战火长空与镜像坦克竞技场揭示了又一种频率。",
                 "冲突、成长与记忆，只是同一台共振引擎的不同侧面。"],
     unlock="completion:75",
 )
 register_device_lore(
     "resonance_100", title_en="Meridian", title_zh="子午共鸣",
-    content_en=["Eight worlds stand in balance. None was conquered; each was understood.",
+    content_en=["Every known world stands in balance. None was conquered; each was understood.",
                 "The keeper has completed the circuit, and MERIDIAN can finally answer as a whole."],
-    content_zh=["八个世界已达成平衡。它们并未被征服，而是被理解。",
+    content_zh=["所有已知世界均已达成平衡。它们并未被征服，而是被理解。",
                 "持有者补完了回路，MERIDIAN 终于能够以完整之声回应。"],
     unlock="completion:100",
 )

@@ -4,8 +4,8 @@
 
 <h1 align="center">🌐 MERIDIAN · 子午线</h1>
 
-<p align="center"><strong>Sept Mondes. Un Seul Appareil.</strong></p>
-<p align="center"><em>七界 · 一器 · Seven Worlds. One Device.</em></p>
+<p align="center"><strong>Plusieurs Mondes. Un Seul Appareil.</strong></p>
+<p align="center"><em>诸界 · 一器 · Many Worlds. One Device.</em></p>
 
 <p align="center">
   <img src="https://github.com/CrescentXiong-1/MERIDIAN/actions/workflows/ci.yml/badge.svg" alt="Statut CI">
@@ -32,7 +32,7 @@
 
 - [Introduction](#-introduction)
 - [Univers](#-univers)
-- [Les Sept Mondes](#-les-sept-mondes)
+- [Les Mondes Connectés](#-les-mondes-connectés)
 - [Fonctionnalités](#-fonctionnalités)
 - [Démarrage rapide](#-démarrage-rapide)
 - [Contrôles](#-contrôles)
@@ -50,13 +50,13 @@
 
 ## 🌌 Introduction
 
-**MERIDIAN** est un appareil portable d'origine inconnue. Son « écran » n'est pas un affichage ordinaire — c'est une **Lentille de Résonance**. Sept fragments de réalité sont scellés dans sept jeux d'arcade classiques, chacun servant de portail stable vers un monde indépendant.
+**MERIDIAN** est un appareil portable d'origine inconnue. Son « écran » n'est pas un affichage ordinaire — c'est une **Lentille de Résonance**. Des fragments de nombreuses réalités sont scellés dans ses modules de jeu, chacun servant de portail stable vers un monde indépendant.
 
 Ce n'est pas une console de jeu ordinaire. C'est un **dispositif d'observation interdimensionnelle**.
 
 Construit avec **Python + Pygame**, ce projet est un simulateur complet de plateforme multi-jeux. Il combine :
 
-- 🎮 **Sept jeux d'arcade classiques entièrement recréés**
+- 🎮 **Une collection évolutive de jeux d'arcade classiques entièrement recréés**
 - 📚 **Un système narratif profond**, chaque jeu ayant son propre univers
 - 🏆 **Plus de 50 succès** suivant la progression du joueur à travers les jeux
 - 🌍 **Support bilingue complet** (Chinois simplifié / Anglais)
@@ -75,7 +75,7 @@ MERIDIAN est plus qu'une collection de jeux — il possède un cadre **méta-nar
 - **Environnement bureau** : La barre d'état affiche l'identifiant « MERIDIAN »
 - **Système de prologue** : Chaque jeu affiche un prologue de 3-5 lignes à la première visite
 - **Archives du Savoir (LORE)** : Un lecteur indépendant sur la deuxième page du bureau, contenant :
-  - 8 onglets de catégorie (Origine de l'Artéfact + Sept Mondes)
+  - Onglets générés depuis l'Artéfact et chaque monde enregistré
   - Histoires de fond de l'appareil (Origine / Noyau Nexus / Le Porteur)
   - 1-2 entrées de savoir profond par monde
   - Entrées cachées débloquées via les statistiques ou les succès
@@ -84,7 +84,7 @@ MERIDIAN est plus qu'une collection de jeux — il possède un cadre **méta-nar
 
 ---
 
-## 🎮 Les Sept Mondes
+## 🎮 Les Mondes Connectés
 
 | Icône | Jeu | Nom du Monde | Univers |
 |:---:|------|-------------|---------|
@@ -418,7 +418,7 @@ Voir [CHANGELOG.md](../../CHANGELOG.md) pour l'historique complet.
 
 ### Dernière : V3.1.0 (02/07/2026) — « MERIDIAN »
 
-- 🌌 **Système d'Univers** : Cadre méta-narratif, lore des sept mondes, système de prologue, archives Lore
+- 🌌 **Système d'Univers** : Cadre méta-narratif, lore des mondes connectés, système de prologue, archives Lore
 - 🔌 **API d'Extension** : 5 fonctions d'enregistrement, intégration sans modification
 - 🏆 **Mur de Succès** : Introduit en V3.0.0, peaufiné en V3.1.0
 - 💾 **Reprise de Jeu** : Les 7 jeux prennent en charge la sauvegarde et reprise
@@ -468,5 +468,5 @@ La police **Fusion Pixel Font** incluse est sous [SIL Open Font License 1.1](../
 ---
 
 <p align="center">
-  <sub>MERIDIAN · Sept Mondes. Un Seul Appareil. · 七界 · 一器</sub>
+  <sub>MERIDIAN · Plusieurs Mondes. Un Seul Appareil. · 诸界 · 一器</sub>
 </p>

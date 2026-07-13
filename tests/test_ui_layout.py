@@ -51,6 +51,26 @@ def test_settings_profile_achievement_and_lore_layouts_are_protected(game):
     }
     for rects in layouts.values():
         assert_protected_group(rects)
+    assert len(layouts["lore_tabs"]) == len(game._lore_categories)
+    assert game._lore_categories[-1][0] == "tank"
+
+
+def test_tank_lore_tab_is_visible_and_clickable(game):
+    tank_index = next(
+        index for index, category in enumerate(game._lore_categories)
+        if category[0] == "tank"
+    )
+    tank_tab = game._lore_reader_layout()["tab_rects"][tank_index]
+
+    game._handle_lore_reader_event(pygame.event.Event(
+        pygame.MOUSEBUTTONDOWN, {"button": 1, "pos": tank_tab.center},
+    ))
+    game._handle_lore_reader_event(pygame.event.Event(
+        pygame.MOUSEBUTTONUP, {"button": 1, "pos": tank_tab.center},
+    ))
+
+    assert game.lore_category_index == tank_index
+    assert game._lore_categories[game.lore_category_index][0] == "tank"
 
 
 def test_tank_menu_pause_and_end_layouts_are_protected(game):
