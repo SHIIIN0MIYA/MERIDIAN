@@ -11,6 +11,7 @@ from .mines import MinesMixin
 from .shell import ShellMixin
 from .snake import SnakeMixin
 from .tetris import TetrisMixin
+from .tank_battle import TankBattleMixin
 from .system import SystemMixin
 from .developer import DeveloperMixin
 
@@ -44,6 +45,7 @@ class Game(
     TetrisMixin,
     ArcadeHubMixin,
     AirRaidMixin,
+    TankBattleMixin,
     DeveloperMixin,
     SystemMixin,
 ):
@@ -90,6 +92,12 @@ class Game(
         for state in (s.AIR_MENU, s.AIR_SELECT, s.AIR_CONTROLS, s.AIR_BRIEF,
                        s.AIR_ARCHIVE, s.AIR_SUPPLY, s.AIR_PLAYING, s.AIR_END):
             self._EVENT_DISPATCH[state] = "_handle_air_event"
+        self._EVENT_DISPATCH.update({
+            s.TANK_MENU: "_handle_tank_menu_event",
+            s.TANK_CONTROLS: "_handle_tank_controls_event",
+            s.TANK_PLAYING: "_handle_tank_playing_event",
+            s.TANK_END: "_handle_tank_end_event",
+        })
 
         # ── Update Dispatch ─────────────────────────────────────
         self._UPDATE_DISPATCH = {
@@ -112,6 +120,9 @@ class Game(
         for state in (s.AIR_MENU, s.AIR_SELECT, s.AIR_CONTROLS, s.AIR_BRIEF,
                        s.AIR_ARCHIVE, s.AIR_SUPPLY, s.AIR_PLAYING, s.AIR_END):
             self._UPDATE_DISPATCH[state] = (True, ["_update_air_raid"])
+        for state in (s.TANK_MENU, s.TANK_CONTROLS, s.TANK_END):
+            self._UPDATE_DISPATCH[state] = (True, [])
+        self._UPDATE_DISPATCH[s.TANK_PLAYING] = (True, ["_update_tank_battle"])
 
         # ── Draw Dispatch ───────────────────────────────────────
         self._DRAW_DISPATCH = {
@@ -151,6 +162,12 @@ class Game(
         for state in (s.AIR_MENU, s.AIR_SELECT, s.AIR_CONTROLS, s.AIR_BRIEF,
                        s.AIR_ARCHIVE, s.AIR_SUPPLY, s.AIR_PLAYING, s.AIR_END):
             self._DRAW_DISPATCH[state] = "_draw_air_raid"
+        self._DRAW_DISPATCH.update({
+            s.TANK_MENU: "_draw_tank_menu",
+            s.TANK_CONTROLS: "_draw_tank_controls",
+            s.TANK_PLAYING: "_draw_tank_playing",
+            s.TANK_END: "_draw_tank_end",
+        })
 
         # Merge dynamically registered game states from external modules
         for state_name, evt, upd, drw in _GAME_STATE_REGISTRY:
@@ -196,6 +213,10 @@ class Game(
     AIR_END = "air_end"
     AIR_SKINS = "air_skins"
     AIR_STORY = "air_story"
+    TANK_MENU = "tank_menu"
+    TANK_CONTROLS = "tank_controls"
+    TANK_PLAYING = "tank_playing"
+    TANK_END = "tank_end"
     SYSTEM_SETTINGS = "system_settings"
     PROFILE = "profile"
     ACHIEVEMENT_WALL = "achievement_wall"
@@ -235,6 +256,7 @@ class Game(
         self._init_mines()
         self._init_tetris_state()
         self._init_air_raid()
+        self._init_tank_battle()
         self._init_developer()
         self._init_system()          # ← 最后调用，覆盖已加载的持久化数据
         self._build_dispatch()

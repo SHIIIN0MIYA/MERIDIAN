@@ -4,15 +4,15 @@
 
 <h1 align="center">🌐 MERIDIAN · 子午线</h1>
 
-<p align="center"><strong>七界 · 一器</strong></p>
-<p align="center"><em>Seven Worlds. One Device.</em></p>
+<p align="center"><strong>八界 · 一器</strong></p>
+<p align="center"><em>Eight Worlds. One Device.</em></p>
 
 <p align="center">
   <img src="https://github.com/CrescentXiong-1/MERIDIAN/actions/workflows/ci.yml/badge.svg" alt="CI Status">
   <img src="https://img.shields.io/badge/python-3.10%20%7C%203.11%20%7C%203.12-blue" alt="Python">
   <img src="https://img.shields.io/badge/pygame-2.x-green" alt="Pygame">
   <img src="https://img.shields.io/badge/license-MIT-yellow" alt="License">
-  <img src="https://img.shields.io/badge/tests-50%2B-brightgreen" alt="Tests">
+  <img src="https://img.shields.io/badge/achievements-60-brightgreen" alt="Achievements">
   <img src="https://img.shields.io/badge/lines-~15%2C700-orange" alt="Lines of Code">
 </p>
 
@@ -32,7 +32,7 @@
 
 - [简介](#-简介)
 - [世界观](#-世界观)
-- [七界一览](#-七界一览)
+- [八界一览](#-八界一览)
 - [功能亮点](#-功能亮点)
 - [快速开始](#-快速开始)
 - [操作说明](#-操作说明)
@@ -50,15 +50,15 @@
 
 ## 🌌 简介
 
-**MERIDIAN（子午线）** 是一台来历不明的掌上器物。它的"屏幕"并非普通显示屏，而是一面 **共鸣透镜**——七块现实碎片被封存在七个经典街机游戏中，每一个游戏都是通向一个独立世界的稳定门户。
+**MERIDIAN（子午线）** 是一台来历不明的掌上器物。它的"屏幕"并非普通显示屏，而是一面 **共鸣透镜**——八块现实碎片被封存在八个经典街机游戏中，每一个游戏都是通向一个独立世界的稳定门户。
 
 这不是一台普通的游戏机。它是一台**跨维度观测设备**。
 
 本项目使用 **Python + Pygame** 构建，是一个完整的多游戏平台模拟器。它融合了：
 
-- 🎮 **七款经典街机游戏**的完整复刻
+- 🎮 **八款经典街机游戏**的完整复刻
 - 📚 **深度的世界观叙事系统**，每个游戏都有独立的故事背景
-- 🏆 **50+ 成就系统**，跨游戏追踪玩家进度
+- 🏆 **60 项成就**，跨游戏追踪玩家进度
 - 🌍 **完整的双语支持**（简体中文 / English）
 - 💾 **崩溃安全的持久化存档**，支持游戏中断恢复
 - 🎵 **程序化音频引擎**，动态生成 BGM 和音效
@@ -77,7 +77,7 @@ MERIDIAN 不仅仅是一个游戏合集——它拥有一套完整的**元叙事
 - **桌面环境**：状态栏显示「MERIDIAN」设备标识
 - **序章系统**：每个游戏首次进入时展示3-5行世界观序章
 - **异界档案（LORE）**：桌面第二页的独立阅读器，包含：
-  - 8 个分类标签（器物起源 + 七界）
+  - 9 个分类标签（器物起源 + 八界）
   - 设备背景故事（器物起源 / 连接之核 / 持器者）
   - 每界 1-2 条深层故事条目
   - 通过游戏统计或成就解锁隐藏内容
@@ -86,7 +86,7 @@ MERIDIAN 不仅仅是一个游戏合集——它拥有一套完整的**元叙事
 
 ---
 
-## 🎮 七界一览
+## 🎮 八界一览
 
 | 图标 | 游戏 | 世界名称 | 世界观设定 |
 |:---:|------|----------|------------|
@@ -97,6 +97,7 @@ MERIDIAN 不仅仅是一个游戏合集——它拥有一套完整的**元叙事
 | 💣 | **MINES**<br>扫雷 | 雷原遗迹<br>MINEFIELD RUINS | 大战争百年后的焦土排雷工程师 |
 | 🧊 | **TETRIS**<br>俄罗斯方块 | 筑天塔<br>TOWER OF HEAVEN | 异星建筑矩阵从天而降，建造触及真相的通天塔 |
 | ✈️ | **AIR RAID**<br>空袭行动 | 守望者战线<br>WARDEN FRONT | 对抗自主战争网络的最后一战 |
+| 🛡️ | **TANK DUEL**<br>坦克对决 | 钢铁斗场<br>IRON ARENA | 红蓝双坦克在镜像战场争夺补给，以三分钟积分与骤死决出胜者 |
 
 ---
 
@@ -125,7 +126,7 @@ MERIDIAN 不仅仅是一个游戏合集——它拥有一套完整的**元叙事
 | **自动保存** | 退出游戏时自动保存运行状态 |
 | **中断恢复** | 重新进入游戏显示「继续」按钮 |
 | **崩溃安全** | 原子写入 + 备份机制，防止存档损坏 |
-| **版本迁移** | Schema v4，自动合并旧版存档数据 |
+| **版本迁移** | Schema v5，自动合并旧版存档数据 |
 | **跨游戏统计** | 统一的游戏时间、胜率、最佳成绩追踪 |
 
 ### ✈️ Air Raid 专属内容
@@ -165,7 +166,7 @@ MERIDIAN 不仅仅是一个游戏合集——它拥有一套完整的**元叙事
 
 | 依赖 | 版本 |
 |------|------|
-| Python | **3.10+** |
+| Python | **3.10–3.12** |
 | pygame | **2.0+**（<3.0） |
 | 操作系统 | Windows / macOS / Linux |
 
@@ -213,6 +214,10 @@ python MERIDIAN.py
 | **MINES** | 左键翻开 / 右键标旗 |
 | **TETRIS** | `↑` 旋转 / `↓` 软降 / `Space` 硬降 / `C` 暂存 / `P` 暂停 |
 | **AIR RAID** | 方向键移动 / `Z` 射击 / `X` 导弹 / `Shift` 聚焦模式 |
+| **TANK DUEL（红方）** | `WASD` 八向移动 / `F` 使用道具；自动射击 |
+| **TANK DUEL（蓝方）** | `方向键` 八向移动 / `Enter` 使用道具；自动射击 |
+
+Tank Duel 采用地图拾取与单道具槽：维修包恢复 1 HP，护盾抵挡一次伤害，过载短时提升移速与射速，地雷则会留在当前位置等待对手触发。双方初始 3 HP，受击后短暂无敌；三分钟内击毁对手得 1 分，平分时进入骤死。
 
 ### 开发者
 
@@ -258,17 +263,24 @@ MERIDIAN/
 │   ├── mines.py                 # 扫雷（雷原遗迹）
 │   ├── tetris.py                # 俄罗斯方块（筑天塔）
 │   ├── air_raid.py              # 空袭行动（守望者战线）
+│   ├── tank_engine.py           # 坦克对决独立规则引擎
+│   ├── tank_battle.py           # 坦克对决 Pygame 表现层
 │   │
 │   └── system.py                # 设置、档案、成就、Lore 阅读器
 │
 ├── assets/                      # 静态资源
 │   └── fonts/                   # Fusion Pixel Font（SIL Open License 1.1）
 │
-├── tests/                       # 测试套件（50+ 测试）
+├── tests/                       # 自动化测试套件
 │   ├── conftest.py              # 共享 fixtures + SDL 虚拟驱动
 │   ├── test_smoke.py            # 冒烟测试
 │   ├── test_arcade_games.py     # 街机游戏测试
-│   └── test_persistence.py      # 持久化系统测试
+│   ├── test_persistence.py      # 持久化系统测试
+│   ├── test_tank_battle.py      # 坦克界面与跨模块验收测试
+│   ├── test_tank_engine_movement.py
+│   ├── test_tank_engine_combat.py
+│   ├── test_tank_engine_items.py
+│   └── test_tank_engine_persistence.py
 │
 └── .github/workflows/
     └── ci.yml                   # GitHub Actions CI（Windows, Python 3.10-3.12）
@@ -291,6 +303,7 @@ Game(
     TetrisMixin,        # 俄罗斯方块
     ArcadeHubMixin,     # 街机公共系统
     AirRaidMixin,       # 空袭行动
+    TankBattleMixin,    # 坦克对决表现层
     DeveloperMixin,     # 开发者工具
     SystemMixin,        # 设置 / 成就 / Lore
 )
@@ -317,6 +330,7 @@ BOOT → SYSTEM_READY → PASSWORD → DESKTOP
                                     ├── MINES_MENU → MINES_PLAYING → MINES_END
                                     ├── TETRIS_MENU → TETRIS_PLAYING → TETRIS_END
                                     ├── AIR_MENU → AIR_SELECT → AIR_PLAYING → AIR_END
+                                    ├── TANK_MENU → TANK_PLAYING → TANK_END
                                     ├── SETTINGS → SYSTEM_SETTINGS / PROFILE
                                     ├── ACHIEVEMENT_WALL
                                     └── LORE_READER → LORE_STORY
@@ -388,7 +402,7 @@ python -m PyInstaller --noconfirm --clean MERIDIAN.spec
 
 ## 🧪 测试
 
-项目包含 **50+ 单元测试**，覆盖核心模块：
+项目包含覆盖八款游戏、存档、本地化与系统集成的自动化测试：
 
 ```bash
 # 运行全部测试
@@ -398,6 +412,7 @@ python -m pytest tests/ -v
 python -m pytest tests/test_smoke.py -v
 python -m pytest tests/test_arcade_games.py -v
 python -m pytest tests/test_persistence.py -v
+python -m pytest tests/test_tank_engine_*.py tests/test_tank_battle.py -v
 ```
 
 ### 测试覆盖范围
@@ -407,6 +422,11 @@ python -m pytest tests/test_persistence.py -v
 | `test_smoke.py` | 冒烟测试：游戏启动、状态流转、基本渲染 |
 | `test_arcade_games.py` | 街机游戏：菜单交互、游戏逻辑、存档恢复 |
 | `test_persistence.py` | 持久化：读写存档、版本迁移、崩溃恢复 |
+| `test_tank_engine_movement.py` | 坦克规则：八向移动、碰撞与后按键优先 |
+| `test_tank_engine_combat.py` | 坦克规则：自动射击、伤害、重生与骤死 |
+| `test_tank_engine_items.py` | 坦克规则：拾取、单道具槽与四类道具 |
+| `test_tank_engine_persistence.py` | 坦克规则：对局快照校验与恢复 |
+| `test_tank_battle.py` | 坦克表现层：输入、界面、音效与完整状态闭环 |
 
 ### CI / CD
 
@@ -420,10 +440,10 @@ python -m pytest tests/test_persistence.py -v
 
 ### 最新版本 V3.1.0 (2026-07-02) — 「MERIDIAN」
 
-- 🌌 **世界观系统**：元叙事框架，七界设定，序章系统，异界档案
+- 🌌 **世界观系统**：元叙事框架，八界设定，序章系统，异界档案
 - 🔌 **扩展接口**：5 个注册函数，新游戏零修改集成
 - 🏆 **成就墙**：V3.0.0 引入，V3.1.0 优化视觉
-- 💾 **中断恢复**：全部 7 款游戏支持存档恢复
+- 💾 **中断恢复**：全部 8 款游戏支持存档恢复
 - ✈️ **Air Raid 剧情**：8 章故事线 + 档案阅读器
 - 🎨 **视觉增强**：桌面粒子、退出过渡动画、色彩统一
 
@@ -477,5 +497,5 @@ python -m pytest tests/test_persistence.py -v
 ---
 
 <p align="center">
-  <sub>MERIDIAN · 七界 · 一器 · Seven Worlds. One Device.</sub>
+  <sub>MERIDIAN · 八界 · 一器 · Eight Worlds. One Device.</sub>
 </p>

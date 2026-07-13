@@ -78,6 +78,9 @@ class DesktopMixin:
             subtitle_en=air_world["desktop_subtitle_en"] if air_world else "SHOOT 'EM UP",
             subtitle_zh=air_world["desktop_subtitle_zh"] if air_world else "弹幕射击",
         )
+        register_desktop_icon("TANK DUEL", "open_tank", page=1, enabled=True,
+                              subtitle_en="LOCAL TWO-PLAYER ARENA",
+                              subtitle_zh="本地双人对战")
         register_desktop_icon("SETTINGS", "open_system_settings", page=1, enabled=True)
         register_desktop_icon("PROFILE", "open_profile", page=1, enabled=True)
         register_desktop_icon("WALL", "open_achievement_wall", page=1, enabled=True)
@@ -204,6 +207,7 @@ class DesktopMixin:
                     elif action == "open_mines": self._desktop_return_effect = "mines_radar"; self._start_transition(self.MINES_MENU, "mines_radar", frames=50)
                     elif action == "open_tetris": self._desktop_return_effect = "tetris_drop"; self._start_transition(self.TETRIS_MENU, "tetris_drop", frames=58)
                     elif action == "open_air": self._desktop_return_effect = "air_sweep"; self._start_transition(self.AIR_MENU, "air_sweep", frames=46)
+                    elif action == "open_tank": self._desktop_return_effect = "tank_crossfire"; self._start_transition(self.TANK_MENU, "tank_crossfire", frames=48)
                     elif action == "open_system_settings": self._start_transition(self.SYSTEM_SETTINGS, "fade", frames=28)
                     elif action == "open_profile": self._start_transition(self.PROFILE, "fade", frames=28)
                     elif action == "open_achievement_wall": self._start_transition(self.ACHIEVEMENT_WALL, "fade", frames=28)
@@ -562,6 +566,39 @@ class DesktopMixin:
                 pygame.draw.rect(self.screen, C.OUTLINE, block_rect)
                 pygame.draw.rect(self.screen, color, block_rect.inflate(-2, -2))
 
+        elif button["action"] == "open_tank":
+            field = icon_box.inflate(-10, -10)
+            pygame.draw.rect(self.screen, C.TANK_GROUND, field)
+            pygame.draw.rect(self.screen, C.OUTLINE, field, 2)
+            for offset in range(12, field.width, 18):
+                pygame.draw.line(self.screen, C.TANK_GRID,
+                                 (field.x + offset, field.y + 2),
+                                 (field.x + offset, field.bottom - 2), 1)
+
+            def mini_tank(cx, cy, color, light, direction):
+                body = pygame.Rect(cx - 19, cy - 12, 38, 24)
+                pygame.draw.rect(self.screen, C.OUTLINE, body.inflate(4, 4))
+                pygame.draw.rect(self.screen, color, body)
+                pygame.draw.rect(self.screen, C.OUTLINE, (body.x - 4, body.y, 5, body.height))
+                pygame.draw.rect(self.screen, C.OUTLINE, (body.right - 1, body.y, 5, body.height))
+                pygame.draw.rect(self.screen, light, (cx - 7, cy - 7, 14, 14))
+                end_x = cx + direction * 31
+                pygame.draw.line(self.screen, C.OUTLINE, (cx, cy), (end_x, cy), 6)
+                pygame.draw.line(self.screen, light, (cx, cy), (end_x, cy), 3)
+
+            mini_tank(field.x + 42, field.centery + 20,
+                      C.TANK_RED, C.TANK_RED_LIGHT, 1)
+            mini_tank(field.right - 42, field.centery - 20,
+                      C.TANK_BLUE, C.TANK_BLUE_LIGHT, -1)
+            pygame.draw.line(self.screen, C.TANK_RED_LIGHT,
+                             (field.x + 74, field.centery + 20),
+                             (field.centerx - 8, field.centery + 4), 3)
+            pygame.draw.line(self.screen, C.TANK_BLUE_LIGHT,
+                             (field.right - 74, field.centery - 20),
+                             (field.centerx + 8, field.centery - 4), 3)
+            pygame.draw.rect(self.screen, C.TANK_ACCENT_LIGHT,
+                             (field.centerx - 5, field.centery - 5, 10, 10))
+
         elif button["action"] == "open_air":
             field = icon_box.inflate(-14, -14)
             pygame.draw.rect(self.screen, (5, 18, 34), field)
@@ -667,22 +704,35 @@ class DesktopMixin:
         else:
             text = label
 
+        translated_text = translate(text)
+        chinese_label = is_chinese() and contains_chinese(translated_text)
         txt_scale = 2 if len(text) <= 8 else 1
+        if chinese_label:
+            txt_scale = 2
         text_col = C.DESK_TEXT if enabled else C.DESK_MUTED
 
         # Check for per-icon subtitle from registry
         icon_sub_en = button.get("subtitle_en")
         icon_sub_zh = button.get("subtitle_zh")
         has_icon_sub = bool(icon_sub_en or icon_sub_zh)
-        if has_icon_sub:
+        # Tank Duel's six-character Chinese subtitle consumed the title lane and
+        # made the real 2x title overlap the icon artwork.  Chinese desktop cards
+        # use the same single-line title baseline as WALL/LORE instead.
+        show_icon_sub = has_icon_sub and not (
+            chinese_label and button["action"] == "open_tank"
+        )
+        if show_icon_sub and not chinese_label:
             txt_scale = 1
 
-        txt = render_pixel_text(self.font_small, text, text_col, scale=txt_scale)
+        # CJK labels use the bundled Fusion Pixel face at a consistent 2x
+        # integer scale.  Previously subtitle-bearing icons were forced to 1x,
+        # which made Tank Duel look like a different, tiny font.
+        txt = render_pixel_text(self.font_small, translated_text, text_col, scale=txt_scale)
         tx = rect.centerx - txt.get_width() // 2
-        ty = rect.bottom - txt.get_height() - (24 if has_icon_sub else 8)
+        ty = rect.bottom - txt.get_height() - (24 if show_icon_sub else 8)
 
         self.screen.blit(txt, (tx, ty))
-        if has_icon_sub:
+        if show_icon_sub:
             sub_text = icon_sub_zh if is_chinese() else icon_sub_en
             subtitle = render_pixel_text(
                 self.font_small, sub_text, text_col, scale=1

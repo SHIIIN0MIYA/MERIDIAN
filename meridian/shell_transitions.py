@@ -65,8 +65,50 @@ class TransitionMixin:
         elif self.transition_type == "tetris_drop": self._draw_transition_tetris_drop()
         elif self.transition_type == "air_sweep":
             self._draw_transition_arcade()
+        elif self.transition_type == "tank_crossfire":
+            self._draw_transition_tank_crossfire()
         elif self.transition_type == "system_unlock": self._draw_transition_system_unlock()
         else: self._draw_transition_fade()
+
+    def _draw_transition_tank_crossfire(self):
+        """Armoured shutters close while red/blue shell trails cross at centre."""
+        half = max(1, self.transition_max_frames // 2)
+        t = min(1.0, self.transition_frame / half)
+        if self.transition_phase == "in":
+            t = 1.0 - t
+        eased = 1.0 - (1.0 - t) ** 3
+        overlay = pygame.Surface((WINDOW_W, WINDOW_H), pygame.SRCALPHA)
+        overlay.fill((*C.TANK_BG, int(185 * eased)))
+        self.screen.blit(overlay, (0, 0))
+
+        shutter_w = int(WINDOW_W * 0.52 * eased)
+        for side, color in ((-1, C.TANK_RED), (1, C.TANK_BLUE)):
+            x = 0 if side < 0 else WINDOW_W - shutter_w
+            plate = pygame.Rect(x, 0, shutter_w, WINDOW_H)
+            pygame.draw.rect(self.screen, C.OUTLINE, plate)
+            pygame.draw.rect(self.screen, color, plate.inflate(-6, -6))
+            edge_x = plate.right - 8 if side < 0 else plate.left + 8
+            pygame.draw.line(self.screen, C.TANK_ACCENT_LIGHT,
+                             (edge_x, 0), (edge_x, WINDOW_H), 4)
+            for y in range(46, WINDOW_H, 76):
+                pygame.draw.rect(self.screen, C.TANK_PANEL_DARK,
+                                 (x + 18, y, max(0, shutter_w - 36), 14))
+
+        travel = int(WINDOW_W * eased)
+        for row, color, direction in ((-52, C.TANK_RED_LIGHT, 1),
+                                      (52, C.TANK_BLUE_LIGHT, -1)):
+            start_x = -40 if direction > 0 else WINDOW_W + 40
+            x = start_x + direction * travel
+            y = WINDOW_H // 2 + row
+            pygame.draw.line(self.screen, color,
+                             (int(x - direction * 150), y), (int(x), y), 5)
+            pygame.draw.rect(self.screen, C.TANK_ACCENT_LIGHT,
+                             (int(x) - 5, y - 5, 10, 10))
+
+        if t > 0.72:
+            flash = int(220 * (t - 0.72) / 0.28)
+            pygame.draw.circle(self.screen, (*C.TANK_ACCENT_LIGHT, flash),
+                               (WINDOW_W // 2, WINDOW_H // 2), int(90 * t), 6)
 
     def _draw_transition_fade(self):
         overlay = pygame.Surface((WINDOW_W, WINDOW_H), pygame.SRCALPHA)
@@ -316,5 +358,9 @@ class TransitionMixin:
         self.preview_active = False; self.preview_cell = None
         self.occupied_hover_pos = None
         self.pressed_button_action = None; self.desktop_pressed_action = None
+        if hasattr(self, "_tank_held"):
+            self._tank_held.clear()
+        if hasattr(self, "_tank_item_pulses"):
+            self._tank_item_pulses = {"red": False, "blue": False}
         self.desktop_esc_lock_frames = 15
         self._start_transition(self.DESKTOP, transition_type)

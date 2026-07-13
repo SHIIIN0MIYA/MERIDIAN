@@ -131,7 +131,8 @@ class ArchitectureSmokeTests(unittest.TestCase):
         game = Game()
         expected_tracks = {
             "desktop", "gomoku", "snake", "breakout", "2048", "mines",
-            "tetris", "air",
+            "tetris", "air", "tank_menu", "tank_normal", "tank_final",
+            "tank_sprint", "tank_sudden",
         }
         self.assertEqual(set(game.audio.tracks), expected_tracks)
 
@@ -144,6 +145,56 @@ class ArchitectureSmokeTests(unittest.TestCase):
         self.assertEqual(game.audio.music_volume, 0.0)
         game.audio.set_music_volume(2)
         self.assertEqual(game.audio.music_volume, 1.0)
+
+    def test_tank_music_layers_effects_and_phase_switching_are_available(self):
+        from meridian.audio import TANK_DUEL_MOTIF, TANK_TRACK_SPECS, THEME_MELODY
+
+        game = Game()
+        self.assertEqual(
+            TANK_TRACK_SPECS,
+            {
+                "tank_menu": 0.24,
+                "tank_normal": 0.18,
+                "tank_final": 0.15,
+                "tank_sprint": 0.125,
+                "tank_sudden": 0.105,
+            },
+        )
+        self.assertLessEqual(set(TANK_TRACK_SPECS), set(game.audio.tracks))
+        self.assertNotEqual(tuple(THEME_MELODY), TANK_DUEL_MOTIF)
+        self.assertEqual(len(TANK_DUEL_MOTIF), 14)
+        self.assertLessEqual(
+            {
+                "tank_shot", "tank_clash", "tank_brick", "tank_hit",
+                "tank_explosion", "tank_pickup", "tank_item", "tank_alarm",
+            },
+            set(game.audio.effects),
+        )
+        game.audio.set_tank_phase("sprint")
+        game.audio.sync_state(game.TANK_PLAYING)
+        self.assertEqual(game.audio.current_track, "tank_sprint")
+        self.assertEqual(game.audio.crossfade_duration_ms, 700)
+
+    def test_tank_uses_dedicated_crossfire_transition(self):
+        game = Game()
+        game.state = game.DESKTOP
+        game._start_transition(game.TANK_MENU, "tank_crossfire", 48)
+        self.assertTrue(game.transition_active)
+        self.assertEqual(game.transition_type, "tank_crossfire")
+        game._draw_transition_overlay()
+
+    def test_tank_pause_scales_music_and_resume_fades_for_300_ms(self):
+        game = Game()
+        game._start_tank_battle()
+        game._handle_tank_playing_event(
+            pygame.event.Event(pygame.KEYDOWN, key=pygame.K_p)
+        )
+        self.assertEqual(game.audio.scene_volume_scale, 0.6)
+        game._handle_tank_playing_event(
+            pygame.event.Event(pygame.KEYDOWN, key=pygame.K_p)
+        )
+        self.assertEqual(game.audio.scene_volume_scale_target, 1.0)
+        self.assertEqual(game.audio.scene_volume_fade_duration_ms, 300)
 
     def test_audio_crossfade_and_power_sounds_are_available(self):
         game = Game()
@@ -174,16 +225,113 @@ class ArchitectureSmokeTests(unittest.TestCase):
             {
                 "open_gomoku", "open_snake", "open_breakout", "open_2048",
                 "open_mines", "open_tetris", "open_air",
+                "open_tank",
                 "open_system_settings", "open_profile", "open_achievement_wall",
                 "open_lore",
             },
         )
         self.assertEqual(
             [item["action"] for item in game.desktop_pages[1]],
-            ["open_air",
+            ["open_air", "open_tank",
              "open_system_settings", "open_profile", "open_achievement_wall",
              "open_lore"],
         )
+
+    def test_tank_desktop_icon_and_dispatch_are_registered(self):
+        game = Game()
+        actions = {item["action"] for page in game.desktop_pages for item in page}
+        self.assertIn("open_tank", actions)
+        for state in (game.TANK_MENU, game.TANK_CONTROLS, game.TANK_PLAYING, game.TANK_END):
+            self.assertIn(state, game._EVENT_DISPATCH)
+            self.assertIn(state, game._UPDATE_DISPATCH)
+            self.assertIn(state, game._DRAW_DISPATCH)
+
+    def test_chinese_tank_desktop_title_uses_two_x_primary_label(self):
+        from meridian.localization import set_language
+
+        game = Game()
+        button = next(
+            button for button in game._get_desktop_icon_buttons_for_page(1)
+            if button["action"] == "open_tank"
+        )
+        set_language("zh_hans")
+        try:
+            module = __import__("meridian.shell_desktop", fromlist=["render_pixel_text"])
+            with patch(
+                "meridian.shell_desktop.render_pixel_text", wraps=module.render_pixel_text
+            ) as render:
+                game._draw_desktop_icon_button(button)
+            title_call = next(
+                call for call in render.call_args_list if call.args[1] == "坦克对决"
+            )
+            self.assertEqual(title_call.kwargs["scale"], 2)
+            self.assertFalse(
+                any(call.args[1] == "本地双人对战" for call in render.call_args_list)
+            )
+        finally:
+            set_language("en")
+
+    def test_returning_from_tank_clears_transient_input(self):
+        game = Game()
+        game.state = game.TANK_PLAYING
+        game._tank_held = {pygame.K_w: 1}
+        game._tank_item_pulses = {"red": True, "blue": True}
+
+        game._go_desktop()
+
+        self.assertEqual(game._tank_held, {})
+        self.assertEqual(game._tank_item_pulses, {"red": False, "blue": False})
+
+    def test_tank_match_statistics_are_accumulated_once(self):
+        from meridian.tank_engine import EngineEvent
+        from meridian.persistence import default_statistics
+
+        game = Game()
+        game.save_data["statistics"]["tank"] = default_statistics()["tank"]
+        global_completed_before = game.save_data["statistics"]["global"]["games_completed"]
+        game._start_tank_battle()
+        game._handle_tank_engine_events([
+            *[EngineEvent("shot", "red") for _ in range(10)],
+            *[EngineEvent("tank_hit", "blue", {"attacker": "red"}) for _ in range(5)],
+            EngineEvent("brick_hit", "red"),
+            EngineEvent("item_used", "red", {"item": "shield"}),
+            EngineEvent("mine_triggered", "blue", {"owner": "red"}),
+            EngineEvent("match_ended", "red"),
+            EngineEvent("match_ended", "red"),
+        ])
+        stats = game.save_data["statistics"]["tank"]
+        self.assertEqual(stats["shots_fired"], 10)
+        self.assertEqual(stats["hits"], 5)
+        self.assertEqual(stats["bricks_destroyed"], 1)
+        self.assertEqual(stats["shield_uses"], 1)
+        self.assertEqual(stats["mine_hits"], 1)
+        self.assertEqual(stats["matches_completed"], 1)
+        self.assertEqual(stats["wins"], 1)
+        self.assertEqual(stats["accurate_matches"], 1)
+        self.assertEqual(
+            game.save_data["statistics"]["global"]["games_completed"],
+            global_completed_before + 1,
+        )
+
+    def test_profile_statistics_include_tank_duel(self):
+        game = Game()
+        sections = game._profile_statistics_sections()
+        title, values = next(section for section in sections if "TANK DUEL" in section[0])
+        self.assertIn("TANK DUEL", title)
+        self.assertEqual([label for label, _ in values], ["MATCHES", "WINS", "KILLS", "ACCURACY"])
+
+    def test_tank_accuracy_requires_ten_shots_and_half_hits(self):
+        from meridian.tank_engine import EngineEvent
+
+        for shots, hits in ((9, 9), (10, 4)):
+            game = Game()
+            game._start_tank_battle()
+            game._handle_tank_engine_events([
+                *[EngineEvent("shot", "red") for _ in range(shots)],
+                *[EngineEvent("tank_hit", "blue", {"attacker": "red"}) for _ in range(hits)],
+                EngineEvent("match_ended", "red"),
+            ])
+            self.assertEqual(game.save_data["statistics"]["tank"].get("accurate_matches", 0), 0)
 
     def test_password_keypad_does_not_cover_bottom_hint(self):
         game = Game()

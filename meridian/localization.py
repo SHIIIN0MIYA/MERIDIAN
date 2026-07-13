@@ -13,6 +13,31 @@ _language: str = "en"
 _font_cache: dict[int, pygame.font.Font] = {}
 
 
+def clear_font_cache() -> None:
+    """Discard cached Font handles before pygame tears down their subsystem."""
+    _font_cache.clear()
+
+
+def _install_pygame_lifecycle_hooks() -> None:
+    def wrap_quit(owner, name: str) -> None:
+        original = getattr(owner, name)
+        if getattr(original, "_meridian_clears_font_cache", False):
+            return
+
+        def quit_with_font_cache_clear(*args, **kwargs):
+            clear_font_cache()
+            return original(*args, **kwargs)
+
+        quit_with_font_cache_clear._meridian_clears_font_cache = True
+        setattr(owner, name, quit_with_font_cache_clear)
+
+    wrap_quit(pygame.font, "quit")
+    wrap_quit(pygame, "quit")
+
+
+_install_pygame_lifecycle_hooks()
+
+
 def set_language(language: str) -> None:
     global _language
     _language = "zh_hans" if language == "zh_hans" else "en"
@@ -32,6 +57,9 @@ def resource_path(*parts: str) -> Path:
 
 
 def get_chinese_font(size: int = 12) -> pygame.font.Font:
+    if not pygame.font.get_init():
+        pygame.font.init()
+        clear_font_cache()
     size = max(8, int(size))
     if size not in _font_cache:
         path = resource_path(
@@ -134,6 +162,8 @@ ZH: dict[str, str] = {
     "SHUT DOWN": "关机",
     "BYE BYE SEE U NEXT TIME~": "再见，下次再来～",
     "BGM": "音乐",
+    "SETTINGS": "设置中心",
+    "PROFILE": "玩家档案",
     "COMING SOON": "敬请期待",
     "SOON": "即将推出",
 
@@ -551,6 +581,81 @@ try:
     ZH.update(collect_lore_translations())
 except ImportError:
     pass
+
+ZH.update({
+    "TANK DUEL": "坦克对决",
+    "IRON ARENA": "钢铁斗场",
+    "LOCAL TWO-PLAYER ARENA": "本地双人斗场",
+    "START DUEL": "开始对决",
+    "NEW MATCH": "新对局",
+    "REMATCH": "再战一局",
+    "TWO CREWS / ONE KEYBOARD": "两支车组 / 一副键盘",
+    "RED: W A S D    ITEM: F": "红方：W A S D    道具：F",
+    "BLUE: ARROW KEYS    ITEM: ENTER": "蓝方：方向键    道具：回车",
+    "MOVE IN 8 DIRECTIONS": "八方向移动",
+    "P: PAUSE    ESC: MENU": "P：暂停    ESC：菜单",
+    "PAUSED": "已暂停",
+    "P TO RESUME   ESC FOR MENU": "P 继续   ESC 返回菜单",
+    "SUDDEN DEATH": "骤死决胜",
+    "REPAIR KIT": "维修包",
+    "SHIELD": "护盾",
+    "OVERDRIVE": "超速驱动",
+    "MINE": "地雷",
+    "ITEM --": "道具 --",
+    "ITEM REPAIR": "道具 维修包",
+    "ITEM SHIELD": "道具 护盾",
+    "ITEM SPEED": "道具 超速驱动",
+    "ITEM MINE": "道具 地雷",
+    "EMP": "电磁脉冲",
+    "PIERCING": "穿甲弹",
+    "SMOKE": "烟幕",
+    "WARP": "跃迁器",
+    "ITEM EMP": "道具 电磁脉冲",
+    "ITEM PIERCING": "道具 穿甲弹",
+    "ITEM SMOKE": "道具 烟幕",
+    "ITEM WARP": "道具 跃迁器",
+    "Use all eight item types": "使用全部八种道具",
+    "RED": "红方",
+    "BLUE": "蓝方",
+    "HP": "生命",
+    "RED WINS": "红方胜利",
+    "BLUE WINS": "蓝方胜利",
+    "DRAW": "平局",
+    "MATCHES": "对局",
+    "ACCURACY": "命中率",
+    "MATCHES COMPLETED": "已完成对局",
+    "SHOTS FIRED": "已发射炮弹",
+    "HITS": "命中",
+    "BRICKS DESTROYED": "摧毁砖墙",
+    "ITEMS PICKED UP": "拾取道具",
+    "ITEMS USED": "使用道具",
+    "RESTORE FAILED — STARTING A NEW MATCH": "恢复失败——将开始新对局",
+    "TANK SAVE COULD NOT BE RESTORED": "坦克对决存档无法恢复",
+    "FIRST CLASH": "初次交锋",
+    "Complete one Tank Duel match": "完成一场坦克对决",
+    "FIRST VICTORY": "首场胜利",
+    "Win one Tank Duel match": "赢得一场坦克对决",
+    "SHARPSHOOTER": "神射手",
+    "Hit at least half of 10 or more shots": "发射至少十炮且命中率不低于一半",
+    "DEMOLITION CREW": "爆破小队",
+    "Destroy 100 brick walls": "摧毁一百面砖墙",
+    "ARSENAL MASTER": "军械大师",
+    "Use all four item types": "使用全部四种道具",
+    "IRON WILL": "钢铁意志",
+    "Score a kill while at one health": "仅剩一点生命时完成击杀",
+    "SUDDEN VICTOR": "骤死赢家",
+    "Win in sudden death": "在骤死决胜中获胜",
+    "MINE EXPERT": "地雷专家",
+    "Hit enemies with 20 mines": "用地雷命中敌人二十次",
+    "SHIELD WALL": "护盾之墙",
+    "Block 25 hits with shields": "用护盾格挡二十五次命中",
+    "OVERDRIVE ACE": "超速王牌",
+    "Score two kills during one overdrive": "在一次超速驱动中完成双杀",
+    "TURNAROUND": "逆转战局",
+    "Win after falling behind": "落后后逆转获胜",
+    "ARENA LEGEND": "斗场传奇",
+    "Complete 50 Tank Duel matches": "完成五十场坦克对决",
+})
 
 
 def _format_dynamic(text: str) -> str:

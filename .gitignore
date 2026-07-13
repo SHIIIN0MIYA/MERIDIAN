@@ -12,6 +12,7 @@ _render_verification.py
 verification-*.png
 .agents/
 .worktrees/
+.superpowers/
 tests/.tmp/
 *.exe
 *.manifest

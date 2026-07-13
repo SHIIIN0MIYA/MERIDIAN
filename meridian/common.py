@@ -319,6 +319,24 @@ class C:
     BREAKOUT_PADDLE_CYAN = (90, 220, 220)
     BREAKOUT_PADDLE_PINK = (255, 125, 175)
 
+    # Tank Duel palette
+    TANK_BG = (9, 18, 24)
+    TANK_PANEL = (22, 39, 43)
+    TANK_PANEL_DARK = (12, 25, 29)
+    TANK_ACCENT = (218, 170, 74)
+    TANK_ACCENT_LIGHT = (255, 221, 132)
+    TANK_TEXT = (230, 239, 220)
+    TANK_MUTED = (137, 158, 145)
+    TANK_GROUND = (68, 76, 55)
+    TANK_GRID = (82, 91, 65)
+    TANK_BRICK = (154, 76, 50)
+    TANK_STEEL = (123, 139, 143)
+    TANK_GRASS = (51, 112, 61)
+    TANK_RED = (220, 66, 62)
+    TANK_RED_LIGHT = (255, 128, 92)
+    TANK_BLUE = (57, 125, 221)
+    TANK_BLUE_LIGHT = (116, 196, 255)
+
     # 2048 palette: cream/orange/brick red
     G2048_BG = (42, 25, 18)
     G2048_PANEL = (82, 48, 30)
