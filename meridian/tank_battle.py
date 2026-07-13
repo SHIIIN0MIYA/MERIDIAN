@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import math
 import random
 
 from .arcade_common import (
@@ -24,6 +23,8 @@ from .tank_engine import (
     TankBattleEngine,
     Terrain,
 )
+from .tank_items_ui import draw_item_icon
+from .tank_vfx import TankVfxState, consume_engine_events, draw_tank_vfx, update_vfx
 
 
 TANK_PALETTE = {
@@ -58,6 +59,11 @@ _SOUND_VOLUMES = {
     "tank_item": 0.66,
     "tank_alarm": 0.72,
 }
+_ITEM_SOUNDS = {
+    "repair": "tank_repair", "shield": "tank_shield_break",
+    "speed": "tank_overdrive", "mine": "tank_mine_arm", "emp": "tank_emp",
+    "piercing": "tank_piercing", "smoke": "tank_smoke", "warp": "tank_warp",
+}
 
 _PLAYER_KEYS = {
     "red": {"left": pygame.K_a, "right": pygame.K_d, "up": pygame.K_w, "down": pygame.K_s},
@@ -74,6 +80,7 @@ class TankBattleMixin:
         self.tank_pressed_action = None
         self.tank_paused = False
         self.tank_particles = []
+        self.tank_vfx = TankVfxState()
         self.tank_shake_frames = 0
         self.tank_shake_x = self.tank_shake_y = 0
         self._tank_key_clock = 0
@@ -233,6 +240,7 @@ class TankBattleMixin:
         commands = {player: self._tank_command(player) for player in ("red", "blue")}
         events = self.tank_engine.update(max(0, int(dt_ms)), commands)
         self._handle_tank_engine_events(events)
+        update_vfx(self.tank_vfx, dt_ms)
         self.audio.set_tank_phase(self.tank_engine.music_phase)
         if self.tank_engine.phase is MatchPhase.ENDED:
             target = getattr(self, "TANK_END", "tank_end")
@@ -250,19 +258,25 @@ class TankBattleMixin:
         self.tank_particles[:] = [p for p in self.tank_particles if p["life"] > 0]
 
     def _handle_tank_engine_events(self, events):
+        display_events = []
         for event in events:
             self._record_tank_engine_event(event)
-            sound = _SOUNDS.get(event.kind)
+            sound = (_ITEM_SOUNDS.get(str(event.data.get("item", "")))
+                     or _SOUNDS.get(event.kind))
             if sound:
                 self.audio.play(sound, _SOUND_VOLUMES.get(sound, 0.7))
             if event.kind in {"tank_hit", "tank_destroyed", "mine_triggered"}:
                 self.tank_shake_frames = max(self.tank_shake_frames, 8)
-            if event.kind in _SOUNDS:
-                tank = self.tank_engine.tanks.get(event.player_id or "red")
-                if tank:
-                    for index in range(6):
-                        angle = index * math.tau / 6
-                        self.tank_particles.append({"x": tank.x, "y": tank.y, "vx": math.cos(angle) * .05, "vy": math.sin(angle) * .05, "life": 14})
+            tank = self.tank_engine.tanks.get(event.player_id or "red")
+            data = dict(event.data)
+            if tank:
+                data.setdefault("x", tank.x)
+                data.setdefault("y", tank.y)
+            display_events.append(type(event)(event.kind, event.player_id, data))
+        consume_engine_events(
+            self.tank_vfx, display_events, getattr(self, "animation_level", "full"),
+            seed=self.tank_engine.elapsed_ms + len(display_events),
+        )
 
     def _record_tank_engine_event(self, event):
         record = getattr(self, "_record_stat", None)
@@ -439,9 +453,14 @@ class TankBattleMixin:
                 item.value, item.value.upper()
             )
             label = render_pixel_text(
-                self.font_small, translate(label_key), C.TANK_ACCENT_LIGHT, scale=2,
+                self.font_small, translate(label_key), C.TANK_ACCENT_LIGHT, scale=1,
             )
-            self.screen.blit(label, (card.centerx - label.get_width() // 2,
+            draw_item_icon(
+                self.screen, item, pygame.Rect(card.x + 8, card.y + 8, 34, 34),
+                {"accent": C.TANK_ACCENT_LIGHT, "dark": C.TANK_PANEL_DARK,
+                 "outline": C.OUTLINE},
+            )
+            self.screen.blit(label, (card.x + 48,
                                      card.centery - label.get_height() // 2))
 
     def _draw_tank_playing(self):
@@ -475,6 +494,7 @@ class TankBattleMixin:
             pygame.draw.rect(self.screen, C.TANK_ACCENT_LIGHT, (px - 3, py - 3, 6, 6))
         for player_id, tank in self.tank_engine.tanks.items():
             self._draw_tank_entity(arena, tile, player_id, tank)
+        draw_tank_vfx(self, arena, tile, self.tank_vfx)
         for particle in self.tank_particles:
             px, py = self._world_point(arena, tile, particle["x"], particle["y"])
             pygame.draw.rect(self.screen, C.TANK_ACCENT_LIGHT, (px - 2, py - 2, 4, 4))
@@ -608,19 +628,11 @@ class TankBattleMixin:
         pickup = self.tank_engine.pickup
         px, py = self._world_point(arena, tile, pickup.x, pickup.y)
         pygame.draw.rect(self.screen, C.OUTLINE, (px - 10, py - 10, 20, 20))
-        item = pickup.item.value
-        colors = {
-            "repair": C.TANK_RED_LIGHT, "shield": C.TANK_BLUE_LIGHT,
-            "speed": C.TANK_ACCENT_LIGHT, "mine": C.TANK_ACCENT,
-            "emp": (180, 125, 255), "piercing": (255, 225, 105),
-            "smoke": (145, 160, 150), "warp": (100, 245, 225),
-        }
-        color = colors.get(item, C.TANK_ACCENT_LIGHT)
-        pygame.draw.rect(self.screen, color, (px - 7, py - 7, 14, 14))
-        glyphs = {"repair": "+", "shield": "O", "speed": ">", "mine": "X",
-                  "emp": "E", "piercing": "P", "smoke": "S", "warp": "W"}
-        glyph = render_pixel_text(self.font_small, glyphs.get(item, "?"), C.OUTLINE, scale=1)
-        self.screen.blit(glyph, (px - glyph.get_width() // 2, py - glyph.get_height() // 2))
+        draw_item_icon(
+            self.screen, pickup.item, pygame.Rect(px - 10, py - 10, 20, 20),
+            {"accent": C.TANK_ACCENT_LIGHT, "dark": C.TANK_PANEL_DARK,
+             "outline": C.OUTLINE}, active=True,
+        )
 
     def _draw_tank_entity(self, arena, tile, player_id, tank):
         px, py = self._world_point(arena, tile, tank.x, tank.y)

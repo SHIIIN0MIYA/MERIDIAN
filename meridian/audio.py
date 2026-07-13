@@ -303,6 +303,14 @@ def _build_effects() -> dict[str, pygame.mixer.Sound]:
         "tank_pickup": _cached("sfx_tank_pickup", lambda: _tone_sequence([261.63, 392.0, 523.25], 0.07, 0.24, "triangle")),
         "tank_item": _cached("sfx_tank_item", lambda: _sweep(180, 740, 0.18, 0.25, pulse=True)),
         "tank_alarm": _cached("sfx_tank_alarm", lambda: _tone_sequence([110, 164.81, 110, 164.81], 0.13, 0.30)),
+        "tank_repair": _cached("sfx_tank_repair", lambda: _tone_sequence([330, 440, 660], 0.06, 0.22)),
+        "tank_shield_break": _cached("sfx_tank_shield_break", lambda: _sweep(920, 240, 0.18, 0.26, noise=0.12)),
+        "tank_overdrive": _cached("sfx_tank_overdrive", lambda: _sweep(180, 920, 0.20, 0.24, pulse=True)),
+        "tank_mine_arm": _cached("sfx_tank_mine_arm", lambda: _tone_sequence([160, 160, 240], 0.07, 0.22)),
+        "tank_emp": _cached("sfx_tank_emp", lambda: _sweep(1100, 90, 0.28, 0.28, pulse=True)),
+        "tank_piercing": _cached("sfx_tank_piercing", lambda: _sweep(420, 1450, 0.16, 0.23)),
+        "tank_smoke": _cached("sfx_tank_smoke", lambda: _sweep(180, 70, 0.32, 0.18, noise=0.38)),
+        "tank_warp": _cached("sfx_tank_warp", lambda: _tone_sequence([880, 330, 990], 0.07, 0.24, "triangle")),
     }
     roots = {"gomoku": 196.00, "snake": 220.00, "breakout": 174.61, "2048": 246.94, "mines": 146.83, "tetris": 196.00, "air": 164.81}
     for game, root in roots.items():

@@ -152,6 +152,26 @@ def test_item_edge_reaches_exactly_one_normal_update(game):
 def test_engine_events_use_fixed_sound_names(game, kind, sound):
     game._handle_tank_engine_events([EngineEvent(kind, "red")])
     assert game.audio.names == [sound]
+
+
+@pytest.mark.parametrize(
+    ("item", "sound"),
+    (
+        (ItemType.REPAIR, "tank_repair"),
+        (ItemType.SHIELD, "tank_shield_break"),
+        (ItemType.SPEED, "tank_overdrive"),
+        (ItemType.MINE, "tank_mine_arm"),
+        (ItemType.EMP, "tank_emp"),
+        (ItemType.PIERCING, "tank_piercing"),
+        (ItemType.SMOKE, "tank_smoke"),
+        (ItemType.WARP, "tank_warp"),
+    ),
+)
+def test_each_item_uses_a_dedicated_sound(game, item, sound):
+    game._handle_tank_engine_events([
+        EngineEvent("item_used", "red", {"item": item.value}),
+    ])
+    assert game.audio.names == [sound]
     assert 0.0 < game.audio.volumes[0] < 1.0
 
 
