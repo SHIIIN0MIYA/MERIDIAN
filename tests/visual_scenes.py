@@ -72,6 +72,9 @@ def build_scene(name: str, language: str) -> Game:
     game.transition_active = False
     game.desktop_particles.clear()
     game.screen_shake_enabled = False
+    game._get_desktop_time_text = lambda: "12:34"
+    game._get_battery_text = lambda: "BAT 88%"
+    game._last_clock_minute = -1
     configure = SCENE_BUILDERS[name]
     configure(game)
     return game

@@ -1,4 +1,5 @@
 import pygame
+import tests.visual_scenes as visual_scenes
 
 from meridian.localization import get_language
 from tests.visual_scenes import SCENE_NAMES, build_scene, render_scene
@@ -28,8 +29,23 @@ def test_each_scene_builds_with_frozen_visual_environment():
             assert get_language() == language
 
 
-def test_render_scene_returns_a_detached_fixed_size_surface():
+def test_render_scene_returns_a_detached_fixed_size_surface(monkeypatch):
+    class FakeGame:
+        def __init__(self):
+            self.screen = pygame.Surface((1280, 720))
+            self.screen.fill((10, 20, 30))
+
+        def draw(self):
+            pass
+
+    game = FakeGame()
+    monkeypatch.setattr(visual_scenes, "build_scene", lambda name, language: game)
+
     surface = render_scene("desktop_page_1", "zh_hans")
 
     assert isinstance(surface, pygame.Surface)
     assert surface.get_size() == (1280, 720)
+    assert surface is not game.screen
+
+    surface.set_at((0, 0), (200, 100, 50))
+    assert game.screen.get_at((0, 0)) == pygame.Color(10, 20, 30, 255)
