@@ -1,258 +1,324 @@
-# MERIDIAN v3.2.0 Release and v3.3.0 Upgrade Design
+# MERIDIAN v3.2.0 发布与 v3.3.0 升级设计
 
-Date: 2026-07-13
-Status: Confirmed design, pending implementation plan
+日期：2026-07-13
+状态：设计已确认，等待实施计划
 
-## 1. Scope and release boundary
+## 一、范围与版本边界
 
-This program is split into two releases.
+本轮工作拆分为两个版本：
 
-- `v3.2.0` freezes the current Tank Duel release as a stable local milestone.
-- `v3.3.0-dev` contains the following upgrade work, in order:
-  1. bilingual screenshot regression tests;
-  2. shared UI and three-level volume controls;
-  3. Tank Duel second-pass visuals and item effects;
-  4. cross-world lore and global completion.
+- `v3.2.0`：把目前已经完成的 Tank Duel（坦克对决）固化为稳定的本地版本。
+- `v3.3.0-dev`：按以下顺序继续升级：
+  1. 建立中英文截图回归测试；
+  2. 统一公共 UI 与三级音量系统；
+  3. 完成 Tank Duel 二轮视觉与道具特效打磨；
+  4. 扩展跨世界 Lore 与全局完成度。
 
-No remote push, executable packaging, or PyInstaller command is part of this work. The local
-annotated `v3.2.0` tag is created only after a final user confirmation.
+本轮不推送 GitHub 或 Gitee，不构建可执行文件，也不运行 PyInstaller。只有在最终验证通过并再次得到用户确认后，才创建本地注释标签 `v3.2.0`。
 
-## 2. v3.2.0 local release system
+## 二、v3.2.0 本地发布体系
 
-### 2.1 Changelog
+### 2.1 更新日志
 
-`CHANGELOG.md` will be normalized to UTF-8 and a Keep a Changelog-style structure. Existing
-history remains available, but visible encoding damage and malformed headings are repaired.
+整理 `CHANGELOG.md` 为 UTF-8 编码，并采用 Keep a Changelog 风格。保留旧版本历史，同时修复现有乱码、错误标题和破损排版。
 
-The top of the file contains:
+文件顶部结构为：
 
-- `Unreleased`, used for all work not yet assigned to a release;
-- `[3.2.0] - 2026-07-13`, documenting Tank Duel;
-- the preserved older release history.
+- `Unreleased`：记录尚未归入正式版本的改动；
+- `[3.2.0] - 2026-07-13`：记录 Tank Duel 正式内容；
+- 原有历史版本。
 
-The `3.2.0` entry covers local two-player rules, eight items, twelve achievements, Schema v5,
-bilingual presentation, dynamic original music, the dedicated transition, statistics, and
-interrupted-match restoration.
+`3.2.0` 条目包括：
 
-### 2.2 Single version source
+- 本地双人坦克对战；
+- 红方 WASD、蓝方方向键与八向移动；
+- 自动射击与单道具槽；
+- 八种道具；
+- 十二项坦克成就；
+- Schema v5 存档；
+- 中英文界面；
+- 独立动态配乐与专属转场；
+- 对局统计和中断恢复。
 
-The application gains one authoritative version module, for example
-`meridian/version.py::__version__`. User-visible version text and release checks read from this
-module. Version strings must not be independently duplicated across UI code.
+### 2.2 唯一版本号来源
 
-The stable release reports `3.2.0`. Subsequent development reports `3.3.0-dev` and writes changes
-under `Unreleased`.
+新增唯一版本模块，例如 `meridian/version.py`，其中定义：
 
-### 2.3 Release check and tag
+```python
+__version__ = "3.2.0"
+```
 
-A local release-check command verifies:
+桌面、设置页、发布检查等位置都读取该值，不允许在多个文件中手工维护不同版本号。
 
-- version and changelog agreement;
-- a clean tracked worktree;
-- absence of a duplicate tag;
-- pytest, Ruff, compileall, and the existing rendering smoke tests.
+稳定版显示 `3.2.0`。后续开发开始后改为 `3.3.0-dev`，新改动统一写入 `Unreleased`。
 
-The command checks only. It does not build, package, tag, or push. After all gates pass, the user
-is asked once more before creation of the annotated local tag `v3.2.0`.
+### 2.3 发布检查与本地标签
 
-The new screenshot suite belongs to `v3.3.0-dev` and therefore is not a prerequisite for freezing
-the earlier `v3.2.0` milestone.
+新增本地发布检查命令，检查：
 
-## 3. Bilingual screenshot regression system
+- 版本号与更新日志是否一致；
+- 跟踪文件是否干净；
+- `v3.2.0` 标签是否已经存在；
+- pytest 是否通过；
+- Ruff 是否通过；
+- compileall 是否通过；
+- 现有绘制冒烟测试是否通过。
 
-### 3.1 Baseline matrix
+该命令只检查，不负责构建、打包、打标签或推送。
 
-The initial suite contains twelve deterministic scenes in English and Simplified Chinese, for 24
-baseline PNGs:
+新截图测试属于 `v3.3.0-dev`，因此不会反过来阻塞更早的 `v3.2.0` 稳定节点。全部检查通过后，再次询问用户是否创建本地注释标签 `v3.2.0`。
 
-1. desktop page one;
-2. desktop page two;
-3. system settings;
-4. player profile statistics;
-5. achievement wall page one;
-6. lore category and entry list;
-7. Tank Duel menu;
-8. Tank Duel controls;
-9. Tank Duel normal combat HUD;
-10. Tank Duel pause overlay;
-11. Tank Duel sudden death;
-12. Tank Duel results.
+## 三、中英文截图回归测试
 
-### 3.2 Determinism
+### 3.1 首批基准场景
 
-Scenes are constructed directly from fixed state rather than replayed mouse input. Rendering uses:
+首批固定十二个场景，每个场景生成英文和简体中文两张图片，共二十四张基准图：
 
-- a 1280 by 720 logical surface;
-- SDL dummy video and audio drivers;
-- fixed random seeds, clock, battery value, animation frame, and language;
-- disabled shake;
-- fixed particles where a scene requires particles;
-- a bundled font with no operating-system CJK fallback.
+1. 桌面第一页；
+2. 桌面第二页；
+3. 系统设置；
+4. 玩家档案统计页；
+5. 成就墙第一页；
+6. Lore 分类与条目列表；
+7. Tank Duel 开始页；
+8. Tank Duel 操作说明页；
+9. Tank Duel 正常战斗 HUD；
+10. Tank Duel 暂停页；
+11. Tank Duel 骤死状态；
+12. Tank Duel 结算页。
 
-Dynamic regions that do not belong to the assertion are frozen or masked. Animation scenes use a
-named, fixed frame.
+### 3.2 确定性环境
 
-### 3.3 Comparison and baseline updates
+视觉场景直接构造固定游戏状态，不依赖人工鼠标点击或完整对局回放。
 
-The test first checks exact dimensions, then compares pixels with a very small documented tolerance
-for Pygame patch-level raster differences. Failure output includes the scene name, differing-pixel
-ratio, actual PNG, and a visual diff PNG.
+统一使用：
 
-Text and controls also receive rectangle-boundary assertions to catch clipping and overlap that a
-small pixel tolerance could hide.
+- `1280×720` 逻辑分辨率；
+- SDL dummy 视频和音频驱动；
+- 固定随机种子；
+- 固定时间、电量、动画帧和语言；
+- 关闭屏幕震动；
+- 对需要粒子的场景使用固定粒子数据；
+- 项目内置中文像素字体，禁止系统字体回退。
 
-Baselines live under `tests/visual_baselines/en/` and `tests/visual_baselines/zh_hans/`. A dedicated
-explicit command updates them. Normal tests and CI never overwrite baselines. CI retains diff
-artifacts only on failure.
+不属于断言目标的动态区域必须冻结或遮罩。需要检查动画时，只截取命名且固定的关键帧。
 
-## 4. Shared UI and volume system
+### 3.3 图片比较与基准更新
 
-### 4.1 Shared presentation primitives
+测试先检查尺寸，再进行像素比较。允许极低且有明确说明的容差，用于规避 Pygame 补丁版本造成的单像素光栅差异。
 
-Common primitives cover title frames, panels, buttons, pause overlays, result overlays, label rows,
-and sliders. They own text measurement, fallback sizing, fixed CJK baselines, center/right anchors,
-and overflow detection.
+测试失败时输出：
 
-Games retain their own palettes, motifs, and decorative art. The shared layer standardizes
-structure, spacing, focus, hover, pressed, disabled, and keyboard-focus behavior without erasing
-world identity.
+- 场景名称；
+- 差异像素比例；
+- 实际截图；
+- 可视化差异图。
 
-Migration starts with the pages protected by screenshot tests. Other pages move incrementally; the
-upgrade does not require an all-at-once rendering rewrite.
+标题、按钮和文本还要进行矩形边界检查，避免小范围像素容差掩盖文字越界或重叠。
 
-### 4.2 Audio model
+基准图保存于：
 
-Persistence gains `master_volume`, defaulting to `1.0` for old saves. Effective levels are:
+- `tests/visual_baselines/en/`
+- `tests/visual_baselines/zh_hans/`
 
-- music: `master_volume * music_volume * scene_scale`;
-- sound effects: `master_volume * sfx_volume * event_gain`.
+只有显式命令（例如 `python tools/update_visual_baselines.py`）才能更新基准图。普通测试和 CI 永远不能自动覆盖基准图。CI 只在失败时保留差异文件。
 
-Mute is independent and does not destroy saved slider values. Every system click, shot, explosion,
-and notification uses the same mixer entry point. Persistence migration must preserve existing
-music and SFX values.
+## 四、公共 UI 与三级音量系统
 
-### 4.3 Expandable desktop control
+### 4.1 公共界面组件
 
-The collapsed state is a speaker button. Clicking it expands a panel from left to right. The width
-passes the final width to approximately 108 percent, then springs back to 100 percent using a
-deterministic ease-out-back curve.
+公共组件覆盖：
 
-The panel contains, from top to bottom:
+- 标题框；
+- 面板；
+- 按钮；
+- 暂停层；
+- 结算层；
+- 标签行；
+- 数值滑块。
 
-1. master volume;
-2. music volume;
-3. sound-effect volume.
+组件统一负责：
 
-Each row contains an icon, localized label, track, thumb, and percentage. Rows fade and slide in
-with a short stagger. A left-arrow button fixed to the right edge closes the panel: content fades,
-then the panel contracts smoothly toward the speaker button.
+- 文本测量；
+- 字号降级；
+- 中文固定基线；
+- 居中和右侧锚定；
+- 越界检测；
+- 鼠标悬停、按下、禁用和键盘焦点状态。
 
-Animation timings are approximately 420 ms in Full, 240 ms in Reduced, and immediate in Off. Mouse
-hit areas follow the visual geometry throughout expansion, overshoot, dragging, and collapse.
-Escape, desktop page changes, and game entry cancel drag state safely. Values use the existing
-delayed persistence mechanism.
+八个世界仍保留自己的配色、纹样和装饰，不会被做成同一张皮。统一的是结构、间距和交互规则。
 
-Collapsed, overshoot, settled, and closing geometry are covered by deterministic component-render
-tests. They do not expand the confirmed twelve-scene full-screen baseline matrix.
+迁移先覆盖截图测试保护的页面，其他游戏逐步接入，避免一次性重写全部绘制代码。
 
-## 5. Tank Duel second-pass polish
+### 4.2 音量数据模型
 
-### 5.1 Event-driven combat feedback
+存档新增 `master_volume`，旧存档缺少该字段时默认补 `1.0`。
 
-Visuals consume engine events and never alter collision or damage rules. The second pass adds:
+最终音乐音量：
 
-- animated tracks and turning frames;
-- turret recoil, muzzle flash, and short-lived shell cases;
-- faction-colored projectile trails;
-- a gold core and longer trail for piercing shells;
-- distinct shield, normal-hit, piercing-hit, and destruction feedback;
-- a pixel shock ring, armor fragments, smoke, and score popups on destruction;
-- a warning frame and scan-in before respawn.
+```text
+主音量 × 音乐音量 × 场景淡入淡出比例
+```
 
-### 5.2 Eight item identities
+最终音效音量：
 
-Letter placeholders are replaced by eight distinct pixel icons. Pickup, HUD slot, use, active,
-impact, and expiry states are visually distinguishable.
+```text
+主音量 × 音效音量 × 单个事件增益
+```
 
-- Repair: green pixels converge on life cells.
-- Shield: a ring surrounds the tank and breaks on absorption.
-- Overdrive: track afterimages and a duration bar.
-- Mine: placement pulse and proximity blinking.
-- EMP: purple scan wave, enemy HUD interference, and fire-lock countdown.
-- Piercing: gold muzzle state and remaining enhanced-shot count.
-- Smoke: layered pixel smoke with stronger center occlusion.
-- Warp: pixel disassembly at origin and reconstruction at destination.
+静音状态独立保存，不会把三个滑块的数值改成零。系统按键音、炮声、爆炸声和成就提示都必须经过统一混音入口。
 
-Each item has a dedicated effect sound routed through master and SFX volume.
+迁移旧存档时，必须保留已有音乐和音效音量。
 
-### 5.3 Effect levels
+### 4.3 桌面展开式音量面板
 
-- Full: all animation, particles, afterimages, shock rings, and light shake.
-- Reduced: essential muzzle, hit, item-state, and danger feedback with fewer particles and no
-  persistent afterimage.
-- Off: static icons, state bars, required smoke occlusion, and rule-critical indicators only.
+收起时只显示扬声器按钮。点击后，面板从左向右展开。
 
-Rule information remains readable at every level. Screenshot baselines use Reduced. Full receives
-event-level rendering tests with deterministic particle inputs.
+展开过程：
 
-Tank menu and result pages migrate to the shared UI. The menu presents both control schemes, match
-rules, and access to the eight-item guide. Results emphasize winner, score, accuracy, item use, and
-rematch.
+1. 面板宽度从零增加；
+2. 到达目标宽度后继续向右拉伸到约 `108%`；
+3. 再回弹到 `100%` 稳定宽度。
 
-## 6. Cross-world lore and global completion
+面板从上到下包含三个滑块：
 
-### 6.1 Completion calculation
+1. 主音量；
+2. 音乐音量；
+3. 音效音量。
 
-The eight worlds are equally weighted. A world score is:
+每行包含图标、中英文名称、轨道、滑块和百分比。三个滑块按顺序淡入，并略微向右滑入。
 
-- achievements: 40 percent;
-- key objectives: 35 percent;
-- collected lore: 25 percent.
+面板右侧固定一个向左箭头按钮。点击后先淡出内容，再将面板平滑向左收回。
 
-Global completion is the integer average of the eight world scores. Percentages are derived by a
-pure calculator from stored facts and are not persisted as redundant values.
+动画等级：
 
-Old saves derive progress from statistics, level/campaign data, achievements, and unlocked lore.
-Missing evidence contributes zero and never clears the save or grants an unprovable completion.
+- 完整：约 420ms，包含展开、过冲和回弹；
+- 精简：约 240ms，减少过冲幅度；
+- 关闭：立即切换。
 
-### 6.2 Key objectives
+动画期间鼠标命中区域必须跟随实际视觉位置。Esc、桌面翻页和进入游戏时要安全结束拖动状态。音量实时生效，并沿用现有延迟写盘机制。
 
-Objectives reflect each game's structure:
+收起、过冲、稳定和关闭过程使用确定性的组件绘制测试，不增加已经确认的十二个全屏截图场景。
 
-- Gomoku: completed games, wins with both sides, and a cumulative-win milestone.
-- Snake: score and length milestones.
-- Breakout: representative clears and final clear.
-- 2048: reach 512, 1024, and 2048.
-- Mines: completion milestones across configured difficulty/board targets.
-- Tetris: level, line, and four-line-clear milestones.
-- Air Raid: standard campaign, challenge campaign, and boss rush.
-- Tank Duel: first match, first win, all eight items, and a sudden-death win.
+## 五、Tank Duel 二轮视觉与道具特效
 
-Exact thresholds are fixed in the implementation plan and covered by boundary tests.
+### 5.1 战斗反馈
 
-### 6.3 UI and cross-world archive
+表现层只读取引擎事件，不改变碰撞与伤害规则。
 
-The profile shows a global completion bar or pixel ring plus eight world cards. Each card exposes
-the total and the achievement/objective/lore breakdown. Opening a card lists unfinished objectives
-without revealing locked lore prose.
+新增：
 
-Cross-world archive entries unlock at 25, 50, 75, and 100 percent. Each entry links at least three
-worlds into the central resonance narrative. At 100 percent, a final MERIDIAN archive and a desktop
-visual variation unlock. This is cosmetic and never blocks normal play.
+- 履带滚动和转向帧；
+- 炮塔后坐；
+- 炮口火焰；
+- 短暂弹壳；
+- 阵营色炮弹尾迹；
+- 穿甲弹金色核心与长尾迹；
+- 护盾吸收、普通受击、穿甲重击和摧毁的不同反馈；
+- 击毁冲击环、装甲碎片、烟尘与得分提示；
+- 重生警示框、扫描线和生成动画。
 
-All new prose is paired English and Simplified Chinese. Unlock notifications use the existing queue
-and fire once. Developer mode does not write official completion or lore unlocks.
+### 5.2 八种道具表现
 
-## 7. Ordering, compatibility, and verification
+用八个独立像素图标替换字母占位符。地图拾取、HUD 道具槽、使用、持续、命中和失效状态都要能明显区分。
 
-Implementation order is mandatory because each stage protects the next:
+- 维修包：绿色修复像素聚合到生命格；
+- 护盾：坦克外围环形护罩，吸收时破裂；
+- 超速驱动：履带残影和剩余时间条；
+- 地雷：布置脉冲和接近闪烁；
+- EMP：紫色扫描波、敌方 HUD 干扰和禁火倒计时；
+- 穿甲弹：金色炮口状态和剩余强化弹数；
+- 烟幕：中心遮挡较强、边缘半透明的分层像素烟云；
+- 跃迁器：旧位置像素解构，新位置重新组装。
 
-1. freeze and locally tag `v3.2.0` after confirmation;
-2. move to `3.3.0-dev` and establish screenshots;
-3. refactor shared UI and audio under screenshot protection;
-4. polish Tank Duel using shared primitives and effect levels;
-5. add completion and cross-world lore;
-6. run final bilingual visual review and full verification.
+每种道具拥有独立音效，并统一受主音量和音效音量控制。
 
-Each stage has focused tests, full pytest, Ruff, compileall, and `git diff --check`. Schema migrations
-must preserve old saves. No stage authorizes packaging or remote pushes.
+### 5.3 三级视觉效果
+
+- 完整：全部动画、粒子、残影、冲击环和轻度屏震；
+- 精简：保留炮口、命中、道具状态和危险提示，减少粒子，不显示持续残影；
+- 关闭：只保留静态图标、状态条、必要烟幕遮挡和规则提示。
+
+无论选择哪一级，烟幕遮挡、EMP 禁火、穿甲弹剩余数量等规则信息都必须可读。
+
+截图基准使用“精简”模式。“完整”模式通过固定粒子的事件级绘制测试验证。
+
+Tank Duel 开始页和结算页接入公共 UI：
+
+- 开始页展示双方操作、比赛规则和八种道具入口；
+- 结算页突出胜者、比分、双方命中率、道具使用次数和重赛按钮。
+
+## 六、跨世界 Lore 与全局完成度
+
+### 6.1 完成度计算
+
+八个世界等权。单个世界满分 100，组成如下：
+
+- 成就：40%；
+- 关键通关目标：35%；
+- Lore 收集：25%。
+
+全局完成度为八个世界完成度的整数平均值。
+
+完成度由纯计算器根据存档事实实时计算，不额外保存重复百分比，避免数据漂移。
+
+旧存档从统计、关卡或战役进度、成就和 Lore 解锁记录中推导。缺少证据时按零处理，不清空存档，也不误授完成度。
+
+### 6.2 八界关键目标
+
+- 五子棋：完成对局、使用双方获胜、累计胜场目标；
+- 贪吃蛇：分数和长度节点；
+- 打砖块：代表性关卡与最终关；
+- 2048：获得 512、1024、2048；
+- 扫雷：完成不同配置或难度目标；
+- 俄罗斯方块：等级、消行和四消目标；
+- 空袭行动：标准战役、挑战战役和 Boss Rush；
+- 坦克对决：完成首局、首次胜利、使用八种道具、骤死获胜。
+
+具体阈值在实施计划中固定，并使用边界测试验证。
+
+### 6.3 完成度界面与跨世界档案
+
+玩家档案顶部增加全局完成度像素条或环形图。下方显示八个世界卡片，每张卡片包含：
+
+- 世界总完成度；
+- 成就完成度；
+- 关键目标完成度；
+- Lore 收集完成度。
+
+点击世界卡片可查看未完成目标，但不能提前显示锁定 Lore 正文。
+
+全局完成度达到以下阈值时解锁跨世界档案：
+
+- 25%；
+- 50%；
+- 75%；
+- 100%。
+
+每篇跨世界档案至少联系三个世界，形成八界共振主线，而不是互不相干的世界简介。
+
+100% 时解锁最终 MERIDIAN 档案和桌面视觉变化。该变化只影响表现，不会阻止玩家使用任何游戏功能。
+
+所有新增内容必须提供中英文一一对应文本。解锁通知使用现有通知队列，每项只触发一次。开发者模式不得写入正式完成度和 Lore 解锁记录。
+
+## 七、实施顺序、兼容与验证
+
+实施顺序固定如下：
+
+1. 整理并验证 `v3.2.0`；
+2. 再次取得确认后创建本地 `v3.2.0` 标签；
+3. 切换为 `3.3.0-dev`，建立截图测试；
+4. 在截图保护下统一公共 UI 和音量系统；
+5. 使用公共组件完成 Tank Duel 二轮打磨；
+6. 增加全局完成度与跨世界 Lore；
+7. 完成最终中英文视觉检查和全量验证。
+
+每个阶段都运行：
+
+- 聚焦测试；
+- 完整 pytest；
+- Ruff；
+- compileall；
+- `git diff --check`。
+
+存档 Schema 迁移必须保留旧数据。本设计任何阶段都不授权打包或远程推送。
