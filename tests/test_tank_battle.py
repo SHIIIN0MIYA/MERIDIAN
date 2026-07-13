@@ -69,8 +69,31 @@ def game():
     harness._logical_mouse_pos = lambda: (-1, -1)
     harness._go_desktop = lambda: None
     harness._start_transition = lambda state, *_args: setattr(harness, "state", state)
+    harness.prologue_active = False
+    harness._check_and_show_prologue = lambda _game_id: False
     harness._init_tank_battle()
     return harness
+
+
+def test_first_tank_menu_visit_opens_world_prologue(game):
+    game._check_and_show_prologue = lambda game_id: game_id == "tank"
+    game._draw_prologue_screen = lambda: setattr(game, "prologue_drawn", True)
+
+    game._draw_tank_menu()
+
+    assert game.prologue_drawn is True
+
+
+def test_tank_menu_input_is_consumed_while_prologue_is_open(game):
+    handled = []
+    game.prologue_active = True
+    game._handle_prologue_event = handled.append
+
+    event = keydown(pygame.K_RETURN)
+    game._handle_tank_menu_event(event)
+
+    assert handled == [event]
+    assert game.state == "tank_menu"
 
 
 def test_red_opposite_keys_use_latest_then_fall_back(game):

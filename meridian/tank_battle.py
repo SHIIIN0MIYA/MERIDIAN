@@ -168,6 +168,9 @@ class TankBattleMixin:
             self.state = target
 
     def _handle_tank_menu_event(self, event):
+        if self.prologue_active:
+            self._handle_prologue_event(event)
+            return
         if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
             self._go_desktop()
             return
@@ -390,6 +393,10 @@ class TankBattleMixin:
         self._tank_item_pulses = {"red": False, "blue": False}
 
     def _draw_tank_menu(self):
+        if self._check_and_show_prologue("tank"):
+            self._draw_prologue_screen()
+            return
+
         outer = draw_arcade_frame(self, "TANK DUEL", "LOCAL TWO-PLAYER ARENA", TANK_PALETTE)
         if is_chinese():
             # Force the bundled 12px CJK bitmap face and integer nearest scaling.
