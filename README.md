@@ -432,6 +432,23 @@ python -m pytest tests/test_tank_engine_*.py tests/test_tank_battle.py -v
 
 通过 GitHub Actions 在 **Windows** 平台上对 **Python 3.10 / 3.11 / 3.12** 进行自动化测试。每次 Push 和 Pull Request 均触发。
 
+### 本地发布检查
+
+在仓库根目录运行只读的发布检查器：
+
+```bash
+python tools/check_release.py
+```
+
+该命令只检查版本与 `CHANGELOG.md` metadata，以及工作区和本地版本标签的 Git 状态。它不运行测试、不打标签、不推送，也不打包。完整质量门槛需由人工另行运行：
+
+```bash
+python -m pytest tests/ -q
+python -m ruff check .
+python -m ruff format --check .
+python -m compileall -q MERIDIAN.py meridian tools
+```
+
 ---
 
 ## 📝 更新日志
