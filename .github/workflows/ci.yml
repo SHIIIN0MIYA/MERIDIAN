@@ -1,0 +1,61 @@
+name: MERIDIAN CI
+
+on:
+  push:
+    branches: [master, main]
+  pull_request:
+    branches: [master, main]
+
+permissions:
+  contents: read
+
+jobs:
+  # ── Lint ──────────────────────────────────────────────────────────────
+  lint:
+    name: "Lint (Ruff)"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install ruff
+      - run: ruff check meridian/ tests/
+
+  # ── Test Matrix ───────────────────────────────────────────────────────
+  test:
+    name: "Test py${{ matrix.python-version }} · ${{ matrix.os }}"
+    needs: lint
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        python-version: ["3.10", "3.11", "3.12"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - run: pip install -r requirements.txt
+      - run: pip install pytest
+      - run: python -m pytest tests/ -v --tb=short
+
+  # ── Build (Windows .exe) ──────────────────────────────────────────────
+  build:
+    name: "Build (PyInstaller)"
+    needs: test
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -r requirements.txt
+      - run: pip install pyinstaller
+      - run: pyinstaller MERIDIAN.spec
+      - uses: actions/upload-artifact@v4
+        with:
+          name: MERIDIAN-windows
+          path: dist/MERIDIAN.exe
+          if-no-files-found: error

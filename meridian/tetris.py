@@ -315,7 +315,9 @@ class TetrisMixin:
             self._go_desktop()
             return
         self._handle_tetris_buttons(event, self._get_tetris_menu_buttons(), {
-            "continue": lambda: self._start_tetris_game(restore_state=self._pending_run_states.pop("tetris", None)),
+            "continue": lambda: self._start_tetris_game(
+                restore_state=self.save_data["progress"]["tetris"]["run_state"]
+            ),
             "start": self._start_tetris_game,
             "desktop": self._go_desktop,
         })
@@ -349,6 +351,7 @@ class TetrisMixin:
     def _handle_tetris_playing_event(self, event):
         if event.type == pygame.KEYDOWN:
             if event.key == pygame.K_ESCAPE:
+                self._save_now()
                 self._start_transition(self.TETRIS_MENU, "fade")
             elif event.key == pygame.K_r:
                 self._start_tetris_game()

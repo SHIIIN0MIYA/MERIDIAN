@@ -295,7 +295,11 @@ class MinesMixin:
     def _handle_mines_playing_event(self, event):
         if self.mines_death_anim_active: return
         if event.type == pygame.KEYDOWN:
-            if event.key == pygame.K_ESCAPE: self._start_transition(self.MINES_MENU, "fade"); self.mines_pressed_action = None; return
+            if event.key == pygame.K_ESCAPE:
+                self._save_now()
+                self._start_transition(self.MINES_MENU, "fade")
+                self.mines_pressed_action = None
+                return
             if event.key == pygame.K_r: self._start_mines_game(); return
         if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
             hb = self._get_mines_hint_button()
