@@ -96,13 +96,17 @@ def default_statistics() -> dict[str, Any]:
             "boss_rush_clears": 0,
         },
         "tank": {
-            **base, "red_wins": 0, "blue_wins": 0, "kills": 0,
+            **base, "matches_completed": 0, "wins": 0,
+            "red_wins": 0, "blue_wins": 0, "kills": 0,
             "hits": 0, "shots_fired": 0, "bricks_destroyed": 0,
             "items_picked_up": 0, "items_used": 0, "repair_uses": 0,
             "shield_uses": 0, "speed_uses": 0, "mine_uses": 0,
             "emp_uses": 0, "piercing_uses": 0, "smoke_uses": 0, "warp_uses": 0,
             "mine_hits": 0, "shield_blocks": 0, "overdrive_kills": 0,
-            "sudden_death_wins": 0, "largest_comeback": 0,
+            "sudden_death_wins": 0, "sudden_wins": 0,
+            "largest_comeback": 0, "comeback_wins": 0,
+            "accurate_matches": 0, "iron_will_kills": 0,
+            "overdrive_double_kills": 0,
         },
     }
 
@@ -172,6 +176,29 @@ def _deep_merge(default: dict, incoming: dict) -> dict:
     return result
 
 
+def _backfill_tank_statistics(data: dict) -> None:
+    """Derive renamed Tank counters only when an old save lacks them."""
+    statistics = data.get("statistics")
+    if not isinstance(statistics, dict):
+        return
+    tank = statistics.get("tank")
+    if not isinstance(tank, dict):
+        return
+
+    def count(key: str) -> int:
+        value = tank.get(key, 0)
+        if isinstance(value, bool) or not isinstance(value, (int, float)):
+            return 0
+        return max(0, int(value))
+
+    if "matches_completed" not in tank:
+        tank["matches_completed"] = count("games_completed")
+    if "wins" not in tank:
+        tank["wins"] = count("red_wins") + count("blue_wins")
+    if "sudden_wins" not in tank:
+        tank["sudden_wins"] = count("sudden_death_wins")
+
+
 class SaveManager:
     def __init__(self, path: Path | str | None = None) -> None:
         if path is None:
@@ -185,7 +212,9 @@ class SaveManager:
     def migrate(self, data: dict) -> dict[str, Any]:
         version = int(data.get("schema_version", 0)) if isinstance(data, dict) else 0
         if version > SCHEMA_VERSION:
-            return _deep_merge(default_data(), data)
+            source = deepcopy(data)
+            _backfill_tank_statistics(source)
+            return _deep_merge(default_data(), source)
         source = deepcopy(data) if isinstance(data, dict) else {}
         if version < 3:
             source.setdefault("records", {})["air"] = default_records()["air"]
@@ -203,6 +232,7 @@ class SaveManager:
         if version < 5:
             source.setdefault("statistics", {}).setdefault("tank", default_statistics()["tank"])
             source.setdefault("progress", {}).setdefault("tank", default_progress()["tank"])
+        _backfill_tank_statistics(source)
         migrated = _deep_merge(default_data(), source)
         migrated["schema_version"] = SCHEMA_VERSION
         return migrated
@@ -253,4 +283,5 @@ class SaveManager:
         result["statistics"] = default_statistics()
         result["achievements"] = {}
         result["progress"] = default_progress()
+        result["lore"] = default_lore()
         return result

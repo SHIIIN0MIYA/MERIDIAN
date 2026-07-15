@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from collections.abc import Callable, Sequence
+
 from .common import *
 from .audio import AudioManager
 from .arcade_common import ArcadeHubMixin
@@ -16,23 +18,102 @@ from .system import SystemMixin
 from .developer import DeveloperMixin
 
 # ── Dynamic Game State Registry ──────────────────────────────
-# New games register their states here without modifying app.py.
-# Each entry: (state_attr_name, event_handler, update_methods, draw_handler)
-_GAME_STATE_REGISTRY: list[tuple[str, str | None, list[str] | None, str | None]] = []
+# External modules register before constructing ``Game``.  Registrations are
+# intentionally process-local: existing instances keep their current dispatch
+# tables, while later instances take a fresh snapshot of these registries.
+DispatchHandler = str | Callable[..., object]
+GameInitializer = Callable[["Game"], object]
+
+_GAME_STATE_REGISTRY: list[
+    tuple[
+        str,
+        DispatchHandler | None,
+        tuple[DispatchHandler, ...] | None,
+        DispatchHandler | None,
+    ]
+] = []
+_GAME_INITIALIZER_REGISTRY: list[GameInitializer] = []
 
 
-def _register_game_states(state_name: str, event_handler: str | None,
-                         update_methods: list[str] | None,
-                         draw_handler: str | None) -> None:
-    """Register dispatch entries for a new game.
+def _validate_handler(handler: DispatchHandler | None, field: str) -> None:
+    if handler is None:
+        return
+    if isinstance(handler, str):
+        if not handler.strip():
+            raise ValueError(f"{field} method name cannot be empty")
+        return
+    if not callable(handler):
+        raise TypeError(f"{field} must be a method name, callable, or None")
 
-    Args:
-        state_name: The state string constant (e.g. "pacman_menu")
-        event_handler: Method name string for event handling
-        update_methods: List of method name strings for update (empty list = no update)
-        draw_handler: Method name string for draw
+
+def _core_state_values() -> set[str]:
+    game_class = globals().get("Game")
+    if game_class is None:
+        return set()
+    return {
+        value
+        for name, value in vars(game_class).items()
+        if name.isupper() and isinstance(value, str)
+    }
+
+
+def register_game_state(
+    state_name: str,
+    event_handler: DispatchHandler | None = None,
+    update_methods: Sequence[DispatchHandler] | None = None,
+    draw_handler: DispatchHandler | None = None,
+) -> None:
+    """Register one external state for subsequently created ``Game`` instances.
+
+    ``state_name`` may be either the name of a state attribute installed by an
+    initializer or the literal state value.  String handlers name methods on
+    the game instance; callable handlers receive ``(game, ...)``.
     """
-    _GAME_STATE_REGISTRY.append((state_name, event_handler, update_methods, draw_handler))
+    if not isinstance(state_name, str) or not state_name.strip():
+        raise ValueError("state_name must be a non-empty string")
+    if state_name in _core_state_values() or getattr(
+        globals().get("Game"), state_name, None
+    ) in _core_state_values():
+        raise ValueError(f"cannot replace core game state: {state_name}")
+    if any(entry[0] == state_name for entry in _GAME_STATE_REGISTRY):
+        raise ValueError(f"game state is already registered: {state_name}")
+
+    _validate_handler(event_handler, "event_handler")
+    _validate_handler(draw_handler, "draw_handler")
+    normalized_updates = None
+    if update_methods is not None:
+        if isinstance(update_methods, (str, bytes)):
+            raise TypeError("update_methods must be a sequence of handlers")
+        normalized_updates = tuple(update_methods)
+        for update_handler in normalized_updates:
+            if update_handler is None:
+                raise TypeError(
+                    "update_methods entries must be method names or callables"
+                )
+            _validate_handler(update_handler, "update_methods entry")
+
+    _GAME_STATE_REGISTRY.append(
+        (state_name, event_handler, normalized_updates, draw_handler)
+    )
+
+
+def register_game_initializer(initializer: GameInitializer) -> None:
+    """Run ``initializer(game)`` after system loading on each future instance."""
+    if not callable(initializer):
+        raise TypeError("initializer must be callable")
+    if initializer in _GAME_INITIALIZER_REGISTRY:
+        raise ValueError("game initializer is already registered")
+    _GAME_INITIALIZER_REGISTRY.append(initializer)
+
+
+def _register_game_states(
+    state_name: str,
+    event_handler: DispatchHandler | None,
+    update_methods: Sequence[DispatchHandler] | None,
+    draw_handler: DispatchHandler | None,
+) -> None:
+    """Backward-compatible wrapper for the original private registration API."""
+    register_game_state(state_name, event_handler, update_methods, draw_handler)
 
 
 class Game(
@@ -169,15 +250,55 @@ class Game(
             s.TANK_END: "_draw_tank_end",
         })
 
-        # Merge dynamically registered game states from external modules
-        for state_name, evt, upd, drw in _GAME_STATE_REGISTRY:
+        # Merge a snapshot of external states.  Core states and two extension
+        # aliases resolving to the same value are rejected instead of silently
+        # replacing dispatch entries.
+        core_states = (
+            set(self._EVENT_DISPATCH)
+            | set(self._UPDATE_DISPATCH)
+            | set(self._DRAW_DISPATCH)
+        )
+        extension_states: set[str] = set()
+        for state_name, evt, upd, drw in tuple(_GAME_STATE_REGISTRY):
             state_attr = getattr(s, state_name, state_name)
+            if not isinstance(state_attr, str) or not state_attr:
+                raise ValueError(
+                    f"registered state {state_name!r} must resolve to a non-empty string"
+                )
+            if state_attr in core_states:
+                raise ValueError(f"cannot replace core game state: {state_attr}")
+            if state_attr in extension_states:
+                raise ValueError(f"game state is already registered: {state_attr}")
+            extension_states.add(state_attr)
+
+            for field, handler in (
+                ("event_handler", evt),
+                ("draw_handler", drw),
+            ):
+                self._validate_registered_method(state_attr, field, handler)
+            if upd is not None:
+                for handler in upd:
+                    self._validate_registered_method(
+                        state_attr, "update_methods entry", handler
+                    )
+
             if evt is not None:
                 self._EVENT_DISPATCH[state_attr] = evt
             if upd is not None:
                 self._UPDATE_DISPATCH[state_attr] = (True, list(upd))
             if drw is not None:
                 self._DRAW_DISPATCH[state_attr] = drw
+
+    def _validate_registered_method(self, state, field, handler):
+        if isinstance(handler, str) and not callable(getattr(self, handler, None)):
+            raise AttributeError(
+                f"registered state {state!r} has no callable {field} method {handler!r}"
+            )
+
+    def _invoke_dispatch_handler(self, handler, *args):
+        if isinstance(handler, str):
+            return getattr(self, handler)(*args)
+        return handler(self, *args)
     SYSTEM_READY = "system_ready"
     PASSWORD = "password"
     DESKTOP = "desktop"
@@ -259,6 +380,8 @@ class Game(
         self._init_tank_battle()
         self._init_developer()
         self._init_system()          # ← 最后调用，覆盖已加载的持久化数据
+        for initializer in tuple(_GAME_INITIALIZER_REGISTRY):
+            initializer(self)
         self._build_dispatch()
 
     def handle_events(self) -> None:
@@ -278,7 +401,7 @@ class Game(
 
             handler = self._EVENT_DISPATCH.get(self.state)
             if handler is not None:
-                getattr(self, handler)(event)
+                self._invoke_dispatch_handler(handler, event)
 
     def update(self) -> None:
         self.anim_tick += 1
@@ -295,8 +418,8 @@ class Game(
         entry = self._UPDATE_DISPATCH.get(self.state)
         if entry is not None:
             should_return, methods = entry
-            for method_name in methods:
-                getattr(self, method_name)()
+            for method in methods:
+                self._invoke_dispatch_handler(method)
             if should_return:
                 return
 
@@ -416,7 +539,7 @@ class Game(
     def draw(self) -> None:
         handler = self._DRAW_DISPATCH.get(self.state)
         if handler is not None:
-            getattr(self, handler)()
+            self._invoke_dispatch_handler(handler)
         self._draw_achievement_notification()
         self._draw_developer_overlay()
         self._draw_transition_overlay()

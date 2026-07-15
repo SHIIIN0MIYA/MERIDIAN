@@ -66,6 +66,15 @@ class DefaultDataTests(unittest.TestCase):
                         "tetris", "air", "tank"):
             self.assertIn(game_id, stats)
 
+    def test_tank_statistics_include_all_runtime_counters(self):
+        tank = default_statistics()["tank"]
+        for key in (
+            "matches_completed", "wins", "sudden_wins", "accurate_matches",
+            "iron_will_kills", "overdrive_double_kills", "comeback_wins",
+        ):
+            self.assertIn(key, tank)
+            self.assertEqual(tank[key], 0)
+
     def test_settings_have_expected_defaults(self):
         settings = default_settings()
         self.assertEqual(settings["language"], "en")
@@ -177,6 +186,43 @@ class SchemaMigrationTests(unittest.TestCase):
         second = self.manager.migrate(first)
         self.assertEqual(first, second)
 
+    def test_v5_backfills_renamed_tank_counters(self):
+        old_v5 = {
+            "schema_version": 5,
+            "statistics": {
+                "tank": {
+                    "games_completed": 12,
+                    "red_wins": 4,
+                    "blue_wins": 5,
+                    "sudden_death_wins": 3,
+                },
+            },
+        }
+        tank = self.manager.migrate(old_v5)["statistics"]["tank"]
+        self.assertEqual(tank["matches_completed"], 12)
+        self.assertEqual(tank["wins"], 9)
+        self.assertEqual(tank["sudden_wins"], 3)
+
+    def test_v5_keeps_explicit_tank_counters_when_backfilling(self):
+        old_v5 = {
+            "schema_version": 5,
+            "statistics": {
+                "tank": {
+                    "games_completed": 12,
+                    "matches_completed": 7,
+                    "red_wins": 4,
+                    "blue_wins": 5,
+                    "wins": 6,
+                    "sudden_death_wins": 3,
+                    "sudden_wins": 2,
+                },
+            },
+        }
+        tank = self.manager.migrate(old_v5)["statistics"]["tank"]
+        self.assertEqual(tank["matches_completed"], 7)
+        self.assertEqual(tank["wins"], 6)
+        self.assertEqual(tank["sudden_wins"], 2)
+
 
 # ---------------------------------------------------------------------------
 # Atomic write and crash recovery
@@ -261,18 +307,28 @@ class AtomicWriteRecoveryTests(unittest.TestCase):
         data = default_data()
         data["settings"]["language"] = "ja"
         data["records"]["snake"]["best_score"] = 42
+        data["lore"]["unlocked_entries"] = ["resonance_25"]
+        data["lore"]["read_entries"] = ["meridian_origin"]
         result = self.manager.reset_settings(data)
         self.assertEqual(result["settings"]["language"], "en")
         self.assertEqual(result["records"]["snake"]["best_score"], 42)
+        self.assertEqual(result["lore"]["unlocked_entries"], ["resonance_25"])
+        self.assertEqual(result["lore"]["read_entries"], ["meridian_origin"])
 
     def test_erase_progress_wipes_everything(self):
         data = default_data()
         data["records"]["snake"]["best_score"] = 42
         data["achievements"]["test"] = {"unlocked_at": "2025-01-01"}
+        data["lore"]["prologues_seen"] = ["snake"]
+        data["lore"]["unlocked_entries"] = ["unknown_old_id", "resonance_100"]
+        data["lore"]["read_entries"] = ["meridian_origin"]
         result = self.manager.erase_progress(data)
         self.assertEqual(result["records"]["snake"]["best_score"], 0)
         self.assertEqual(result["achievements"], {})
         self.assertEqual(result["statistics"]["snake"]["games_started"], 0)
+        self.assertEqual(result["lore"], {
+            "prologues_seen": [], "unlocked_entries": [], "read_entries": [],
+        })
 
 
 # ---------------------------------------------------------------------------

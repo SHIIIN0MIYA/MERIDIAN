@@ -15,10 +15,18 @@
 - 所有音乐和音效统一经过主音量混音，Tank 炮弹与道具音效不再绕过总体音量。
 - Tank Duel 结算统计改为红蓝独立两行卡片，避免中文长文本和蓝方信息移位。
 - 25 篇异界档案扩写为中英文长篇条目，补充历史、制度、人物痕迹、跨世界联系与玩法对应设定；阅读器改为均衡分页。
+- 扩展注册改为有边界的公开接口：支持状态、初始化器、桌面图标、Lore 与翻译的显式注册，并保留旧状态注册包装用于兼容。
+- 七份 README 同步至八款游戏、60 项成就、Schema v5、Python 3.10–3.12 与稳定版 v3.2.0 的当前事实。
 
 ### Fixed
 
 - 修复中文界面字号、边界和右对齐不稳定问题，并统一继续使用内置像素中文字体。
+- 修复条件 Lore 只可阅读却不写入完成进度的问题；旧存档会根据统计和成就静默回填，所有世界及全局完成度现在可达到 100%。
+- 修复鼠标点击可以绕过共鸣档案锁定的问题，键盘和鼠标入口现在共用阅读门禁。
+- 修复清除全部进度后仍残留序章、已读 Lore、Lore 完成进度、共鸣条目或内存中断对局的问题。
+- 补齐 Tank Duel 统计缺省与旧 v5 存档回填，避免完成度读取缺失字段。
+- 扩展状态注册现在会提前拒绝空更新处理器；桌面扩展也会为每次激活重置明确的返回特效。
+- 完成度计算对损坏的嵌套存档值和无效世界 Lore 条件安全降级，不再让启动同步崩溃或形成不可达分母。
 
 ## [3.2.0] - 2026-07-13
 
@@ -78,7 +86,7 @@
 
 ### 📁 File Changes
 
-- **New**: `haos_game_deck/lore.py` — 世界观文本数据 + 注册 API（~350 lines）
+- **New**: `meridian/lore.py` — 世界观文本数据 + 注册 API（~350 lines）
 - **Modified**: 17 files — `common.py`, `persistence.py`, `localization.py`, `arcade_common.py`, `app.py`, `shell_boot.py`, `shell_password.py`, `shell_desktop.py`, `system.py`, `gomoku.py`, `snake.py`, `breakout.py`, `g2048.py`, `mines.py`, `tetris.py`, `air_raid.py`, `CHANGELOG.md`
 - **Lines**: ~1,200 added
 

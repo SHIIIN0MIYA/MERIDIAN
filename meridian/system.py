@@ -9,7 +9,7 @@ from .localization import set_language, get_chinese_font, is_chinese
 from . import lore as _lore
 from .tank_engine import TankSnapshotError
 from .ui_components import anchored_blit, draw_pixel_panel, fit_pixel_text
-from .completion import WORLD_IDS, global_completion, world_completion
+from .completion import WORLD_IDS, global_completion, lore_condition_met, world_completion
 
 
 CROSS_WORLD_THRESHOLDS = (
@@ -121,17 +121,56 @@ class SystemMixin:
         self._display_scale = 1.0
         self._apply_loaded_data()
         self._init_lore_reader()
-        self._auto_unlock_lore()
         self.save_data["statistics"]["global"]["launches"] += 1
+        self._sync_lore_progress(notify_completion=False, persist=False)
         self._save_now()
 
     def _auto_unlock_lore(self):
-        """Auto-unlock any 'always' lore entries that aren't yet tracked."""
-        lore_data = self.save_data.setdefault("lore", {})
+        """Compatibility wrapper for the former always-only synchronizer."""
+        return self._sync_lore_progress(notify_completion=False)
+
+    def _sync_lore_progress(self, *, notify_completion=True, persist=True):
+        """Backfill all Lore unlock facts, then evaluate global resonance."""
+        if getattr(self, "dev_mode", False):
+            return []
+
+        lore_data = self.save_data.get("lore")
+        if not isinstance(lore_data, dict):
+            lore_data = {
+                "prologues_seen": [], "unlocked_entries": [], "read_entries": [],
+            }
+            self.save_data["lore"] = lore_data
         unlocked = lore_data.setdefault("unlocked_entries", [])
-        for entry in _lore.get_all_lore_entries():
-            if entry.get("unlock") == "always" and entry["id"] not in unlocked:
+        if not isinstance(unlocked, list):
+            unlocked = list(unlocked) if isinstance(unlocked, (tuple, set)) else []
+            lore_data["unlocked_entries"] = unlocked
+
+        new_ids = []
+        entries = _lore.get_all_lore_entries()
+        for entry in entries:
+            if str(entry.get("unlock", "")).startswith("completion:"):
+                continue
+            if entry["id"] not in unlocked and lore_condition_met(entry, self.save_data):
                 unlocked.append(entry["id"])
+                new_ids.append(entry["id"])
+
+        percent = global_completion(self.save_data)
+        for entry in entries:
+            if not str(entry.get("unlock", "")).startswith("completion:"):
+                continue
+            if entry["id"] in unlocked:
+                continue
+            if not lore_condition_met(entry, self.save_data, completion_percent=percent):
+                continue
+            unlocked.append(entry["id"])
+            new_ids.append(entry["id"])
+            if notify_completion:
+                title = entry["title_zh" if is_chinese() else "title_en"]
+                self.achievement_notifications.append({"title": title, "frame": 0})
+
+        if new_ids and persist:
+            self._save_now()
+        return new_ids
 
     def _apply_loaded_data(self):
         settings = self.save_data["settings"]
@@ -177,6 +216,8 @@ class SystemMixin:
         self._rebuild_stone_assets()
         self._set_display_mode(self.fullscreen, persist=False)
         # Load pending run states for resume support
+        self._pending_run_states.clear()
+        self.tank_restore_notice = None
         for game_id in ("gomoku", "snake", "breakout", "2048", "mines", "tetris", "air", "tank"):
             progress = self.save_data.get("progress", {}).get(game_id, {})
             if progress.get("run_active") and progress.get("run_state") is not None:
@@ -375,25 +416,11 @@ class SystemMixin:
         elif key == "games_completed":
             stats["global"]["games_completed"] += amount
         self._check_achievements()
-        self._unlock_completion_lore()
 
     def _unlock_completion_lore(self):
-        if getattr(self, "dev_mode", False):
-            return []
-        percent = global_completion(self.save_data)
-        unlocked = self.save_data.setdefault("lore", {}).setdefault("unlocked_entries", [])
-        new_ids = []
-        for threshold, entry_id in CROSS_WORLD_THRESHOLDS:
-            if percent >= threshold and entry_id not in unlocked:
-                unlocked.append(entry_id)
-                new_ids.append(entry_id)
-                entry = _lore.get_lore_entry(entry_id)
-                if entry:
-                    title = entry["title_zh" if is_chinese() else "title_en"]
-                    self.achievement_notifications.append({"title": title, "frame": 0})
-        if new_ids:
-            self._save_now()
-        return new_ids
+        new_ids = self._sync_lore_progress()
+        resonance_ids = {entry_id for _, entry_id in CROSS_WORLD_THRESHOLDS}
+        return [entry_id for entry_id in new_ids if entry_id in resonance_ids]
 
     def _completion_world_cards(self):
         cards = []
@@ -450,7 +477,8 @@ class SystemMixin:
                     self.achievement_notifications.pop(0)
         if play_sound:
             self.audio.play("achievement", 0.85)
-        if newly_unlocked:
+        new_lore = self._sync_lore_progress(persist=False)
+        if newly_unlocked or new_lore:
             self._save_now()
 
     def _update_achievement_notifications(self):
@@ -1432,8 +1460,15 @@ class SystemMixin:
     def _is_lore_unlocked(self, entry):
         # All lore is always available — this is a world archive, not a reward system.
         if str(entry.get("unlock", "")).startswith("completion:"):
-            return entry["id"] in self.save_data.get("lore", {}).get("unlocked_entries", [])
+            lore_data = self.save_data.get("lore", {})
+            unlocked = lore_data.get("unlocked_entries", []) if isinstance(lore_data, dict) else []
+            return entry["id"] in unlocked
         return True
+
+    def _lore_entry_title(self, entry):
+        if not self._is_lore_unlocked(entry):
+            return "???"
+        return entry["title_zh"] if is_chinese() else entry["title_en"]
 
     def _unlock_lore_entry(self, entry_id):
         lore_data = self.save_data.setdefault("lore", {})
@@ -1477,14 +1512,14 @@ class SystemMixin:
         }
 
     def _lore_category_label(self, cat_id, cat_key):
-        if is_chinese():
-            return translate(cat_key)
         if cat_id == "__device__":
-            return "MERIDIAN"
+            return translate(cat_key) if is_chinese() else "MERIDIAN"
         world = _lore.get_world(cat_id)
         if world:
+            if is_chinese():
+                return world.get("world_name_zh") or cat_id
             return world.get("desktop_subtitle_en") or world.get("world_name_en") or cat_id.upper()
-        return cat_id.upper()
+        return translate(cat_key) if is_chinese() else cat_id.upper()
 
     def _render_lore_fitted_text(self, font, text, color, max_width, scale=1):
         display_text = translate(text)
@@ -1586,8 +1621,7 @@ class SystemMixin:
                 entries = self._get_lore_entries_for_category(cat_id)
                 if entries and self.lore_entry_index < len(entries):
                     entry = entries[self.lore_entry_index]
-                    if self._is_lore_unlocked(entry):
-                        self._start_lore_reading(entry)
+                    self._start_lore_reading(entry)
             return
         if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
             self.lore_pressed_action = "click"
@@ -1622,6 +1656,8 @@ class SystemMixin:
             self.lore_pressed_action = None
 
     def _start_lore_reading(self, entry):
+        if not self._is_lore_unlocked(entry):
+            return False
         self.lore_reading_entry_id = entry["id"]
         self.lore_reading_page = 0
         # Mark as read
@@ -1631,6 +1667,7 @@ class SystemMixin:
             read.append(entry["id"])
             self._save_now()
         self.state = self.LORE_STORY
+        return True
 
     def _handle_lore_story_event(self, event):
         if event.type == pygame.KEYDOWN:
@@ -1720,11 +1757,11 @@ class SystemMixin:
             pygame.draw.rect(self.screen, border, entry_rect.inflate(-6, -6), 1)
 
             if unlocked:
-                title_text = entry["title_zh"] if is_chinese() else entry["title_en"]
+                title_text = self._lore_entry_title(entry)
                 col = C.LORE_TEXT if not is_read else C.LORE_ACCENT_LIGHT
             else:
-                title_text = entry["title_zh"] if is_chinese() else entry["title_en"]
-                col = C.LORE_TEXT
+                title_text = self._lore_entry_title(entry)
+                col = C.LORE_MUTED
 
             et = self._render_lore_fitted_text(self.font_small, title_text, col, entry_rect.width - 58, scale=1)
             self.screen.blit(et, (entry_rect.x + 14, entry_rect.centery - et.get_height() // 2))

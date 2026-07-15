@@ -11,8 +11,6 @@
   <img src="https://img.shields.io/badge/python-3.10%20%7C%203.11%20%7C%203.12-blue" alt="Python">
   <img src="https://img.shields.io/badge/pygame-2.x-green" alt="Pygame">
   <img src="https://img.shields.io/badge/ライセンス-MIT-yellow" alt="ライセンス">
-  <img src="https://img.shields.io/badge/テスト-50%2B-brightgreen" alt="テスト">
-  <img src="https://img.shields.io/badge/行数-~15,700-orange" alt="コード行数">
 </p>
 
 <p align="center">
@@ -54,9 +52,9 @@
 
 **Python + Pygame** で構築されたこのプロジェクトは、完全なマルチゲームプラットフォームシミュレーターです。以下の要素を兼ね備えています：
 
-- 🎮 **増え続ける、完全再現されたクラシックアーケードゲーム群**
+- 🎮 **完全再現された8本のクラシックアーケードゲーム**
 - 📚 **深い世界観ナラティブシステム** — 各ゲームに独自の背景設定
-- 🏆 **50以上の実績システム** — ゲーム間でプレイヤーの進行を追跡
+- 🏆 **60個の実績** — ゲーム間でプレイヤーの進行を追跡
 - 🌍 **完全バイリンガル対応**（簡体字中国語 / 英語）
 - 💾 **クラッシュセーフな永続化保存** — ゲーム中断からの再開に対応
 - 🎵 **プロシージャルオーディオエンジン** — 動的なBGMと効果音を生成
@@ -75,8 +73,9 @@ MERIDIANは単なるゲームコレクションではありません — 完全�
 - **異界アーカイブ（LORE）**：デスクトップ2ページ目の独立したリーダー、以下を含む：
   - 器物と登録済みの各世界から動的に生成されるカテゴリタブ
   - デバイス背景ストーリー（起源 / ネクサスコア / 所持者）
-  - 世界ごとに1〜2の深層設定エントリ
-  - 統計や実績で解除される隠しエントリ
+  - 各世界の通常エントリは常に閲覧可能
+  - 統計・実績条件の達成時にLore完成度へ加算
+  - 全体完成度25% / 50% / 75% / 100%で4つの共鳴アーカイブを開放
 - **フレーバーテキスト**：各ゲームのメニューページに雰囲気のある世界観テキストを表示
 - **完全バイリンガル**：すべてのテキストが中国語と英語に対応
 
@@ -93,6 +92,7 @@ MERIDIANは単なるゲームコレクションではありません — 完全�
 | 💣 | **MINES**<br>マインスイーパ | 雷原遺跡<br>MINEFIELD RUINS | 大戦争から百年後の焦土で活動する地雷除去技師 |
 | 🧊 | **TETRIS**<br>テトリス | 築天塔<br>TOWER OF HEAVEN | 異星の建築マトリックスが天空より降り注ぐ — 真実に触れる塔を築け |
 | ✈️ | **AIR RAID**<br>エアレイド | 守望者戦線<br>WARDEN FRONT | 自律戦争ネットワークとの最後の戦い |
+| 🛡️ | **TANK DUEL**<br>タンクデュエル | 鋼鉄闘場<br>IRON ARENA | 赤青の戦車が鏡像アリーナで補給を争い、同点ならサドンデスへ進む |
 
 ---
 
@@ -121,7 +121,7 @@ MERIDIANは単なるゲームコレクションではありません — 完全�
 | **自動セーブ** | ゲーム終了時に実行状態を自動保存 |
 | **再開** | ゲーム再入場時に「続行」ボタンを表示 |
 | **クラッシュセーフ** | アトミック書き込み + バックアップ機構でセーブ破損を防止 |
-| **バージョン移行** | スキーマv4、レガシーセーブデータを自動マージ |
+| **バージョン移行** | スキーマv5、レガシーセーブデータを自動マージ |
 | **クロスゲーム統計** | プレイ時間、勝率、ベストスコアを統合追跡 |
 
 ### ✈️ Air Raid 専用コンテンツ
@@ -150,7 +150,7 @@ MERIDIANは単なるゲームコレクションではありません — 完全�
 ### 🛠 開発者ツール
 
 - **F10 開発者パネル**：マウスホバーハイライト + クリックで有効化
-- 機能：全レベル解除、全スキン解除、毎時エフェクト発動、セーブ消去など
+- 機能：テスト用コンテンツ解除、結果の強制、速度調整、毎時エフェクト発動など
 - セッション内のみ有効、永続データに影響なし
 
 ---
@@ -161,7 +161,7 @@ MERIDIANは単なるゲームコレクションではありません — 完全�
 
 | 依存関係 | バージョン |
 |----------|-----------|
-| Python | **3.10以上** |
+| Python | **3.10–3.12** |
 | pygame | **2.0以上**（3.0未満） |
 | OS | Windows / macOS / Linux |
 
@@ -183,7 +183,7 @@ python MERIDIAN.py
 
 ### 共有方法
 
-`MERIDIAN` フォルダ全体をZIP圧縮して送信してください。受信側は Python 3.10以上と `pip install pygame` のみ必要です。
+`MERIDIAN` フォルダ全体をZIP圧縮して送信してください。受信側には Python 3.10–3.12 と `pip install pygame` が必要です。
 
 ---
 
@@ -208,7 +208,9 @@ python MERIDIAN.py
 | **2048** | 方向キーでタイルを結合 |
 | **MINES** | 左クリックで開示 / 右クリックでフラグ |
 | **TETRIS** | `↑` 回転 / `↓` ソフトドロップ / `Space` ハードドロップ / `C` ホールド / `P` 一時停止 |
-| **AIR RAID** | 方向キーで移動 / `Z` 射撃 / `X` ミサイル / `Shift` フォーカスモード |
+| **AIR RAID** | 自動射撃；方向キーで移動 / `Shift` フォーカス / `Space` ミサイル |
+| **TANK DUEL（赤）** | `WASD` 8方向移動 / `F` アイテム；自動射撃 |
+| **TANK DUEL（青）** | 方向キーで8方向移動 / `Enter` アイテム；自動射撃 |
 
 ### 開発者用
 
@@ -220,48 +222,21 @@ python MERIDIAN.py
 
 ## 📁 プロジェクト構造
 
-```
+```text
 MERIDIAN/
-├── MERIDIAN.py                  # エントリポイント
-├── MERIDIAN.spec                # PyInstaller ビルド設定
-├── BUILD_EXE.bat                # Windows ワンクリックビルドスクリプト
-├── requirements.txt             # Python 依存関係
-├── reasonix.toml                # エディター設定
-│
-├── meridian/                    # コアパッケージ
-│   ├── __init__.py
-│   ├── app.py                   # ゲーム構成、メインループ、状態ディスパッチ
-│   ├── common.py                # グローバル定数、カラークラス、レイアウトパラメータ
-│   ├── lore.py                  # 世界観データと登録API
-│   ├── audio.py                 # プロシージャルBGM・効果音エンジン
-│   ├── persistence.py           # バージョン管理クラッシュセーフセーブ管理
-│   ├── localization.py          # ランタイムバイリンガルシステム + 中国語フォント
-│   ├── developer.py             # 開発者パネル（セッションのみ）
-│   │
-│   ├── shell.py                 # シェルシステム集約
-│   ├── shell_boot.py            # 起動シーケンス
-│   ├── shell_password.py        # パスワードロック画面認証
-│   ├── shell_desktop.py         # デスクトップ環境とアイコンシステム
-│   ├── shell_transitions.py     # シーン遷移アニメーション
-│   │
-│   ├── arcade_common.py         # 共有アーケードUI + プロローグシステム
-│   ├── arcade_levels.py         # Air Raid キャンプレーンデータ
-│   │
-│   ├── gomoku.py                # 五目並べ（陰陽棋境）
-│   ├── snake.py                 # スネーク（噬碼渊）
-│   ├── breakout.py              # ブロック崩し（星穹壁垒）
-│   ├── g2048.py                 # 2048（数霊海）
-│   ├── mines.py                 # マインスイーパ（雷原遺跡）
-│   ├── tetris.py                # テトリス（築天塔）
-│   ├── air_raid.py              # エアレイド（守望者戦線）
-│   │
-│   └── system.py                # 設定、プロフィール、実績、Loreリーダー
-│
-├── assets/                      # 静的アセット
-│   └── fonts/                   # Fusion Pixel Font（SIL Open License 1.1）
-│
-└── tools/
-    └── check_release.py         # ローカルリリースメタデータ確認
+├── MERIDIAN.py                  # アプリケーション入口
+├── meridian/                    # メインループ、Shell、8ゲーム、共有システム
+│   ├── shell_*.py               # 起動、認証、デスクトップ、遷移
+│   ├── gomoku.py … tetris.py    # 6本のクラシック1人用ゲーム
+│   ├── air_raid.py              # Air Raidのキャンペーンとアーケード
+│   ├── tank_engine.py           # Tank Duelの決定論的ルール
+│   ├── tank_battle.py           # Tank DuelのPygame表示層
+│   └── system.py ほか           # セーブ、完成度、Lore、音声、翻訳、共有UI
+├── tests/                       # ルール、セーブ、登録、回帰テスト
+├── tools/                       # リリース確認と開発補助
+├── assets/                      # フォントなどの静的アセット
+├── docs/                        # 翻訳と設計文書
+└── Development_Log/            # 開発・意思決定の履歴
 ```
 
 ---
@@ -281,6 +256,7 @@ Game(
     TetrisMixin,        # テトリス
     ArcadeHubMixin,     # 共有アーケードシステム
     AirRaidMixin,       # エアレイド
+    TankBattleMixin,    # Tank Duel表示層
     DeveloperMixin,     # 開発者ツール
     SystemMixin,        # 設定 / 実績 / Lore
 )
@@ -291,7 +267,7 @@ Game(
 | パターン | 適用 |
 |----------|------|
 | **ステートマシン** | 3テーブルディスパッチ：`_EVENT_DISPATCH` + `_UPDATE_DISPATCH` + `_DRAW_DISPATCH` |
-| **動的登録** | `_GAME_STATE_REGISTRY` により `app.py` を修正せずに新ゲームを追加可能 |
+| **境界付き登録** | 状態、初期化処理、アイコン、Lore、翻訳を `Game` 作成前に明示登録 |
 | **Mixinコンポジション** | 各ゲーム・システムモジュールをMixin経由で `Game` に注入 |
 | **アトミック書き込み** | 一時ファイルに保存後リネーム、部分書き込みによる破損を防止 |
 | **バージョン移行** | `SaveManager._deep_merge()` が新フィールドを自動補完 |
@@ -307,6 +283,7 @@ BOOT → SYSTEM_READY → PASSWORD → DESKTOP
                                     ├── MINES_MENU → MINES_PLAYING → MINES_END
                                     ├── TETRIS_MENU → TETRIS_PLAYING → TETRIS_END
                                     ├── AIR_MENU → AIR_SELECT → AIR_PLAYING → AIR_END
+                                    ├── TANK_MENU → TANK_PLAYING → TANK_END
                                     ├── SETTINGS → SYSTEM_SETTINGS / PROFILE
                                     ├── ACHIEVEMENT_WALL
                                     └── LORE_READER → LORE_STORY
@@ -316,13 +293,20 @@ BOOT → SYSTEM_READY → PASSWORD → DESKTOP
 
 ## 🔌 拡張API
 
-新ゲームのために完全な登録APIが用意されています：
+拡張モジュールは `Game()` 作成前にホストが明示的にインポートします。自動プラグイン探索、ホットリロード、第三者向けセーブプロトコルはなく、登録は以後に作成するインスタンスだけに適用されます。
 
 ```python
-from meridian.lore import register_game_world, register_device_lore
+from meridian.lore import register_game_world, register_lore_entry
 from meridian.shell_desktop import register_desktop_icon
-from meridian.app import _register_game_states
+from meridian.app import register_game_initializer, register_game_state
 from meridian.localization import register_game_translations
+
+def init_mygame(game):
+    game.mygame_score = 0
+
+def handle_event(game, event): ...
+def update(game): ...
+def draw(game): ...
 
 # 1. ゲーム世界を登録（世界観、プロローグ、フレーバーテキスト、深層Lore）
 register_game_world(
@@ -335,20 +319,33 @@ register_game_world(
     prologue_zh=["第一行", "第二行", "第三行"],
     menu_flavor_en="The crystals hum with ancient power...",
     menu_flavor_zh="水晶随着古老的力量嗡嗡作响…",
-    lore_entries=[...],
+    lore_entries=[],
     desktop_subtitle_en="MY WORLD",
     desktop_subtitle_zh="我的世界",
 )
 
-# 2. デスクトップアイコンを登録
-register_desktop_icon("MYGAME", "open_mygame", page=0, ...)
+# 2. 条件付きLore完成度と初期化処理を登録
+register_lore_entry(
+    "mygame", "mygame_mastery",
+    title_en="CRYSTAL MASTERY", title_zh="水晶精通",
+    content_en=["The crystal answers."], content_zh=["水晶作出了回应。"],
+    unlock="stat:mygame:score:100",
+)
+register_game_initializer(init_mygame)
 
-# 3. 状態ディスパッチを動的登録（app.pyの修正不要）
-_register_game_states("MYGAME_MENU", "_handle_mygame_menu", [], "_draw_mygame_menu")
+# 3. 状態と3ページ目のアイコンを登録
+register_game_state("MYGAME_MENU", handle_event, [update], draw)
+register_desktop_icon(
+    "MYGAME", "open_mygame", page=2,
+    subtitle_en="MY WORLD", subtitle_zh="我的世界",
+    target_state="MYGAME_MENU", transition_effect="fade",
+)
 
 # 4. 翻訳を登録
-register_game_translations("mygame", {"PLAY": "开始", "SCORE": "得分"})
+register_game_translations("mygame", {"MYGAME_PLAY": "开始"})
 ```
+
+ハンドラには `Game` のメソッド名、または `game` を受け取るcallableを指定できます。有効なアイコンは `target_state` と `on_activate(game)` のどちらか一方だけを使用します。翻訳キーは `game_id` ごとに所有され、競合の上書きには `replace=True` の明示が必要です。`_register_game_states()` は互換ラッパーとしてのみ残ります。
 
 > 📝 完全なAPIドキュメントはソースコードのdocstringを参照してください。
 
@@ -380,14 +377,14 @@ python -m PyInstaller --noconfirm --clean MERIDIAN.spec
 
 完全な履歴は [CHANGELOG.md](../../CHANGELOG.md) を参照してください。
 
-### 最新: V3.1.0 (2026-07-02) — 「MERIDIAN」
+### 最新安定版: V3.2.0 (2026-07-13) — 「Tank Duel」
 
-- 🌌 **世界観システム**：メタナラティブ、七世界設定、プロローグシステム、異界アーカイブ
-- 🔌 **拡張API**：5つの登録関数、コード修正不要の統合
-- 🏆 **実績ウォール**：V3.0.0で導入、V3.1.0で改良
-- 💾 **ゲーム再開**：全7ゲームがセーブ・再開に対応
-- ✈️ **Air Raid ストーリー**：8章キャンペーン + ストーリーアーカイブ
-- 🎨 **ビジュアル強化**：デスクトップ粒子、終了遷移アニメーション、統一カラーパレット
+- 🛡️ **Tank Duel**：赤対青のローカル対戦、8種のアイテム、3分制とサドンデス
+- 💾 **セーブ**：Schema v5、8本すべてが中断セーブと再開に対応
+- 🏆 **進行**：8つの接続世界に60個の実績
+- 🌌 **Lore**：通常本文は常に読め、条件達成で完成度へ加算し、全体閾値で共鳴アーカイブを開放
+
+安定版以降の変更は [CHANGELOG.md](../../CHANGELOG.md) の `Unreleased` に記録します。
 
 ---
 
