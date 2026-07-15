@@ -37,9 +37,22 @@ def register_game_world(game_id, *, world_name_en, world_name_zh,
         lore_entries       List of deeper lore entry dicts:
             {"id": str, "title_en": str, "title_zh": str,
              "content_en": [str, ...], "content_zh": [str, ...],
-             "unlock": "always" | "stat:key:threshold" | "achievement:id"}
+             "unlock": "always" | "stat:game:key:threshold" |
+                       "achievement:id" | "completion:threshold"}
         desktop_subtitle_en/zh  Override the default desktop subtitle
     """
+    if game_id in _world_registry:
+        raise ValueError(f"Duplicate game world: {game_id}")
+    pending_entries = list(lore_entries or [])
+    pending_ids = set()
+    for entry in pending_entries:
+        entry_id = entry.get("id") if isinstance(entry, dict) else None
+        if not entry_id:
+            raise ValueError(f"Lore entry for {game_id} requires a non-empty id")
+        if entry_id in pending_ids or entry_id in _lore_by_id:
+            raise ValueError(f"Duplicate lore entry id: {entry_id}")
+        pending_ids.add(entry_id)
+
     world_data = {
         "game_id": game_id,
         "world_name_en": world_name_en,
@@ -54,8 +67,8 @@ def register_game_world(game_id, *, world_name_en, world_name_zh,
         "desktop_subtitle_zh": desktop_subtitle_zh or world_name_zh,
         "lore_entries": [],
     }
-    if lore_entries:
-        for entry in lore_entries:
+    if pending_entries:
+        for entry in pending_entries:
             full_entry = dict(entry)
             full_entry.setdefault("game_id", game_id)
             full_entry.setdefault("unlock", "always")
@@ -67,6 +80,10 @@ def register_game_world(game_id, *, world_name_en, world_name_zh,
 def register_device_lore(entry_id, *, title_en, title_zh,
                          content_en, content_zh, unlock="always"):
     """Register a device-level lore entry (not tied to any game)."""
+    if not entry_id:
+        raise ValueError("Device Lore entry requires a non-empty id")
+    if entry_id in _lore_by_id:
+        raise ValueError(f"Duplicate lore entry id: {entry_id}")
     entry = {
         "id": entry_id,
         "game_id": "__device__",
@@ -109,7 +126,7 @@ def get_all_lore_entries():
 
 
 def register_lore_entry(game_id, entry_id, *, title_en, title_zh,
-                        content_en, content_zh):
+                        content_en, content_zh, unlock="always"):
     """Append a lore entry to an already-registered game world.
 
     Use this to add extra lore entries after the initial register_game_world() call.
@@ -117,6 +134,10 @@ def register_lore_entry(game_id, entry_id, *, title_en, title_zh,
     world = _world_registry.get(game_id)
     if world is None:
         raise ValueError(f"Unknown game_id: {game_id}")
+    if not entry_id:
+        raise ValueError("Lore entry requires a non-empty id")
+    if entry_id in _lore_by_id:
+        raise ValueError(f"Duplicate lore entry id: {entry_id}")
     entry = {
         "id": entry_id,
         "game_id": game_id,
@@ -124,7 +145,7 @@ def register_lore_entry(game_id, entry_id, *, title_en, title_zh,
         "title_zh": title_zh,
         "content_en": list(content_en),
         "content_zh": list(content_zh),
-        "unlock": "always",
+        "unlock": unlock,
     }
     world["lore_entries"].append(entry)
     _lore_by_id[entry_id] = entry
@@ -181,7 +202,7 @@ register_device_lore(
         "如果连接之核失效，相连的诸界将会漂移离散——"
         "或者彼此坍缩为一。",
     ],
-    unlock="launches_5",
+    unlock="stat:global:launches:5",
 )
 
 register_device_lore(
@@ -203,7 +224,7 @@ register_device_lore(
         "梦想家、艺术家、迷茫者。",
         "如果你正在阅读这段话，它已经选择了你。",
     ],
-    unlock="launches_10",
+    unlock="stat:global:launches:10",
 )
 
 # ============================================================

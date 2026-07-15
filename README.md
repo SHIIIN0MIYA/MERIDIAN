@@ -12,7 +12,6 @@
   <img src="https://img.shields.io/badge/pygame-2.x-green" alt="Pygame">
   <img src="https://img.shields.io/badge/license-MIT-yellow" alt="License">
   <img src="https://img.shields.io/badge/achievements-60-brightgreen" alt="Achievements">
-  <img src="https://img.shields.io/badge/lines-~15%2C700-orange" alt="Lines of Code">
 </p>
 
 <p align="center">
@@ -62,7 +61,7 @@
 - 🎵 **程序化音频引擎**，动态生成 BGM 和音效
 - 🛠 **内置开发者面板**，方便调试和测试
 
-> 语言版本：中文（本文）| English（即将推出）
+> 语言版本：中文（本文）及页面顶部链接的六种译文。
 
 ---
 
@@ -77,8 +76,9 @@ MERIDIAN 不仅仅是一个游戏合集——它拥有一套完整的**元叙事
 - **异界档案（LORE）**：桌面第二页的独立阅读器，包含：
   - 根据器物与已发现异界动态生成分类标签
   - 设备背景故事（器物起源 / 连接之核 / 持器者）
-  - 每界 1-2 条深层故事条目
-  - 通过游戏统计或成就解锁隐藏内容
+  - 每界的普通正文始终可以阅读
+  - 达成统计或成就条件后获得对应 Lore 完成度信用
+  - 四篇跨世界共鸣档案分别在全局完成度达到 25% / 50% / 75% / 100% 时开放
 - **风味文字**：每个游戏的菜单页展示世界观氛围文本
 - **全过程双语**：所有文本完整支持中英双语
 
@@ -153,7 +153,7 @@ MERIDIAN 不仅仅是一个游戏合集——它拥有一套完整的**元叙事
 ### 🛠 开发者工具
 
 - **F10 开发者面板**：鼠标悬停高亮 + 点击激活
-- 功能：解锁全部关卡、解锁全部皮肤、触发整点特效、清空存档等
+- 功能：解锁测试内容、强制结算、调整游戏速度、触发整点特效等
 - 仅在当前会话生效，不影响持久化数据
 
 ---
@@ -211,7 +211,7 @@ python MERIDIAN.py
 | **2048** | 方向键合并数字方块 |
 | **MINES** | 左键翻开 / 右键标旗 |
 | **TETRIS** | `↑` 旋转 / `↓` 软降 / `Space` 硬降 / `C` 暂存 / `P` 暂停 |
-| **AIR RAID** | 方向键移动 / `Z` 射击 / `X` 导弹 / `Shift` 聚焦模式 |
+| **AIR RAID** | 自动射击；方向键移动 / `Shift` 聚焦 / `Space` 发射导弹 |
 | **TANK DUEL（红方）** | `WASD` 八向移动 / `F` 使用道具；自动射击 |
 | **TANK DUEL（蓝方）** | `方向键` 八向移动 / `Enter` 使用道具；自动射击 |
 
@@ -227,50 +227,21 @@ Tank Duel 采用地图拾取与单道具槽：维修包恢复 1 HP，护盾抵�
 
 ## 📁 项目结构
 
-```
+```text
 MERIDIAN/
-├── MERIDIAN.py                  # 入口文件
-├── MERIDIAN.spec                # PyInstaller 打包配置
-├── BUILD_EXE.bat                # Windows 一键构建脚本
-├── requirements.txt             # Python 依赖
-├── reasonix.toml                # 编辑器配置
-│
-├── meridian/                    # 核心包
-│   ├── __init__.py
-│   ├── app.py                   # 游戏组合、主循环、状态分发
-│   ├── common.py                # 全局常量、颜色类、布局参数
-│   ├── lore.py                  # 世界观数据与注册 API
-│   ├── audio.py                 # 程序化 BGM 与音效引擎
-│   ├── persistence.py           # 版本化崩溃安全存档管理
-│   ├── localization.py          # 运行时双语系统 + 中文字体
-│   ├── developer.py             # 开发者面板（仅会话有效）
-│   │
-│   ├── shell.py                 # Shell 系统聚合
-│   ├── shell_boot.py            # 开机引导序列
-│   ├── shell_password.py        # 密码锁屏认证
-│   ├── shell_desktop.py         # 桌面环境与图标系统
-│   ├── shell_transitions.py     # 场景过渡动画
-│   │
-│   ├── arcade_common.py         # 街机游戏公共 UI + 序章系统
-│   ├── arcade_levels.py         # Air Raid 关卡数据
-│   │
-│   ├── gomoku.py                # 五子棋（阴阳棋境）
-│   ├── snake.py                 # 贪吃蛇（噬码渊）
-│   ├── breakout.py              # 打砖块（星穹壁垒）
-│   ├── g2048.py                 # 2048（数灵海）
-│   ├── mines.py                 # 扫雷（雷原遗迹）
-│   ├── tetris.py                # 俄罗斯方块（筑天塔）
-│   ├── air_raid.py              # 空袭行动（守望者战线）
-│   ├── tank_engine.py           # 坦克对决独立规则引擎
-│   ├── tank_battle.py           # 坦克对决 Pygame 表现层
-│   │
-│   └── system.py                # 设置、档案、成就、Lore 阅读器
-│
-├── assets/                      # 静态资源
-│   └── fonts/                   # Fusion Pixel Font（SIL Open License 1.1）
-│
-└── tools/
-    └── check_release.py         # 本地发布元数据检查
+├── MERIDIAN.py                  # 程序入口
+├── meridian/                    # 主循环、Shell、八款游戏与共享系统
+│   ├── shell_*.py               # 开机、认证、桌面和转场
+│   ├── gomoku.py … tetris.py    # 六款经典单人游戏
+│   ├── air_raid.py              # Air Raid 战役与街机玩法
+│   ├── tank_engine.py           # Tank Duel 确定性规则引擎
+│   ├── tank_battle.py           # Tank Duel Pygame 表现层
+│   └── system.py 等             # 存档、完成度、Lore、本地化、音频与共享 UI
+├── tests/                       # 规则、存档、注册与回归测试
+├── tools/                       # 发布检查及开发辅助工具
+├── assets/                      # 字体等静态资源
+├── docs/                        # 多语言说明与设计文档
+└── Development_Log/            # 开发记录与决策历史
 ```
 
 ---
@@ -301,7 +272,7 @@ Game(
 | 模式 | 应用 |
 |------|------|
 | **状态机** | `_EVENT_DISPATCH` + `_UPDATE_DISPATCH` + `_DRAW_DISPATCH` 三表驱动 |
-| **动态注册** | `_GAME_STATE_REGISTRY` 支持新游戏免修改 `app.py` |
+| **有界扩展注册** | 状态、初始化器、桌面图标、Lore 与翻译可在创建 `Game` 前显式注册 |
 | **Mixin 组合** | 每个游戏和系统模块通过 Mixin 注入到 `Game` 类 |
 | **原子写入** | 存档先写临时文件后重命名，防止写入中断导致损坏 |
 | **版本迁移** | `SaveManager._deep_merge()` 自动填充新增字段 |
@@ -327,13 +298,20 @@ BOOT → SYSTEM_READY → PASSWORD → DESKTOP
 
 ## 🔌 扩展接口
 
-为新游戏预留了完整的注册 API，以下函数覆盖从世界观到桌面图标的全部集成：
+扩展模块须由宿主在创建 `Game()` 前显式导入；项目不自动扫描插件，也不支持热加载或第三方存档协议。注册只影响之后创建的实例。
 
 ```python
-from meridian.lore import register_game_world, register_device_lore
+from meridian.lore import register_game_world, register_lore_entry
 from meridian.shell_desktop import register_desktop_icon
-from meridian.app import _register_game_states
+from meridian.app import register_game_initializer, register_game_state
 from meridian.localization import register_game_translations
+
+def init_mygame(game):
+    game.mygame_score = 0
+
+def handle_event(game, event): ...
+def update(game): ...
+def draw(game): ...
 
 # 1. 注册游戏世界（世界观、序章、风味文字、深层 Lore）
 register_game_world(
@@ -346,20 +324,38 @@ register_game_world(
     prologue_zh=["第一行", "第二行", "第三行"],
     menu_flavor_en="The crystals hum with ancient power...",
     menu_flavor_zh="水晶随着古老的力量嗡嗡作响…",
-    lore_entries=[...],
+    lore_entries=[],
     desktop_subtitle_en="MY WORLD",
     desktop_subtitle_zh="我的世界",
 )
 
-# 2. 注册桌面图标
-register_desktop_icon("MYGAME", "open_mygame", page=0, ...)
+# 2. 追加带完成条件的 Lore；正文始终可读，满足条件后计入完成度
+register_lore_entry(
+    "mygame", "mygame_mastery",
+    title_en="CRYSTAL MASTERY", title_zh="水晶精通",
+    content_en=["The crystal answers."], content_zh=["水晶作出了回应。"],
+    unlock="stat:mygame:score:100",
+)
 
-# 3. 动态注册状态分发（免修改 app.py）
-_register_game_states("MYGAME_MENU", "_handle_mygame_menu", [], "_draw_mygame_menu")
+# 3. 注册初始化器、状态处理器与第 3 页桌面入口
+register_game_initializer(init_mygame)
+register_game_state(
+    "MYGAME_MENU",
+    event_handler=handle_event,
+    update_methods=[update],
+    draw_handler=draw,
+)
+register_desktop_icon(
+    "MYGAME", "open_mygame", page=2,
+    subtitle_en="MY WORLD", subtitle_zh="我的世界",
+    target_state="MYGAME_MENU", transition_effect="fade",
+)
 
-# 4. 注册翻译条目
-register_game_translations("mygame", {"PLAY": "开始", "SCORE": "得分"})
+# 4. 注册翻译；默认拒绝覆盖其他模块拥有的键
+register_game_translations("mygame", {"MYGAME_PLAY": "开始"})
 ```
+
+`register_game_state()` 的事件、更新和绘制处理器可以是 `Game` 方法名，也可以是接收 `game` 的 callable。桌面图标可使用 `target_state` 转场，或改为 `on_activate(game)` 回调；启用的图标必须且只能选择一种激活方式。翻译键按 `game_id` 记录来源，跨模块冲突默认报错，只有显式传入 `replace=True` 才会覆盖。旧的 `_register_game_states()` 仅作为兼容包装保留。
 
 > 📝 各模块的完整 API 文档请参见源码中的 docstring：`meridian/lore.py`、`meridian/app.py`、`meridian/shell_desktop.py`、`meridian/localization.py`
 
@@ -408,13 +404,15 @@ python -m compileall -q MERIDIAN.py meridian tools
 
 详见 [CHANGELOG.md](CHANGELOG.md)
 
-### 最新版本 V3.2.0 (2026-07-13) — 「Tank Duel」
+### 最新稳定版本 V3.2.0 (2026-07-13) — 「Tank Duel」
 
 - 🎮 **本地双人对战**：红方 WASD、蓝方方向键，支持八向移动、后按键优先与自动射击
 - 🧰 **八种战术道具**：修复、护盾、加速、地雷、EMP、穿甲弹、烟雾与传送，采用单道具槽
 - ⚔️ **完整对局规则**：3 分钟、每方 3 HP、随机安全重生、平局骤死与中心镜像地图
 - 🏆 **完整系统集成**：新增 12 项成就、中英文文本、动态配乐、专属转场与对局统计
 - 💾 **中断恢复**：存档 Schema 升级至 v5，支持 Tank Duel 对局快照恢复
+
+稳定版之后完成的修缮记录在 [CHANGELOG.md](CHANGELOG.md) 的 `Unreleased` 小节，不作为已发布的 v3.3 宣传。
 
 ---
 

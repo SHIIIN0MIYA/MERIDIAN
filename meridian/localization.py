@@ -723,11 +723,45 @@ def contains_chinese(text: str) -> bool:
     return bool(re.search(r"[\u3400-\u9fff]", text))
 
 
-def register_game_translations(game_id: str, translations: dict[str, str]) -> None:
+_TRANSLATION_OWNERS = {key: "__core__" for key in ZH}
+
+
+def register_game_translations(
+    game_id: str,
+    translations: dict[str, str],
+    *,
+    replace: bool = False,
+) -> None:
     """Register translation entries for a new game.
 
     Args:
         game_id: Unique game identifier (e.g. "pacman")
         translations: Dict of EN key -> ZH value pairs
+        replace: Explicitly take ownership of keys registered by another module
     """
+    if not isinstance(game_id, str) or not game_id.strip():
+        raise ValueError("game_id must be a non-empty string")
+    if not isinstance(translations, dict):
+        raise TypeError("translations must be a dictionary")
+    if not isinstance(replace, bool):
+        raise TypeError("replace must be boolean")
+
+    owner_id = game_id.strip()
+    if owner_id == "__core__":
+        raise ValueError("game_id '__core__' is reserved")
+    for key, value in translations.items():
+        if not isinstance(key, str) or not key:
+            raise ValueError("translation keys must be non-empty strings")
+        if not isinstance(value, str):
+            raise TypeError("translation values must be strings")
+        current_owner = _TRANSLATION_OWNERS.get(key)
+        if current_owner is not None and current_owner != owner_id and not replace:
+            raise ValueError(
+                f"translation key {key!r} is owned by {current_owner!r}; "
+                "pass replace=True to override it"
+            )
+
+    # Validate the whole batch first so a conflict cannot leave a partial update.
     ZH.update(translations)
+    for key in translations:
+        _TRANSLATION_OWNERS[key] = owner_id

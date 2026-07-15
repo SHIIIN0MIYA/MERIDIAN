@@ -11,8 +11,6 @@
   <img src="https://img.shields.io/badge/python-3.10%20%7C%203.11%20%7C%203.12-blue" alt="Python">
   <img src="https://img.shields.io/badge/pygame-2.x-green" alt="Pygame">
   <img src="https://img.shields.io/badge/licenza-MIT-yellow" alt="Licenza">
-  <img src="https://img.shields.io/badge/test-50%2B-brightgreen" alt="Test">
-  <img src="https://img.shields.io/badge/righe-~15.700-orange" alt="Righe di codice">
 </p>
 
 <p align="center">
@@ -54,9 +52,9 @@ Non è una normale console di gioco. È un **dispositivo di osservazione interdi
 
 Costruito con **Python + Pygame**, questo progetto è un simulatore completo di piattaforma multi-gioco. Combina:
 
-- 🎮 **Una collezione in crescita di giochi arcade classici completamente ricreati**
+- 🎮 **Otto giochi arcade classici completamente ricreati**
 - 📚 **Un profondo sistema narrativo**, ogni gioco con la propria lore
-- 🏆 **Oltre 50 obiettivi** che tracciano i progressi del giocatore
+- 🏆 **60 obiettivi** che tracciano i progressi del giocatore
 - 🌍 **Supporto bilingue completo** (Cinese semplificato / Inglese)
 - 💾 **Salvataggi anti-crash** con ripresa a metà partita
 - 🎵 **Motore audio procedurale** che genera BGM ed effetti sonori dinamici
@@ -75,8 +73,9 @@ MERIDIAN è più di una collezione di giochi — ha una cornice **meta-narrativa
 - **Archivio delle Conoscenze (LORE)**: Un lettore indipendente nella seconda pagina del desktop, contenente:
   - Schede generate dall'Artefatto e da ogni mondo registrato
   - Storie di background del dispositivo (Origine / Nucleo Nexus / Il Portatore)
-  - 1-2 voci di lore profonda per mondo
-  - Voci nascoste sbloccabili tramite statistiche o obiettivi
+  - Le voci ordinarie di ogni mondo sono sempre leggibili
+  - Le condizioni statistiche o degli obiettivi assegnano credito di completamento Lore
+  - Quattro archivi di Risonanza si aprono al 25% / 50% / 75% / 100% del completamento globale
 - **Testo d'Atmosfera**: La pagina del menu di ogni gioco mostra testo narrativo
 - **Completamente Bilingue**: Tutto il testo supporta cinese e inglese
 
@@ -93,6 +92,7 @@ MERIDIAN è più di una collezione di giochi — ha una cornice **meta-narrativa
 | 💣 | **MINES** | Minefield Ruins<br>雷原遗迹 | Un geniere sminatore sulla terra bruciata un secolo dopo la Grande Guerra |
 | 🧊 | **TETRIS** | Tower of Heaven<br>筑天塔 | Matrici di costruzione aliene scendono dal cielo — costruisci una torre che tocchi la verità |
 | ✈️ | **AIR RAID** | Warden Front<br>守望者战线 | La battaglia finale contro la rete di guerra autonoma |
+| 🛡️ | **TANK DUEL** | Iron Arena<br>钢铁斗场 | I carri rosso e blu contendono i rifornimenti in un'arena speculare, con morte improvvisa in caso di pareggio |
 
 ---
 
@@ -121,7 +121,7 @@ MERIDIAN è più di una collezione di giochi — ha una cornice **meta-narrativa
 | **Salvataggio Automatico** | Stato della partita salvato automaticamente all'uscita |
 | **Riprendi** | Pulsante "Continua" quando rientri in un gioco |
 | **Anti-Crash** | Scrittura atomica + meccanismo di backup |
-| **Migrazione di Versione** | Schema v4, unisce automaticamente i dati legacy |
+| **Migrazione di Versione** | Schema v5, unisce automaticamente i dati legacy |
 | **Statistiche Cross-Gioco** | Tracciamento unificato di tempo di gioco, vittorie e record |
 
 ### ✈️ Esclusive Air Raid
@@ -150,7 +150,7 @@ MERIDIAN è più di una collezione di giochi — ha una cornice **meta-narrativa
 ### 🛠 Strumenti Sviluppatore
 
 - **Pannello Sviluppatore F10**: Evidenziazione hover + clic per attivare
-- Funzioni: sblocca tutti i livelli, skin, attiva effetti orari, cancella salvataggi, ecc.
+- Funzioni: sblocca contenuti di test, forza risultati, regola la velocità e attiva gli effetti orari
 - Effetti limitati alla sessione, nessun impatto sui dati persistenti
 
 ---
@@ -161,7 +161,7 @@ MERIDIAN è più di una collezione di giochi — ha una cornice **meta-narrativa
 
 | Dipendenza | Versione |
 |------------|----------|
-| Python | **3.10+** |
+| Python | **3.10–3.12** |
 | pygame | **2.0+** (<3.0) |
 | OS | Windows / macOS / Linux |
 
@@ -183,7 +183,7 @@ python MERIDIAN.py
 
 ### Condivisione
 
-Comprimi l'intera cartella `MERIDIAN` e inviala. Il destinatario ha solo bisogno di Python 3.10+ e `pip install pygame`.
+Comprimi l'intera cartella `MERIDIAN` e inviala. Il destinatario ha bisogno di Python 3.10–3.12 e `pip install pygame`.
 
 ---
 
@@ -208,7 +208,9 @@ Comprimi l'intera cartella `MERIDIAN` e inviala. Il destinatario ha solo bisogno
 | **2048** | Frecce per unire le tessere |
 | **MINES** | Clic sinistro per rivelare / Clic destro per bandiera |
 | **TETRIS** | `↑` Ruota / `↓` Discesa morbida / `Spazio` Discesa dura / `C` Riserva / `P` Pausa |
-| **AIR RAID** | Frecce per muoversi / `Z` Fuoco / `X` Missile / `Shift` Modalità Focus |
+| **AIR RAID** | Fuoco automatico; frecce per muoversi / `Shift` Focus / `Spazio` missile |
+| **TANK DUEL (Rosso)** | `WASD` per movimento in otto direzioni / `F` oggetto; fuoco automatico |
+| **TANK DUEL (Blu)** | Frecce per movimento in otto direzioni / `Enter` oggetto; fuoco automatico |
 
 ### Sviluppatore
 
@@ -220,48 +222,21 @@ Comprimi l'intera cartella `MERIDIAN` e inviala. Il destinatario ha solo bisogno
 
 ## 📁 Struttura del Progetto
 
-```
+```text
 MERIDIAN/
 ├── MERIDIAN.py                  # Punto di ingresso
-├── MERIDIAN.spec                # Configurazione PyInstaller
-├── BUILD_EXE.bat                # Script build Windows one-click
-├── requirements.txt             # Dipendenze Python
-├── reasonix.toml                # Configurazione editor
-│
-├── meridian/                    # Pacchetto principale
-│   ├── __init__.py
-│   ├── app.py                   # Composizione gioco, loop principale, dispatch
-│   ├── common.py                # Costanti globali, classe colori, parametri layout
-│   ├── lore.py                  # Dati mondo narrativo e API registrazione
-│   ├── audio.py                 # Motore BGM procedurale ed effetti sonori
-│   ├── persistence.py           # Gestione salvataggi versionati anti-crash
-│   ├── localization.py          # Sistema bilingue runtime + font cinese
-│   ├── developer.py             # Pannello sviluppatore (solo sessione)
-│   │
-│   ├── shell.py                 # Aggregatore sistema shell
-│   ├── shell_boot.py            # Sequenza di avvio
-│   ├── shell_password.py        # Autenticazione schermata di blocco
-│   ├── shell_desktop.py         # Ambiente desktop e sistema icone
-│   ├── shell_transitions.py     # Animazioni di transizione
-│   │
-│   ├── arcade_common.py         # UI arcade condivisa + sistema prologo
-│   ├── arcade_levels.py         # Dati campagna Air Raid
-│   │
-│   ├── gomoku.py                # Gomoku (Yin-Yang Board)
-│   ├── snake.py                 # Snake (Code Abyss)
-│   ├── breakout.py              # Breakout (Star Fortress)
-│   ├── g2048.py                 # 2048 (Numen Sea)
-│   ├── mines.py                 # Campo Minato (Minefield Ruins)
-│   ├── tetris.py                # Tetris (Tower of Heaven)
-│   ├── air_raid.py              # Air Raid (Warden Front)
-│   │
-│   └── system.py                # Impostazioni, profilo, obiettivi, lettore Lore
-│
-├── assets/                      # Risorse statiche
-│   └── fonts/                   # Fusion Pixel Font (SIL Open License 1.1)
-│
-└── tools/
-    └── check_release.py         # Controllo locale dei metadati di rilascio
+├── meridian/                    # Loop, Shell, otto giochi e sistemi condivisi
+│   ├── shell_*.py               # Avvio, accesso, desktop e transizioni
+│   ├── gomoku.py … tetris.py    # Sei giochi classici in singolo
+│   ├── air_raid.py              # Campagna e modalità arcade Air Raid
+│   ├── tank_engine.py           # Regole deterministiche di Tank Duel
+│   ├── tank_battle.py           # Presentazione Pygame di Tank Duel
+│   └── system.py e affini       # Salvataggi, completamento, Lore, audio, lingua, UI
+├── tests/                       # Test di regole, salvataggi, registrazione, regressione
+├── tools/                       # Controlli release e strumenti di sviluppo
+├── assets/                      # Font e risorse statiche
+├── docs/                        # Traduzioni e documenti di design
+└── Development_Log/            # Storia dello sviluppo e delle decisioni
 ```
 
 ---
@@ -281,6 +256,7 @@ Game(
     TetrisMixin,        # Tetris
     ArcadeHubMixin,     # Sistemi arcade condivisi
     AirRaidMixin,       # Air Raid
+    TankBattleMixin,    # Presentazione Tank Duel
     DeveloperMixin,     # Strumenti sviluppatore
     SystemMixin,        # Impostazioni / Obiettivi / Lore
 )
@@ -291,7 +267,7 @@ Game(
 | Pattern | Applicazione |
 |---------|-------------|
 | **Macchina a Stati** | Tripla tabella di dispatch: `_EVENT_DISPATCH` + `_UPDATE_DISPATCH` + `_DRAW_DISPATCH` |
-| **Registrazione Dinamica** | `_GAME_STATE_REGISTRY` permette nuovi giochi senza modificare `app.py` |
+| **Registrazione limitata** | Stati, inizializzatori, icone, Lore e traduzioni si registrano prima di creare `Game` |
 | **Composizione Mixin** | Ogni modulo gioco e sistema iniettato in `Game` tramite Mixin |
 | **Scrittura Atomica** | Salvataggi su file temporaneo poi rinominato, prevenendo corruzione |
 | **Migrazione di Versione** | `SaveManager._deep_merge()` riempie automaticamente i nuovi campi |
@@ -307,6 +283,7 @@ BOOT → SYSTEM_READY → PASSWORD → DESKTOP
                                     ├── MINES_MENU → MINES_PLAYING → MINES_END
                                     ├── TETRIS_MENU → TETRIS_PLAYING → TETRIS_END
                                     ├── AIR_MENU → AIR_SELECT → AIR_PLAYING → AIR_END
+                                    ├── TANK_MENU → TANK_PLAYING → TANK_END
                                     ├── SETTINGS → SYSTEM_SETTINGS / PROFILE
                                     ├── ACHIEVEMENT_WALL
                                     └── LORE_READER → LORE_STORY
@@ -316,13 +293,20 @@ BOOT → SYSTEM_READY → PASSWORD → DESKTOP
 
 ## 🔌 API di Estensione
 
-È fornita un'API completa per nuovi giochi:
+Il modulo di estensione deve essere importato esplicitamente prima di creare `Game()`. Non esistono scansione automatica, hot reload o protocollo di salvataggio di terze parti; le registrazioni valgono solo per le istanze successive.
 
 ```python
-from meridian.lore import register_game_world, register_device_lore
+from meridian.lore import register_game_world, register_lore_entry
 from meridian.shell_desktop import register_desktop_icon
-from meridian.app import _register_game_states
+from meridian.app import register_game_initializer, register_game_state
 from meridian.localization import register_game_translations
+
+def init_mygame(game):
+    game.mygame_score = 0
+
+def handle_event(game, event): ...
+def update(game): ...
+def draw(game): ...
 
 # 1. Registrare un mondo di gioco
 register_game_world(
@@ -335,20 +319,33 @@ register_game_world(
     prologue_zh=["第一行", "第二行", "第三行"],
     menu_flavor_en="The crystals hum with ancient power...",
     menu_flavor_zh="水晶随着古老的力量嗡嗡作响…",
-    lore_entries=[...],
+    lore_entries=[],
     desktop_subtitle_en="MY WORLD",
     desktop_subtitle_zh="我的世界",
 )
 
-# 2. Registrare icona desktop
-register_desktop_icon("MYGAME", "open_mygame", page=0, ...)
+# 2. Aggiungere credito Lore condizionale e inizializzare l'estensione
+register_lore_entry(
+    "mygame", "mygame_mastery",
+    title_en="CRYSTAL MASTERY", title_zh="水晶精通",
+    content_en=["The crystal answers."], content_zh=["水晶作出了回应。"],
+    unlock="stat:mygame:score:100",
+)
+register_game_initializer(init_mygame)
 
-# 3. Registrare dispatch stati (nessuna modifica a app.py)
-_register_game_states("MYGAME_MENU", "_handle_mygame_menu", [], "_draw_mygame_menu")
+# 3. Registrare lo stato e l'icona sulla terza pagina
+register_game_state("MYGAME_MENU", handle_event, [update], draw)
+register_desktop_icon(
+    "MYGAME", "open_mygame", page=2,
+    subtitle_en="MY WORLD", subtitle_zh="我的世界",
+    target_state="MYGAME_MENU", transition_effect="fade",
+)
 
 # 4. Registrare traduzioni
-register_game_translations("mygame", {"PLAY": "开始", "SCORE": "得分"})
+register_game_translations("mygame", {"MYGAME_PLAY": "开始"})
 ```
+
+Gli handler possono essere nomi di metodi `Game` o callable che ricevono `game`. Un'icona attiva usa esattamente uno tra `target_state` e `on_activate(game)`. Le chiavi di traduzione appartengono al `game_id`; un conflitto richiede `replace=True`. `_register_game_states()` resta solo come wrapper di compatibilità.
 
 > 📝 Vedi i docstring del codice sorgente per la documentazione API completa.
 
@@ -380,14 +377,14 @@ python -m PyInstaller --noconfirm --clean MERIDIAN.spec
 
 Vedi [CHANGELOG.md](../../CHANGELOG.md) per la storia completa.
 
-### Ultima: V3.1.0 (02/07/2026) — "MERIDIAN"
+### Ultima stabile: V3.2.0 (13/07/2026) — "Tank Duel"
 
-- 🌌 **Sistema Mondo Narrativo**: Meta-narrativa, lore dei mondi connessi, sistema prologo, archivio Lore
-- 🔌 **API Estensione**: 5 funzioni di registrazione, integrazione senza modifiche
-- 🏆 **Parete Obiettivi**: Introdotta in V3.0.0, perfezionata in V3.1.0
-- 💾 **Ripresa Partita**: Tutti e 7 i giochi supportano salvataggio e ripresa
-- ✈️ **Storia Air Raid**: Campagna 8 capitoli con archivio storie
-- 🎨 **Rifiniture Visive**: Particelle desktop, animazioni transizione, tavolozza unificata
+- 🛡️ **Tank Duel**: Duello locale rosso contro blu, otto oggetti, tre minuti e morte improvvisa
+- 💾 **Salvataggi**: Schema v5; tutti gli otto giochi supportano salvataggio e ripresa
+- 🏆 **Progressi**: 60 obiettivi negli otto mondi connessi
+- 🌌 **Lore**: Il testo ordinario resta leggibile; le condizioni danno credito e le soglie globali aprono gli archivi di Risonanza
+
+Le modifiche successive alla release stabile sono riportate in `Unreleased` in [CHANGELOG.md](../../CHANGELOG.md).
 
 ---
 

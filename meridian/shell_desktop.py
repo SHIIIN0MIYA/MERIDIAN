@@ -11,28 +11,91 @@ from .completion import global_completion
 
 
 # ── Desktop Icon Registry ────────────────────────────────────
-# New games call register_desktop_icon() to appear on the desktop.
+# This registry contains extensions only. Built-ins are created per instance,
+# so importing one extension can never hide the twelve core icons.
 DESKTOP_ICON_REGISTRY = []
 
+_BUILTIN_ICON_ACTIONS = {
+    "open_gomoku", "open_snake", "open_breakout", "open_2048",
+    "open_mines", "open_tetris", "open_air", "open_tank",
+    "open_system_settings", "open_profile", "open_achievement_wall",
+    "open_lore",
+}
+_BUILTIN_ICONS_PER_PAGE = {0: 6, 1: 6}
+_RESERVED_DESKTOP_ACTIONS = {
+    "desktop_next_page", "desktop_prev_page", *_BUILTIN_ICON_ACTIONS,
+}
 
-def register_desktop_icon(label, action, page=0, enabled=True,
-                          subtitle_en=None, subtitle_zh=None):
-    """Register a desktop icon for a new game or feature.
 
-    Args:
-        label: Icon label (uppercase, max 12 chars)
-        action: Action string handled in _handle_desktop_event
-        page: Which desktop page (0 or 1), 6 icons per page max
-        enabled: Whether the icon is clickable
-        subtitle_en/zh: Subtitle shown below the label
-    """
+def register_desktop_icon(
+    label,
+    action,
+    page=2,
+    enabled=True,
+    subtitle_en=None,
+    subtitle_zh=None,
+    *,
+    target_state=None,
+    on_activate=None,
+    transition_effect="fade",
+    transition_frames=28,
+    return_effect=None,
+):
+    """Register an extension icon for subsequently created desktops."""
+    if not isinstance(label, str) or not label.strip():
+        raise ValueError("desktop icon label must be a non-empty string")
+    if not isinstance(action, str) or not action.strip():
+        raise ValueError("desktop icon action must be a non-empty string")
+    if isinstance(page, bool) or not isinstance(page, int):
+        raise TypeError("desktop icon page must be an integer")
+    if page < 0:
+        raise ValueError("desktop icon page cannot be negative")
+    if not isinstance(enabled, bool):
+        raise TypeError("desktop icon enabled flag must be boolean")
+    if target_state is not None and (
+        not isinstance(target_state, str) or not target_state.strip()
+    ):
+        raise ValueError("target_state must be a non-empty string or None")
+    if on_activate is not None and not callable(on_activate):
+        raise TypeError("on_activate must be callable or None")
+
+    route_count = int(target_state is not None) + int(on_activate is not None)
+    if route_count > 1 or (enabled and route_count != 1):
+        raise ValueError(
+            "enabled desktop icons require exactly one of target_state or on_activate"
+        )
+    if not isinstance(transition_effect, str) or not transition_effect:
+        raise ValueError("transition_effect must be a non-empty string")
+    if isinstance(transition_frames, bool) or not isinstance(transition_frames, int):
+        raise TypeError("transition_frames must be an integer")
+    if transition_frames <= 0:
+        raise ValueError("transition_frames must be positive")
+    if return_effect is not None and (
+        not isinstance(return_effect, str) or not return_effect
+    ):
+        raise ValueError("return_effect must be a non-empty string or None")
+
+    registered_actions = {icon["action"] for icon in DESKTOP_ICON_REGISTRY}
+    if action in _RESERVED_DESKTOP_ACTIONS or action in registered_actions:
+        raise ValueError(f"desktop icon action is already registered: {action}")
+    page_count = _BUILTIN_ICONS_PER_PAGE.get(page, 0) + sum(
+        icon["page"] == page for icon in DESKTOP_ICON_REGISTRY
+    )
+    if page_count >= 6:
+        raise ValueError(f"desktop page {page} already contains 6 icons")
+
     DESKTOP_ICON_REGISTRY.append({
         "label": label,
         "action": action,
         "enabled": enabled,
-        "page": int(page),
+        "page": page,
         "subtitle_en": subtitle_en,
         "subtitle_zh": subtitle_zh,
+        "target_state": target_state,
+        "on_activate": on_activate,
+        "transition_effect": transition_effect,
+        "transition_frames": transition_frames,
+        "return_effect": return_effect,
     })
 
 
@@ -64,57 +127,90 @@ class DesktopMixin:
         self.desktop_slide_frame = 0
         self.desktop_slide_max_frames = 36
 
-        # Build pages from registry (if empty, use defaults)
-        if not DESKTOP_ICON_REGISTRY:
-            self._register_builtin_icons()
         self.desktop_pages = self._build_desktop_pages()
 
-    def _register_builtin_icons(self):
-        """Register all built-in desktop icons."""
+    def _get_builtin_desktop_icons(self):
+        """Return a fresh copy of all twelve built-in desktop icons."""
         from . import lore as _lore
-        # Page 0: six games
+        icons = []
+        routes = {
+            "gomoku": ("MENU", "gomoku_grid", 44),
+            "snake": ("SNAKE_MENU", "snake_scan", 50),
+            "breakout": ("BREAKOUT_MENU", "breakout_bricks", 48),
+            "2048": ("G2048_MENU", "g2048_tiles", 44),
+            "mines": ("MINES_MENU", "mines_radar", 50),
+            "tetris": ("TETRIS_MENU", "tetris_drop", 58),
+        }
         for gid in ("gomoku", "snake", "breakout", "2048", "mines", "tetris"):
             world = _lore.get_world(gid)
             sub_en = world["desktop_subtitle_en"] if world else None
             sub_zh = world["desktop_subtitle_zh"] if world else None
-            register_desktop_icon(
-                gid.upper().replace("2048", "2048"),
-                f"open_{gid}",
-                page=0, enabled=True,
-                subtitle_en=sub_en, subtitle_zh=sub_zh,
-            )
-        # Page 1: Air Raid + system icons + LORE
+            target, effect, frames = routes[gid]
+            icons.append({
+                "label": gid.upper(), "action": f"open_{gid}",
+                "page": 0, "enabled": True,
+                "subtitle_en": sub_en, "subtitle_zh": sub_zh,
+                "target_state": target, "on_activate": None,
+                "transition_effect": effect, "transition_frames": frames,
+                "return_effect": effect,
+            })
+
         air_world = _lore.get_world("air")
-        register_desktop_icon(
-            "AIR RAID", "open_air", page=1, enabled=True,
-            subtitle_en=air_world["desktop_subtitle_en"] if air_world else "SHOOT 'EM UP",
-            subtitle_zh=air_world["desktop_subtitle_zh"] if air_world else "弹幕射击",
-        )
-        register_desktop_icon("TANK DUEL", "open_tank", page=1, enabled=True,
-                              subtitle_en="LOCAL TWO-PLAYER ARENA",
-                              subtitle_zh="本地双人对战")
-        register_desktop_icon("SETTINGS", "open_system_settings", page=1, enabled=True)
-        register_desktop_icon("PROFILE", "open_profile", page=1, enabled=True)
-        register_desktop_icon("WALL", "open_achievement_wall", page=1, enabled=True)
-        register_desktop_icon("LORE", "open_lore", page=1, enabled=True,
-                              subtitle_en="CHRONICLE", subtitle_zh="编年史")
+        icons.extend((
+            {
+                "label": "AIR RAID", "action": "open_air", "page": 1,
+                "enabled": True,
+                "subtitle_en": air_world["desktop_subtitle_en"] if air_world else "SHOOT 'EM UP",
+                "subtitle_zh": air_world["desktop_subtitle_zh"] if air_world else "弹幕射击",
+                "target_state": "AIR_MENU", "on_activate": None,
+                "transition_effect": "air_sweep", "transition_frames": 46,
+                "return_effect": "air_sweep",
+            },
+            {
+                "label": "TANK DUEL", "action": "open_tank", "page": 1,
+                "enabled": True, "subtitle_en": "LOCAL TWO-PLAYER ARENA",
+                "subtitle_zh": "本地双人对战", "target_state": "TANK_MENU",
+                "on_activate": None, "transition_effect": "tank_crossfire",
+                "transition_frames": 48, "return_effect": "tank_crossfire",
+            },
+            {
+                "label": "SETTINGS", "action": "open_system_settings", "page": 1,
+                "enabled": True, "target_state": "SYSTEM_SETTINGS",
+                "on_activate": None, "transition_effect": "fade",
+                "transition_frames": 28, "return_effect": None,
+            },
+            {
+                "label": "PROFILE", "action": "open_profile", "page": 1,
+                "enabled": True, "target_state": "PROFILE", "on_activate": None,
+                "transition_effect": "fade", "transition_frames": 28,
+                "return_effect": None,
+            },
+            {
+                "label": "WALL", "action": "open_achievement_wall", "page": 1,
+                "enabled": True, "target_state": "ACHIEVEMENT_WALL",
+                "on_activate": None, "transition_effect": "fade",
+                "transition_frames": 28, "return_effect": None,
+            },
+            {
+                "label": "LORE", "action": "open_lore", "page": 1,
+                "enabled": True, "subtitle_en": "CHRONICLE", "subtitle_zh": "编年史",
+                "target_state": "LORE_READER", "on_activate": None,
+                "transition_effect": "fade", "transition_frames": 28,
+                "return_effect": None,
+            },
+        ))
+        return icons
 
     def _build_desktop_pages(self):
         """Build page list from registry. 6 icons per page max."""
-        max_pages = max((icon["page"] for icon in DESKTOP_ICON_REGISTRY), default=0) + 1
+        icons = self._get_builtin_desktop_icons() + [
+            icon.copy() for icon in DESKTOP_ICON_REGISTRY
+        ]
+        max_pages = max((icon["page"] for icon in icons), default=0) + 1
         pages = [[] for _ in range(max_pages)]
-        for icon in DESKTOP_ICON_REGISTRY:
+        for icon in icons:
             page = icon["page"]
-            entry = {
-                "label": icon["label"],
-                "action": icon["action"],
-                "enabled": icon["enabled"],
-            }
-            sub_en = icon.get("subtitle_en")
-            sub_zh = icon.get("subtitle_zh")
-            if sub_en or sub_zh:
-                entry["subtitle_en"] = sub_en
-                entry["subtitle_zh"] = sub_zh
+            entry = {key: value for key, value in icon.items() if key != "page"}
             pages[page].append(entry)
         return pages
 
@@ -184,6 +280,39 @@ class DesktopMixin:
         self._cancel_desktop_volume_drag()
         begin_close(self.desktop_volume_state)
         self.desktop_volume_open = False
+
+    def _activate_desktop_button(self, button):
+        """Activate a page control or icon through one validated route."""
+        if not button.get("enabled", True):
+            return False
+
+        action = button["action"]
+        if action == "desktop_next_page":
+            self._start_desktop_page_slide(self.desktop_page + 1)
+            return True
+        if action == "desktop_prev_page":
+            self._start_desktop_page_slide(self.desktop_page - 1)
+            return True
+
+        callback = button.get("on_activate")
+        target_state = button.get("target_state")
+        self._desktop_return_effect = (
+            button.get("return_effect")
+            or button.get("transition_effect", "fade")
+        )
+        if callback is not None:
+            callback(self)
+            return True
+        if target_state is None:
+            return False
+
+        resolved_state = getattr(self, target_state, target_state)
+        self._start_transition(
+            resolved_state,
+            button.get("transition_effect", "fade"),
+            frames=button.get("transition_frames", 28),
+        )
+        return True
 
     def _handle_desktop_volume_event(self, event):
         tab = self._get_desktop_volume_tab_rect()
@@ -261,26 +390,16 @@ class DesktopMixin:
         all_btn = self._get_desktop_icon_buttons() + self._get_desktop_page_buttons()
         if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
             for b in all_btn:
-                if b["rect"].collidepoint(event.pos): self.desktop_pressed_action = b["action"]; return
+                if b["rect"].collidepoint(event.pos):
+                    if b.get("enabled", True):
+                        self.desktop_pressed_action = b["action"]
+                    return
         if event.type == pygame.MOUSEBUTTONUP and event.button == 1:
             for b in all_btn:
                 if b["rect"].collidepoint(event.pos) and self.desktop_pressed_action == b["action"]:
-                    action = b["action"]
-                    if action == "open_gomoku": self._desktop_return_effect = "gomoku_grid"; self._start_transition(self.MENU, "gomoku_grid", frames=44)
-                    elif action == "open_snake": self._desktop_return_effect = "snake_scan"; self._start_transition(self.SNAKE_MENU, "snake_scan", frames=50)
-                    elif action == "open_breakout": self._desktop_return_effect = "breakout_bricks"; self._start_transition(self.BREAKOUT_MENU, "breakout_bricks", frames=48)
-                    elif action == "open_2048": self._desktop_return_effect = "g2048_tiles"; self._start_transition(self.G2048_MENU, "g2048_tiles", frames=44)
-                    elif action == "open_mines": self._desktop_return_effect = "mines_radar"; self._start_transition(self.MINES_MENU, "mines_radar", frames=50)
-                    elif action == "open_tetris": self._desktop_return_effect = "tetris_drop"; self._start_transition(self.TETRIS_MENU, "tetris_drop", frames=58)
-                    elif action == "open_air": self._desktop_return_effect = "air_sweep"; self._start_transition(self.AIR_MENU, "air_sweep", frames=46)
-                    elif action == "open_tank": self._desktop_return_effect = "tank_crossfire"; self._start_transition(self.TANK_MENU, "tank_crossfire", frames=48)
-                    elif action == "open_system_settings": self._start_transition(self.SYSTEM_SETTINGS, "fade", frames=28)
-                    elif action == "open_profile": self._start_transition(self.PROFILE, "fade", frames=28)
-                    elif action == "open_achievement_wall": self._start_transition(self.ACHIEVEMENT_WALL, "fade", frames=28)
-                    elif action == "open_lore": self._start_transition(self.LORE_READER, "fade", frames=28)
-                    elif action == "desktop_next_page" and b.get("enabled", True): self._start_desktop_page_slide(self.desktop_page + 1)
-                    elif action == "desktop_prev_page" and b.get("enabled", True): self._start_desktop_page_slide(self.desktop_page - 1)
-                    self.desktop_pressed_action = None; return
+                    self._activate_desktop_button(b)
+                    self.desktop_pressed_action = None
+                    return
             self.desktop_pressed_action = None
 
     def _get_desktop_time_text(self):
@@ -341,7 +460,13 @@ class DesktopMixin:
             col = idx % grid_cols; row = idx // grid_cols
             x = rect.x + gap_x + col * (icon_size + gap_x) + offset_x
             y = content_top + gap_y + row * (icon_size + gap_y) + offset_y
-            buttons.append({"rect": pygame.Rect(x, y, icon_size, icon_size), "label": item["label"], "action": item["action"], "enabled": item["enabled"], "page_index": page_index, "icon_index": idx})
+            button = item.copy()
+            button.update({
+                "rect": pygame.Rect(x, y, icon_size, icon_size),
+                "page_index": page_index,
+                "icon_index": idx,
+            })
+            buttons.append(button)
         return buttons
 
     def _get_desktop_icon_buttons(self):
