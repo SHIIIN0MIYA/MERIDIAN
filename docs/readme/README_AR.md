@@ -11,6 +11,7 @@
   <img src="https://img.shields.io/badge/python-3.10%20%7C%203.11%20%7C%203.12-blue" alt="Python">
   <img src="https://img.shields.io/badge/pygame-2.x-green" alt="Pygame">
   <img src="https://img.shields.io/badge/الترخيص-MIT-yellow" alt="الترخيص">
+  <img src="https://img.shields.io/badge/الإنجازات-60-brightgreen" alt="الإنجازات">
 </p>
 
 <p align="center">
@@ -370,6 +371,23 @@ python -m PyInstaller --noconfirm --clean MERIDIAN.spec
 ```
 
 > ⚠️ تأكد من تثبيت `pygame` وأن المسارات في `MERIDIAN.spec` صحيحة.
+
+---
+
+## 🔎 فحص الإصدار المحلي
+
+شغّل فاحص الإصدار للقراءة فقط من جذر المستودع:
+
+```bash
+python tools/check_release.py
+```
+
+يتحقق هذا الأمر فقط من الإصدار وبيانات `CHANGELOG.md` الوصفية وحالة Git لشجرة العمل والوسوم المحلية للإصدارات. لا ينشئ وسوماً ولا يدفع التغييرات ولا يبني شيئاً. يمكن تشغيل التحليل الثابت للكود المصدري بشكل منفصل:
+
+```bash
+python -m ruff check MERIDIAN.py meridian tools
+python -m compileall -q MERIDIAN.py meridian tools
+```
 
 ---
 

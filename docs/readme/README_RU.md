@@ -11,6 +11,7 @@
   <img src="https://img.shields.io/badge/python-3.10%20%7C%203.11%20%7C%203.12-blue" alt="Python">
   <img src="https://img.shields.io/badge/pygame-2.x-green" alt="Pygame">
   <img src="https://img.shields.io/badge/лицензия-MIT-yellow" alt="Лицензия">
+  <img src="https://img.shields.io/badge/достижения-60-brightgreen" alt="Достижения">
 </p>
 
 <p align="center">
@@ -370,6 +371,23 @@ python -m PyInstaller --noconfirm --clean MERIDIAN.spec
 ```
 
 > ⚠️ Убедитесь, что `pygame` установлен и пути в `MERIDIAN.spec` корректны.
+
+---
+
+## 🔎 Локальная проверка релиза
+
+Запустите проверку релиза в режиме только для чтения из корня репозитория:
+
+```bash
+python tools/check_release.py
+```
+
+Эта команда проверяет только версию, метаданные `CHANGELOG.md` и состояние Git рабочего дерева и локальных тегов версий. Она не создаёт теги, не выполняет push и ничего не собирает. Статический анализ кода можно запустить отдельно:
+
+```bash
+python -m ruff check MERIDIAN.py meridian tools
+python -m compileall -q MERIDIAN.py meridian tools
+```
 
 ---
 

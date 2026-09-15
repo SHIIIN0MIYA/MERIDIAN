@@ -11,6 +11,7 @@
   <img src="https://img.shields.io/badge/python-3.10%20%7C%203.11%20%7C%203.12-blue" alt="Python">
   <img src="https://img.shields.io/badge/pygame-2.x-green" alt="Pygame">
   <img src="https://img.shields.io/badge/licence-MIT-yellow" alt="Licence">
+  <img src="https://img.shields.io/badge/succ%C3%A8s-60-brightgreen" alt="Succès">
 </p>
 
 <p align="center">
@@ -370,6 +371,23 @@ python -m PyInstaller --noconfirm --clean MERIDIAN.spec
 ```
 
 > ⚠️ Assurez-vous que `pygame` est installé et que les chemins dans `MERIDIAN.spec` sont corrects.
+
+---
+
+## 🔎 Vérification de version locale
+
+Exécutez le vérificateur de version en lecture seule depuis la racine du dépôt :
+
+```bash
+python tools/check_release.py
+```
+
+Cette commande vérifie uniquement la version, les métadonnées de `CHANGELOG.md` et l'état Git de l'arbre de travail et des tags de version locaux. Elle ne crée pas de tag, ne pousse rien et ne compile rien. L'analyse statique du code peut être lancée séparément :
+
+```bash
+python -m ruff check MERIDIAN.py meridian tools
+python -m compileall -q MERIDIAN.py meridian tools
+```
 
 ---
 

@@ -11,6 +11,7 @@
   <img src="https://img.shields.io/badge/python-3.10%20%7C%203.11%20%7C%203.12-blue" alt="Python">
   <img src="https://img.shields.io/badge/pygame-2.x-green" alt="Pygame">
   <img src="https://img.shields.io/badge/ライセンス-MIT-yellow" alt="ライセンス">
+  <img src="https://img.shields.io/badge/実績-60-brightgreen" alt="実績">
 </p>
 
 <p align="center">
@@ -370,6 +371,23 @@ python -m PyInstaller --noconfirm --clean MERIDIAN.spec
 ```
 
 > ⚠️ ビルド前に `pygame` がインストールされ、`MERIDIAN.spec` のパスが正しいことを確認してください。
+
+---
+
+## 🔎 ローカルリリースチェック
+
+リポジトリのルートで読み取り専用のリリースチェッカーを実行します：
+
+```bash
+python tools/check_release.py
+```
+
+このコマンドはバージョンと `CHANGELOG.md` のメタデータ、および作業ツリーとローカルバージョンタグの Git 状態のみを確認します。タグを作成せず、プッシュもビルドも行いません。ソースの静的解析は別途実行できます：
+
+```bash
+python -m ruff check MERIDIAN.py meridian tools
+python -m compileall -q MERIDIAN.py meridian tools
+```
 
 ---
 

@@ -11,6 +11,7 @@
   <img src="https://img.shields.io/badge/python-3.10%20%7C%203.11%20%7C%203.12-blue" alt="Python">
   <img src="https://img.shields.io/badge/pygame-2.x-green" alt="Pygame">
   <img src="https://img.shields.io/badge/license-MIT-yellow" alt="License">
+  <img src="https://img.shields.io/badge/achievements-60-brightgreen" alt="Achievements">
 </p>
 
 <p align="center">
@@ -370,6 +371,23 @@ python -m PyInstaller --noconfirm --clean MERIDIAN.spec
 ```
 
 > ⚠️ Ensure `pygame` is installed and paths in `MERIDIAN.spec` are correct before building.
+
+---
+
+## 🔎 Local Release Check
+
+Run the read-only release checker from the repository root:
+
+```bash
+python tools/check_release.py
+```
+
+It only verifies the version and `CHANGELOG.md` metadata, plus the Git state of the working tree and local version tags. It never tags, pushes, or builds. For static analysis of the source, run separately:
+
+```bash
+python -m ruff check MERIDIAN.py meridian tools
+python -m compileall -q MERIDIAN.py meridian tools
+```
 
 ---
 
