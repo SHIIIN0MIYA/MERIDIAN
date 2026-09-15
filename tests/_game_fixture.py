@@ -77,6 +77,19 @@ class GameSaveTestCase(unittest.TestCase):
         ):
             path.unlink(missing_ok=True)
 
+    # ── game setup ───────────────────────────────────────────────────────
+
+    def start_gomoku(self):
+        """Start a Gomoku game already in its playing state.
+
+        ``_start_new_game`` prepares the board without switching state — in the
+        real flow the entry transition does that at its midpoint — so a test
+        that exercises the save path has to say so itself.
+        """
+        self.game._start_new_game()
+        self.game.state = self.game.PLAYING
+        return self.game
+
     # ── run-state capture ────────────────────────────────────────────────
 
     def capture_run_state(self, game_id: str):

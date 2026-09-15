@@ -73,8 +73,7 @@ class MinesSnapshotValueTests(GameSaveTestCase):
 
 class GomokuSnapshotValueTests(GameSaveTestCase):
     def test_restore_is_not_an_alias_of_the_stored_snapshot(self):
-        game = self.game
-        game._start_new_game()
+        game = self.start_gomoku()
         game.board.place_stone(7, 7)
         state = game._capture_gomoku_run_state()
         stored_before = copy.deepcopy(state)
@@ -88,8 +87,7 @@ class GomokuSnapshotValueTests(GameSaveTestCase):
         )
 
     def test_capture_is_not_an_alias_of_the_live_board(self):
-        game = self.game
-        game._start_new_game()
+        game = self.start_gomoku()
         game.board.place_stone(7, 7)
         snapshot = game._capture_gomoku_run_state()
         before = copy.deepcopy(snapshot)

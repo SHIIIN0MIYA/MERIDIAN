@@ -52,7 +52,7 @@
 | R-08 | 坦克爆炸特效画在重生点 | `tank_engine.py:803-811`、`tank_battle.py:275-277` | P1 | S | 低 |
 | R-09 | 坦克粒子速度单位错误，总位移约 2px | `tank_vfx.py:44-45/61-62` | P1 | S | 低 |
 | R-10 | SMOKE 道具无任何游戏效果（纯装饰） | `tank_engine.py:136-152/644` | P1 | M | 中 |
-| R-11 | 五子棋开局/继续的转场从不播放 | `gomoku.py:446-454/586`、`shell_transitions.py:33` | P1 | S | 低 |
+| R-11 | 五子棋开局/继续的转场从不播放 | `gomoku.py:446-454/586`、`shell_transitions.py:33` | P1 | S | 低 | **✅ 已完成** |
 | R-12 | ZH 键冲突：`RED`/`BLUE` 被坦克方标签覆盖 | `localization.py:282/288/626/627` | P2 | S | 低 |
 | R-13 | 五子棋结算标题显示成统计标签「黑方胜场」 | `gomoku.py:1938`、`localization.py:252-253/701` | P2 | S | 低 |
 | R-14 | 两套翻译注册机制；被校验的那套无人使用 | `localization.py:587-591/729` | P2 | M | 低 |
@@ -525,6 +525,15 @@ events.append(EngineEvent("tank_destroyed", target,
 ---
 
 ### R-11 五子棋转场恢复
+> **✅ 已完成。** 从 `_start_new_game` 移除 `self.state = self.PLAYING`，由调用者的 `_start_transition` 在中点切换状态（淡出时菜单仍在屏上）；与 `resume` 分支行为对齐。
+
+**实施中发现并一并修复**：`_start_new_game` 的五个调用者语义各不相同，其中**结束页按 R 重启没有转场**（依赖被移除的状态赋值），而结束页的鼠标按钮「again」做同一件事却带转场。已给 R 键补上转场，两条路径现在一致——又是 `Bug_Log.md` 那条「同一动作的多种输入方式走了不同路径」。对局中按 R 重启**不**加转场（本就在 PLAYING，转场无意义），保持原有即时感。
+
+**测试前置条件的连带修正**：6 个测试原先依赖「`_start_new_game` 会顺便设置 PLAYING」这个副作用（否则 `_save_now` 不会捕获运行状态）。新增夹具方法 `start_gomoku()` 让前置条件显式化——这本身是更好的测试写法。
+
+**已落地的测试**（`tests/test_gomoku_entry_transition.py`，6 个用例）：菜单 start 播放转场且状态在转场结束前不变；continue 与 resume 同样播放（三个入口对齐）；结束页 R 键与 again 按钮行为一致；对局中重启不转场。
+
+**验证证据（关键）**：回退 `meridian/gomoku.py` 后 **6 个中 4 个失败**，含 `False is not true : starting a game must fade, not cut straight to the board` 与 `'playing' != 'menu'`（状态在淡出前就已切换）。
 
 **现状**：`_start_new_game` 自己设 `self.state = self.PLAYING`（`gomoku.py:586`），调用者随后才调 `_start_transition(self.PLAYING, "fade")`：
 

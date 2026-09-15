@@ -28,8 +28,7 @@ class GomokuWinsOn19Tests(GameSaveTestCase):
         game._on_win()
 
     def test_mid_game_size_change_does_not_grant_the_achievement(self):
-        game = self.game
-        game._start_new_game()
+        game = self.start_gomoku()
         self.assertEqual(game.board.board_count, 15)
 
         game.board_size = 19        # the preference changes; the board does not
@@ -46,7 +45,7 @@ class GomokuWinsOn19Tests(GameSaveTestCase):
     def test_a_genuine_19_board_win_still_grants_the_achievement(self):
         game = self.game
         game.board_size = 19
-        game._start_new_game()
+        self.start_gomoku()
         self.assertEqual(game.board.board_count, 19)
 
         self._play_black_win_on_the_loaded_board()
@@ -57,7 +56,7 @@ class GomokuWinsOn19Tests(GameSaveTestCase):
     def test_a_13_board_win_does_not_grant_the_achievement(self):
         game = self.game
         game.board_size = 13
-        game._start_new_game()
+        self.start_gomoku()
         self.assertEqual(game.board.board_count, 13)
 
         self._play_black_win_on_the_loaded_board()

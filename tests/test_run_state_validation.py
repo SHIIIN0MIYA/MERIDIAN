@@ -224,8 +224,7 @@ class LoadLoopTests(GameSaveTestCase):
         return game
 
     def test_a_healthy_gomoku_run_still_restores(self):
-        game = self.game
-        game._start_new_game()
+        game = self.start_gomoku()
         game.board.place_stone(7, 7)
 
         self.assert_run_state_survives_restart("gomoku")
@@ -240,8 +239,7 @@ class LoadLoopTests(GameSaveTestCase):
         self.assertIsNone(game.restore_notice)
 
     def test_a_19_board_snapshot_in_a_15_game_is_rejected_not_misplaced(self):
-        game = self.game
-        game._start_new_game()
+        game = self.start_gomoku()
         game.board.place_stone(7, 7)
 
         def mutate(state):
@@ -283,8 +281,7 @@ class LoadLoopTests(GameSaveTestCase):
         self.assertIn("MINES", game.restore_notice)
 
     def test_a_completed_run_is_cleared_without_a_notice(self):
-        game = self.game
-        game._start_new_game()
+        game = self.start_gomoku()
         game.board.place_stone(7, 7)
 
         self._corrupt_stored_run_state("gomoku", lambda state: state.update(winner=1))
@@ -299,8 +296,7 @@ class LoadLoopTests(GameSaveTestCase):
 
 class SettingChangeTests(GameSaveTestCase):
     def test_changing_the_gomoku_size_mid_game_drops_the_run(self):
-        game = self.game
-        game._start_new_game()
+        game = self.start_gomoku()
         game.board.place_stone(7, 7)
         game._save_now()
         self.assertTrue(self.progress("gomoku")["run_active"])
@@ -312,8 +308,7 @@ class SettingChangeTests(GameSaveTestCase):
         self.assertNotEqual(game.board.board_count, game.board_size)
 
     def test_changing_the_gomoku_size_before_moving_still_resizes_the_board(self):
-        game = self.game
-        game._start_new_game()
+        game = self.start_gomoku()
 
         game._activate_system_setting("cycle_gomoku")
 
@@ -420,8 +415,7 @@ class CrossSessionGeometryTests(GameSaveTestCase):
         self.assertIsNone(self.pending_run_state("mines"))
 
     def test_a_gomoku_run_from_another_board_size_is_rejected(self):
-        game = self.game
-        game._start_new_game()
+        game = self.start_gomoku()
         game.board.place_stone(7, 7)
 
         self._reload_with_settings({"gomoku_board_size": 19})
@@ -430,8 +424,7 @@ class CrossSessionGeometryTests(GameSaveTestCase):
         self.assertIn("GOMOKU", game.restore_notice)
 
     def test_a_run_matching_the_settings_still_restores(self):
-        game = self.game
-        game._start_new_game()
+        game = self.start_gomoku()
         game.board.place_stone(7, 7)
 
         self._reload_with_settings({"gomoku_board_size": 15})

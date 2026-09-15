@@ -510,6 +510,7 @@ class GomokuMixin:
                 self.pressed_button_action = None
             elif event.key == pygame.K_r:
                 self._start_new_game()
+                self._start_transition(self.PLAYING, "fade")
             return
 
         if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
@@ -588,7 +589,9 @@ class GomokuMixin:
             self.board.winner = restore_state.get("winner", 0)
             self.board.win_stones = copy.deepcopy(restore_state.get("win_stones", []))
         self._rebuild_stone_assets()
-        self.state = self.PLAYING
+        # State is deliberately not switched here: _start_transition does it at
+        # the midpoint so the menu fades out first.  Every caller that wants the
+        # playing state either starts a transition or is already in it (R-11).
         self.hover_pos = None
         self.animations.clear()
         self.particles.clear()

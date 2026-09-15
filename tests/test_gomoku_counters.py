@@ -36,8 +36,7 @@ class GomokuWinCounterTests(GameSaveTestCase):
 
     def _play_black_win(self):
         """Play a genuine black five-in-a-row and run the win accounting."""
-        game = self.game
-        game._start_new_game()
+        game = self.start_gomoku()
         self._place([(0, 0), (1, 0), (0, 1), (1, 1), (0, 2),
                      (1, 2), (0, 3), (1, 3), (0, 4)])
         self.assertEqual(game.board.winner, 1)
@@ -71,8 +70,7 @@ class GomokuWinCounterTests(GameSaveTestCase):
         self.assertEqual(self.game.black_wins, 1)
 
     def test_white_win_counter_stays_equal_and_rolls_back(self):
-        game = self.game
-        game._start_new_game()
+        game = self.start_gomoku()
         # Black is scattered so it never lines up; white takes all of row 1.
         self._place([(0, 0), (1, 0), (0, 2), (1, 1), (0, 4),
                      (1, 2), (2, 0), (1, 3), (2, 2), (1, 4)])
@@ -87,8 +85,7 @@ class GomokuWinCounterTests(GameSaveTestCase):
         self.assertEqual(self._statistics()["white_wins"], 0)
 
     def test_draw_counter_stays_equal_and_rolls_back(self):
-        game = self.game
-        game._start_new_game()
+        game = self.start_gomoku()
         game.board.place_stone(0, 0)      # a real move, so undo has something to pop
         game.board.winner = -1            # force the drawn outcome
         game._on_win()
