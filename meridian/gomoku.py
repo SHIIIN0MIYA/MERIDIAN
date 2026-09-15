@@ -1,3 +1,5 @@
+import copy
+
 from .common import *
 
 
@@ -575,13 +577,15 @@ class GomokuMixin:
     def _start_new_game(self, restore_state=None):
         self.board = Board(self.board_size)
         if restore_state:
-            self.board.grid = restore_state["grid"]
+            # Copy in: the live board must never alias the stored snapshot, or
+            # playing would mutate save data in place (R-03).
+            self.board.grid = copy.deepcopy(restore_state["grid"])
             self.board.current_player = restore_state["current_player"]
-            self.board.move_history = restore_state["move_history"]
+            self.board.move_history = copy.deepcopy(restore_state["move_history"])
             self.board.move_count = restore_state["move_count"]
             self.board.last_move = restore_state.get("last_move")
             self.board.winner = restore_state.get("winner", 0)
-            self.board.win_stones = restore_state.get("win_stones", [])
+            self.board.win_stones = copy.deepcopy(restore_state.get("win_stones", []))
         self._rebuild_stone_assets()
         self.state = self.PLAYING
         self.hover_pos = None

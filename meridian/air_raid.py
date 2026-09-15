@@ -1,5 +1,7 @@
 """AIR RAID: a procedural retro-future bullet-hell campaign."""
 
+import copy
+
 from .common import *
 from .arcade_common import *
 from .arcade_levels import (
@@ -232,6 +234,8 @@ class AirRaidMixin:
         cfg = AIR_LEVELS[self.air_level]
         restore_state = getattr(self, "_air_restore_state", None)
         if restore_state:
+            # Copy in: live combat state must never alias the stored snapshot.
+            restore_state = copy.deepcopy(restore_state)
             self.air_player = restore_state["player"]
             self.air_enemies = restore_state["enemies"]
             self.air_bullets = restore_state["bullets"]
@@ -323,7 +327,9 @@ class AirRaidMixin:
         self._show_air_story(cfg["story"][0], 180)
 
     def _capture_air_run_state(self):
-        return {
+        # Copied so the snapshot is a value, not an alias of live combat
+        # state — otherwise playing would mutate save data in place (R-03).
+        return copy.deepcopy({
             "player": self.air_player,
             "enemies": self.air_enemies,
             "bullets": self.air_bullets,
@@ -351,7 +357,7 @@ class AirRaidMixin:
             "boss_phase": self.air_boss_phase,
             "boss_phase_flash": self.air_boss_phase_flash,
             "bullet_serial": self.air_bullet_serial,
-        }
+        })
 
     def _retry_air_level(self):
         if self.air_entry_snapshot:

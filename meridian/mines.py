@@ -1,3 +1,5 @@
+import copy
+
 from .common import *
 
 
@@ -98,9 +100,11 @@ class MinesMixin:
 
     def _start_mines_game(self, restore_state=None, track=True):
         if restore_state:
-            self.mines_grid = restore_state["grid"]
-            self.mines_revealed = restore_state["revealed"]
-            self.mines_flags = restore_state["flags"]
+            # Copy in: the live board must never alias the stored snapshot, or
+            # playing would mutate save data in place (R-03).
+            self.mines_grid = copy.deepcopy(restore_state["grid"])
+            self.mines_revealed = copy.deepcopy(restore_state["revealed"])
+            self.mines_flags = copy.deepcopy(restore_state["flags"])
             self.mines_started = restore_state["started"]
             self.mines_elapsed_ms = int(restore_state.get("elapsed_ms", 0))
             self.mines_resume_elapsed = self.mines_elapsed_ms
@@ -153,8 +157,9 @@ class MinesMixin:
     def _capture_mines_run_state(self):
         # mines_elapsed_ms is kept fresh by _update_mines_visual_effects while
         # the board is live, so it is persisted as-is; recomputing here would
-        # make the stored value depend on when the capture ran.
-        return {
+        # make the stored value depend on when the capture ran.  The boards are
+        # copied so the snapshot is a value, not an alias of live game state.
+        return copy.deepcopy({
             "grid": self.mines_grid,
             "revealed": self.mines_revealed,
             "flags": self.mines_flags,
@@ -162,7 +167,7 @@ class MinesMixin:
             "elapsed_ms": self.mines_elapsed_ms,
             "revealed_count": self.mines_revealed_count,
             "flags_count": self.mines_flags_count,
-        }
+        })
 
     def _generate_mines_board(self, safe_r, safe_c):
         positions = [(r, c) for r in range(self.mines_size) for c in range(self.mines_size) if not (abs(r - safe_r) <= 1 and abs(c - safe_c) <= 1)]

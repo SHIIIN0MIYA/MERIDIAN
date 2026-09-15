@@ -44,7 +44,7 @@
 |---|---|---|---|---|---|
 | R-01 | 五子棋胜场双计数器，撤销后永久分叉 | `gomoku.py:684-692`、`system.py:203-205/326-328/439/443` | **P0** | S | 低 | **✅ 已完成** |
 | R-02 | 扫雷计时器跨进程失效，可写入负数最快纪录 | `mines.py:100/139/155/225/363` | **P0** | S | 低 | **✅ 已完成** |
-| R-03 | run_state 存/取均为活引用，会原地篡改存档 | `mines.py:133-143`、`gomoku.py:578-581`、`air_raid.py:325-354` | **P0** | S | 低 |
+| R-03 | run_state 存/取均为活引用，会原地篡改存档 | `mines.py:133-143`、`gomoku.py:578-581`、`air_raid.py:325-354` | **P0** | S | 低 | **✅ 已完成** |
 | R-04 | 恢复路径无维度校验；扫雷改尺寸后可 IndexError | `gomoku.py:578-581/628-637`、`mines.py:96-98/133-143`、`system.py:240-264/708-711` | **P0** | M | 低–中 |
 | R-05 | `wins_on_19` 用 `board_size` 而非棋盘真实尺寸 | `gomoku.py:563/566-568/735` | **P0** | S | 低 |
 | R-06 | 空袭行动章节→关卡索引错位（**已复现**，第 2–8 章剧情回退 1–7 关） | `air_raid.py:114/128/220-222/1665-1668` | P1 | S | 低 |
@@ -205,6 +205,21 @@ AssertionError: -899912 is not None : a negative elapsed must never be recorded 
 ---
 
 ### R-03 run_state 值语义（消除活引用）
+
+> **✅ 已完成。** 严重性需要修正：修复前**无法构造出用户可见的故障** —— 因为离开对局会重写快照、`_clear_run_state` 会把快照与实时状态解绑，现有的「清理纪律」掩盖了别名危害。所以本项的价值是**消除潜在隐患并让 R-04 的校验成立**，而不是修复一个已发生的问题。
+
+**已实施（as-built）**：三个游戏统一「捕获深拷贝、恢复深拷贝」。
+
+- `mines.py`：`_capture_mines_run_state` 返回 `copy.deepcopy({...})`（原先直接返回 `self.mines_grid` / `mines_revealed` / `mines_flags` 的活引用）；`_start_mines_game` 恢复分支对三个棋盘 `copy.deepcopy`。
+- `gomoku.py`：`_start_new_game` 恢复分支对 `grid` / `move_history` / `win_stones` 深拷贝（原先按引用赋值；捕获侧本来就有拷贝）。
+- `air_raid.py`：`_capture_air_run_state` 整体 `copy.deepcopy`；`_begin_air_combat` 在拆包前对 `restore_state` 深拷贝一次（覆盖 `air_player` / `air_enemies` / `air_bullets` / `air_powerups` / `air_missiles` / `air_loadout` 六个容器）。
+- 三个文件各加 `import copy`（项目此前无显式 copy 导入）。tank 本来就正确（`to_dict()`），未改动。
+
+**已落地的测试**（`tests/test_run_state_values.py`，6 个用例）
+
+mines 的捕获/恢复不是活引用、恢复后的对局与快照互不影响；gomoku 的捕获/恢复同理；air 的捕获不别名实时战斗状态。
+
+**验证证据（关键）**：把三个源文件临时回退到修复前，**6 个用例全部失败**，且失败信息直接显示被注入的数值出现在快照里（`1, 42`、`7`、`999.0`）以及 `True is not false`。修复后全量套件 176 passed，ruff 全通过。
 
 **现状**
 
