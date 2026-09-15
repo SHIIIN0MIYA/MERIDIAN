@@ -1,6 +1,7 @@
 import copy
 
 from .common import *
+from .runstate import RUN_STATE_FORMAT
 
 
 class GomokuMixin:
@@ -631,6 +632,8 @@ class GomokuMixin:
 
     def _capture_gomoku_run_state(self):
         return {
+            "format": RUN_STATE_FORMAT,
+            "board_count": self.board.board_count,
             "grid": [row[:] for row in self.board.grid],
             "current_player": self.board.current_player,
             "move_history": self.board.move_history[:],

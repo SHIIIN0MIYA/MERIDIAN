@@ -4,7 +4,9 @@ import datetime as dt
 import json
 
 from .common import *
+from . import runstate
 from .persistence import SaveManager
+from .runstate import RunStateVerdict
 from .localization import set_language, get_chinese_font, is_chinese
 from . import lore as _lore
 from .tank_engine import TankSnapshotError
@@ -82,6 +84,14 @@ ACHIEVEMENTS = [
 ]
 
 
+# Human-readable names for the restore notice shown when a saved run is dropped.
+RESTORE_NOTICE_LABELS = {
+    "gomoku": "GOMOKU", "snake": "SNAKE", "breakout": "BREAKOUT",
+    "2048": "2048", "mines": "MINES", "tetris": "TETRIS",
+    "air": "AIR RAID", "tank": "TANK DUEL",
+}
+
+
 GAME_STATES = {
     "playing": "gomoku",
     "snake_playing": "snake",
@@ -114,6 +124,7 @@ class SystemMixin:
         self._pending_run_states = {}
         self._run_state_save_suppressed = set()
         self.tank_restore_notice = None
+        self.restore_notice = None
         self._last_persisted_snapshot = ""
         self._last_save_check = pygame.time.get_ticks()
         self._last_usage_tick = pygame.time.get_ticks()
@@ -223,50 +234,66 @@ class SystemMixin:
         # Load pending run states for resume support
         self._pending_run_states.clear()
         self.tank_restore_notice = None
+        self.restore_notice = None
         for game_id in ("gomoku", "snake", "breakout", "2048", "mines", "tetris", "air", "tank"):
             progress = self.save_data.get("progress", {}).get(game_id, {})
-            if progress.get("run_active") and progress.get("run_state") is not None:
-                if self._is_completed_run_state(game_id, progress["run_state"]):
-                    progress["run_active"] = False
-                    progress["run_state"] = None
-                    continue
-                if game_id == "tank":
-                    try:
-                        self._restore_tank_run_state(progress["run_state"])
-                    except TankSnapshotError:
-                        progress["run_active"] = False
-                        progress["run_state"] = None
-                        self.tank_restore_notice = "TANK SAVE COULD NOT BE RESTORED"
-                    else:
-                        self._pending_run_states[game_id] = progress["run_state"]
+            if not (progress.get("run_active") and progress.get("run_state") is not None):
+                continue
+            run_state = progress["run_state"]
+            # Tank validates its own snapshot and raises TankSnapshotError;
+            # every other game goes through the shared validator.
+            verdict = (
+                RunStateVerdict.RESUMABLE if game_id == "tank"
+                else runstate.validate(game_id, run_state, **self._run_state_geometry(game_id))
+            )
+            if verdict is RunStateVerdict.REJECTED:
+                self._drop_run_state(game_id)
+                self._set_restore_notice(game_id)
+                continue
+            if verdict is RunStateVerdict.COMPLETED:
+                self._drop_run_state(game_id)
+                continue
+            if game_id == "tank":
+                try:
+                    self._restore_tank_run_state(run_state)
+                except TankSnapshotError:
+                    self._drop_run_state(game_id)
+                    self._set_restore_notice(game_id)
                 else:
-                    self._pending_run_states[game_id] = progress["run_state"]
+                    self._pending_run_states[game_id] = run_state
+            else:
+                self._pending_run_states[game_id] = run_state
 
-    @staticmethod
-    def _is_completed_run_state(game_id, run_state):
+    def _run_state_geometry(self, game_id):
+        """The current settings a stored snapshot has to agree with."""
         if game_id == "gomoku":
-            return run_state.get("winner", 0) != 0
-        if game_id != "mines":
-            return False
+            return {"expected_size": self.board_size}
+        if game_id == "mines":
+            return {"expected_size": self.mines_size, "expected_count": self.mines_count}
+        return {}
 
-        grid = run_state.get("grid", [])
-        revealed = run_state.get("revealed", [])
-        if not grid or len(grid) != len(revealed):
-            return False
+    def _drop_run_state(self, game_id):
+        """Forget a saved run in memory only, without touching the save file.
 
-        safe_cells = 0
-        revealed_safe_cells = 0
-        for row, revealed_row in zip(grid, revealed):
-            if len(row) != len(revealed_row):
-                return False
-            for cell, is_revealed in zip(row, revealed_row):
-                if cell == -1:
-                    if is_revealed:
-                        return True
-                else:
-                    safe_cells += 1
-                    revealed_safe_cells += int(bool(is_revealed))
-        return safe_cells > 0 and revealed_safe_cells == safe_cells
+        For use at load time, where the current state is not a game and so no
+        capture will immediately re-create the snapshot.  Callers that drop a
+        run while the game is still current must use ``_clear_run_state``,
+        which also suppresses the next capture.
+        """
+        progress = self.save_data.get("progress", {}).get(game_id)
+        if isinstance(progress, dict):
+            progress["run_active"] = False
+            progress["run_state"] = None
+        self._pending_run_states.pop(game_id, None)
+
+    def _set_restore_notice(self, game_id):
+        """Record that a saved run was dropped, for the surface that shows it."""
+        label = RESTORE_NOTICE_LABELS.get(game_id, game_id.upper())
+        notice = f"{label} SAVE COULD NOT BE RESTORED"
+        self.restore_notice = notice
+        if game_id == "tank":
+            # Tank has its own on-screen surface; keep it fed from the same fact.
+            self.tank_restore_notice = notice
 
     def _apply_snake_preferences(self):
         self.snake_base_interval = {"slow": 11, "normal": 8, "fast": 6}.get(self.snake_speed_mode, 8)
@@ -661,6 +688,9 @@ class SystemMixin:
             self.system_pressed_action = None
 
     def _activate_system_setting(self, action):
+        # Set by a branch below when the change invalidates a saved run; applied
+        # after the final save, which would otherwise recapture the snapshot.
+        drop_run_id = None
         if action == "back":
             self._go_system_desktop()
         elif action == "music_down":
@@ -685,7 +715,13 @@ class SystemMixin:
             set_language(self.language)
         elif action == "cycle_gomoku":
             choices = BOARD_SIZE_CHOICES
-            self.board_size = choices[(choices.index(self.board_size) + 1) % len(choices)]
+            new_size = choices[(choices.index(self.board_size) + 1) % len(choices)]
+            if new_size != self.board.board_count and self.board.has_moves() and not self.board.winner:
+                # A live board cannot be resized, so the saved run would no
+                # longer match the setting.  Drop it instead of leaving a
+                # snapshot that can only be rejected later (R-04).
+                drop_run_id = "gomoku"
+            self.board_size = new_size
             if not self.board.has_moves() or self.board.winner:
                 self.board = Board(self.board_size)
                 self._rebuild_stone_assets()
@@ -716,9 +752,15 @@ class SystemMixin:
             modes = [(9, 10), (9, 15), (9, 20), (16, 40), (16, 50), (16, 60)]
             current = (self.mines_size, self.mines_count)
             self.mines_size, self.mines_count = modes[(modes.index(current) + 1) % len(modes)]
+            # The saved board no longer matches the mode; drop it (R-04).
+            drop_run_id = "mines"
         elif action in ("reset_settings", "erase_progress"):
             self.system_dialog = action
         self._save_now()
+        if drop_run_id:
+            # _clear_run_state, not _drop_run_state: the game is still current,
+            # so the drop has to suppress the capture in its own save.
+            self._clear_run_state(drop_run_id)
 
     def _get_system_dialog_buttons(self):
         return [

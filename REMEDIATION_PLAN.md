@@ -45,7 +45,7 @@
 | R-01 | 五子棋胜场双计数器，撤销后永久分叉 | `gomoku.py:684-692`、`system.py:203-205/326-328/439/443` | **P0** | S | 低 | **✅ 已完成** |
 | R-02 | 扫雷计时器跨进程失效，可写入负数最快纪录 | `mines.py:100/139/155/225/363` | **P0** | S | 低 | **✅ 已完成** |
 | R-03 | run_state 存/取均为活引用，会原地篡改存档 | `mines.py:133-143`、`gomoku.py:578-581`、`air_raid.py:325-354` | **P0** | S | 低 | **✅ 已完成** |
-| R-04 | 恢复路径无维度校验；扫雷改尺寸后可 IndexError | `gomoku.py:578-581/628-637`、`mines.py:96-98/133-143`、`system.py:240-264/708-711` | **P0** | M | 低–中 |
+| R-04 | 恢复路径无维度校验；扫雷改尺寸后可 IndexError | `gomoku.py:578-581/628-637`、`mines.py:96-98/133-143`、`system.py:240-264/708-711` | **P0** | M | 低–中 | **✅ 已完成**（留下 R-04b） |
 | R-05 | `wins_on_19` 用 `board_size` 而非棋盘真实尺寸 | `gomoku.py:563/566-568/735` | **P0** | S | 低 | **✅ 已完成** |
 | R-06 | 空袭行动章节→关卡索引错位（**已复现**，第 2–8 章剧情回退 1–7 关） | `air_raid.py:114/128/220-222/1665-1668` | P1 | S | 低 |
 | R-07 | 解锁横幅永不清除，每次结算重复出现 | `air_raid.py:926/1645` | P1 | S | 低 |
@@ -254,6 +254,46 @@ mines 的捕获/恢复不是活引用、恢复后的对局与快照互不影响�
 ---
 
 ### R-04 恢复路径维度校验与快照自描述
+> **✅ 已完成（除 R-04b：提示的界面呈现）。**
+
+**已实施（as-built）**
+
+1. **新模块 `meridian/runstate.py`**：`RunStateVerdict`（RESUMABLE / COMPLETED / REJECTED）+ `validate()`。取代原计划「把 `_is_completed_run_state` 改成三态」的做法——抽成独立模块后可以脱离 `Game` 做纯单元测试，覆盖畸形输入的矩阵。
+2. **快照自描述**：`format` + `size`/`board_count` + `mines_count` 只加在 gomoku 与 mines 上。**偏离原计划**（原写「所有 run_state」）：其余四个游戏没有尺寸依赖，加一个无人读取的字段只是无谓改动；将来真要收紧时再连同校验一起加。tank 不在此列——它已有 155 行的 `TankSnapshotError` 校验。
+3. **三项校验**：快照内部自洽（网格方正、与行数一致、元素类型正确、`mines_count` 与网格中 `-1` 的个数相符）；**与当前设置一致**（见下）；已完成/无内容的状态归入 `COMPLETED` 静默清理而非报错（「未落一子的棋局」与「已覆盖地雷」都属于此）。`validate()` 对垃圾输入永不抛异常。
+4. **失败降级**：`REJECTED` → `_drop_run_state()` 清 `run_active`/`run_state`，并设 `restore_notice`。tank 继续走自己的 `tank_restore_notice`，但两者由同一事实驱动。
+5. **设置页交互**：改尺寸/改模式会丢弃该游戏未完成的运行状态。
+
+**实施中发现的漏洞（原计划未覆盖）**
+
+原计划只要求「校验快照结构」，我最初也只做了**内部自洽**检查——但用旧代码复现时发现真实崩溃路径是**跨会话**的：
+
+```
+存档：9x9 网格，run_active = True
+玩家：把模式改成 16x16 / 40
+重载：mines_size = 16，而存档里仍是 9x9 —— 旧代码接受它
+恢复后 reveal(14,14) → IndexError: list index out of range
+```
+
+快照自身完全自洽，问题在于它与**当前设置**不一致。因此补上了 `expected_size` / `expected_count` 参数，由 `_apply_loaded_data` 传入 `self.board_size` / `self.mines_size` / `self.mines_count`；同时修了一个连带的坑：设置页结尾的 `_save_now()` 会**重新捕获**刚丢掉的运行状态，所以丢弃必须延后到那次保存之后，且用 `_clear_run_state`（带捕获抑制）而非纯内存的 `_drop_run_state`。
+
+**已落地的测试**（`tests/test_run_state_validation.py`，42 个用例）
+
+纯校验矩阵（gomoku 12 + mines 9 + 健壮性 4）、真实加载路径 6、设置页交互 3、设置一致性 5、跨会话 4。包括：19 路快照载入 15 路设置被拒绝；参差网格不抛异常；已完成状态静默清理**不**产生提示；健康快照仍能恢复（防止校验过严）；僵尸输入永不抛异常。
+
+**验证证据**：`runstate.py` 是新模块，回退它会让整个测试文件 `ModuleNotFoundError`，所以第 4 项的「回退验证」改用一段临时脚本直接跑旧代码，实测输出：
+
+```
+(a) gomoku 19x19 快照 + 15x15 设置：offered for restore? True
+    board.board_count = 15 | len(grid) = 19   ← 第 15-18 行悬挂在棋盘之外
+(b) mines 9x9 快照 + 16x16 模式：offered for restore? True
+    reveal(14,14) → IndexError: list index out of range
+```
+
+全量套件 **221 passed**，ruff 全通过。
+
+**未完成：R-04b（提示的界面呈现）** —— `restore_notice` 目前只被设置、尚未渲染（只有 tank 的既有界面会显示它）。这不构成回归：修复前的行为是**崩溃或静默错位**，现在至少是安全拒绝；而「继续」按钮不再出现本身也是可见信号。渲染一处通用提示是独立的小改动。
+
 
 **决策**：D2=B（不做迁移）——**旧 `run_state` 一律拒绝，不补字段、不迁移**。这使本项从「L / 中风险」降为「M / 低–中风险」。
 

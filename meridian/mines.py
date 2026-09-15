@@ -1,6 +1,7 @@
 import copy
 
 from .common import *
+from .runstate import RUN_STATE_FORMAT
 
 
 class MinesMixin:
@@ -160,6 +161,9 @@ class MinesMixin:
         # make the stored value depend on when the capture ran.  The boards are
         # copied so the snapshot is a value, not an alias of live game state.
         return copy.deepcopy({
+            "format": RUN_STATE_FORMAT,
+            "size": self.mines_size,
+            "mines_count": self.mines_count,
             "grid": self.mines_grid,
             "revealed": self.mines_revealed,
             "flags": self.mines_flags,
