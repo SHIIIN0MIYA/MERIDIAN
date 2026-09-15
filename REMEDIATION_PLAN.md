@@ -48,7 +48,7 @@
 | R-04 | 恢复路径无维度校验；扫雷改尺寸后可 IndexError | `gomoku.py:578-581/628-637`、`mines.py:96-98/133-143`、`system.py:240-264/708-711` | **P0** | M | 低–中 | **✅ 已完成**（留下 R-04b） |
 | R-05 | `wins_on_19` 用 `board_size` 而非棋盘真实尺寸 | `gomoku.py:563/566-568/735` | **P0** | S | 低 | **✅ 已完成** |
 | R-06 | 空袭行动章节→关卡索引错位（**已复现**，第 2–8 章剧情回退 1–7 关） | `air_raid.py:114/128/220-222/1665-1668` | P1 | S | 低 | **✅ 已完成** |
-| R-07 | 解锁横幅永不清除，每次结算重复出现 | `air_raid.py:926/1645` | P1 | S | 低 |
+| R-07 | 解锁横幅永不清除，每次结算重复出现 | `air_raid.py:926/1645` | P1 | S | 低 | **✅ 已完成** |
 | R-08 | 坦克爆炸特效画在重生点 | `tank_engine.py:803-811`、`tank_battle.py:275-277` | P1 | S | 低 |
 | R-09 | 坦克粒子速度单位错误，总位移约 2px | `tank_vfx.py:44-45/61-62` | P1 | S | 低 |
 | R-10 | SMOKE 道具无任何游戏效果（纯装饰） | `tank_engine.py:136-152/644` | P1 | M | 中 |
@@ -453,6 +453,7 @@ AssertionError: 5 is not None
 ---
 
 ### R-07 解锁横幅一次性语义
+> **✅ 已完成。** 计数放在 `_update_air_raid` 顶部（先于 `AIR_MENU` 的提前返回），渲染处保持只读。新增模块常量 `AIR_UNLOCK_NOTICE_FRAMES = 300`（约 5 秒）；`_finish_air` 抬旗时同时装填计数。测试刻意不 import 该常量，改用「驱动到标记清除」的写法，以便对修复前的模块也能给出**行为级**失败证据而不是 `ImportError`。
 
 **现状**：`air_challenge_unlocked_notice` 在 `air_raid.py:926` 置位后**从不复位**，结算页在 `:1645` 渲染 → 「CHALLENGE CAMPAIGN + BOSS RUSH UNLOCKED」在**此后每一次结算页重复出现**，包括失败结算。
 

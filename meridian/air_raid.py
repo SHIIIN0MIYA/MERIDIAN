@@ -15,6 +15,10 @@ AIR_PALETTE = {
     "accent": C.AIR_ACCENT, "accent_light": C.AIR_ACCENT_LIGHT,
     "text": C.AIR_TEXT, "muted": C.AIR_MUTED, "hover": C.AIR_HOVER,
 }
+# The "challenge unlocked" announcement is a one-shot: it fades on its own
+# instead of reappearing on every later end screen (R-07).
+AIR_UNLOCK_NOTICE_FRAMES = 300
+
 AIR_WEAPON_COLORS = {
     "cannon": C.AIR_CANNON, "spread": C.AIR_SPREAD, "laser": C.AIR_LASER,
 }
@@ -37,6 +41,7 @@ class AirRaidMixin:
         self.air_mode = "standard"
         self.air_campaign_active = False
         self.air_challenge_unlocked_notice = False
+        self.air_unlock_notice_frames = 0
         self.air_paused = False
         self.air_result = ""
         self.air_rank = "C"
@@ -849,6 +854,10 @@ class AirRaidMixin:
         self.air_threat = max(.90, min(1.06, performance))
 
     def _update_air_raid(self):
+        if self.air_unlock_notice_frames > 0:
+            self.air_unlock_notice_frames -= 1
+            if self.air_unlock_notice_frames == 0:
+                self.air_challenge_unlocked_notice = False
         if self.state == self.AIR_MENU:
             self.air_preview_tick += 1
             self.air_demo_scene_tick += 1
@@ -939,6 +948,7 @@ class AirRaidMixin:
                         progress["challenge_unlocked"] = True
                         progress["campaign_complete"] = True
                         self.air_challenge_unlocked_notice = True
+                        self.air_unlock_notice_frames = AIR_UNLOCK_NOTICE_FRAMES
                         self._record_stat("air", "campaigns_completed")
                     else:
                         progress["challenge_complete"] = True
