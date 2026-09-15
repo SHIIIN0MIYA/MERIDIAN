@@ -53,11 +53,22 @@ class MinesSnapshotValueTests(GameSaveTestCase):
     def test_a_restored_game_plays_independently_of_the_snapshot(self):
         game = self._started_mines()
         state = game._capture_mines_run_state()
+        # Pick a cell the flood fill definitely did not open, so the assertion
+        # does not depend on where the mines happened to land.
+        r, c = next(
+            (r, c)
+            for r in range(game.mines_size)
+            for c in range(game.mines_size)
+            if not game.mines_revealed[r][c]
+        )
 
         game._start_mines_game(restore_state=state)
-        game.mines_revealed[0][0] = True
+        game.mines_revealed[r][c] = True
 
-        self.assertFalse(state["revealed"][0][0])
+        self.assertFalse(
+            state["revealed"][r][c],
+            "playing a restored game must not write through to the snapshot",
+        )
 
 
 class GomokuSnapshotValueTests(GameSaveTestCase):
