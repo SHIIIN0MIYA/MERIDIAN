@@ -20,6 +20,11 @@ class TankVfxState:
     item_effects: list[dict] = field(default_factory=list)
 
 
+# Velocities are in pixels per millisecond because update_vfx integrates with
+# dt_ms.  The destroyed-tank burst previously used 0.004 px/ms, which moved a
+# particle ~2px over its whole 520ms life — visually a static dot (R-09).
+DESTROYED_PARTICLE_SPEED = 0.09
+
 ITEM_EFFECT_KINDS = {
     "repair": "repair_cross", "shield": "shield_hex", "speed": "overdrive_trail",
     "mine": "mine_pulse", "emp": "emp_scan", "piercing": "piercing_glint",
@@ -41,8 +46,9 @@ def consume_engine_events(state: TankVfxState, events, effect_level="full", seed
         elif event.kind == "tank_destroyed":
             for index in range(density):
                 angle = (index / max(1, density)) * math.tau + rng.uniform(-.12, .12)
-                state.particles.append({"x": x, "y": y, "vx": math.cos(angle)*.004,
-                    "vy": math.sin(angle)*.004, "life": 520})
+                speed = DESTROYED_PARTICLE_SPEED * rng.uniform(0.6, 1.25)
+                state.particles.append({"x": x, "y": y, "vx": math.cos(angle)*speed,
+                    "vy": math.sin(angle)*speed, "life": 520})
             state.score_popups.append({"x": x, "y": y, "life": 900, "text": "+1"})
         elif event.kind == "respawn":
             state.respawn_scans.append({"x": x, "y": y, "life": 1200})
@@ -53,6 +59,8 @@ def consume_engine_events(state: TankVfxState, events, effect_level="full", seed
 
 
 def update_vfx(state: TankVfxState, dt_ms: int) -> None:
+    """Advance every effect.  ``life`` and ``dt_ms`` are milliseconds, so any
+    ``vx``/``vy`` a caller supplies must be in pixels per millisecond."""
     dt = max(0, int(dt_ms))
     for collection in (state.flashes, state.trails, state.particles, state.rings,
                        state.score_popups, state.respawn_scans, state.item_effects):
@@ -84,4 +92,4 @@ def draw_tank_vfx(game, arena, tile, state: TankVfxState) -> None:
         game.screen.blit(text, (x-text.get_width()//2, y-22))
 
 
-__all__ = ["ITEM_EFFECT_KINDS", "TankVfxState", "consume_engine_events", "draw_tank_vfx", "update_vfx"]
+__all__ = ["DESTROYED_PARTICLE_SPEED", "ITEM_EFFECT_KINDS", "TankVfxState", "consume_engine_events", "draw_tank_vfx", "update_vfx"]

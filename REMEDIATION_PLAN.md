@@ -49,8 +49,8 @@
 | R-05 | `wins_on_19` 用 `board_size` 而非棋盘真实尺寸 | `gomoku.py:563/566-568/735` | **P0** | S | 低 | **✅ 已完成** |
 | R-06 | 空袭行动章节→关卡索引错位（**已复现**，第 2–8 章剧情回退 1–7 关） | `air_raid.py:114/128/220-222/1665-1668` | P1 | S | 低 | **✅ 已完成** |
 | R-07 | 解锁横幅永不清除，每次结算重复出现 | `air_raid.py:926/1645` | P1 | S | 低 | **✅ 已完成** |
-| R-08 | 坦克爆炸特效画在重生点 | `tank_engine.py:803-811`、`tank_battle.py:275-277` | P1 | S | 低 |
-| R-09 | 坦克粒子速度单位错误，总位移约 2px | `tank_vfx.py:44-45/61-62` | P1 | S | 低 |
+| R-08 | 坦克爆炸特效画在重生点 | `tank_engine.py:803-811`、`tank_battle.py:275-277` | P1 | S | 低 | **✅ 已完成** |
+| R-09 | 坦克粒子速度单位错误，总位移约 2px | `tank_vfx.py:44-45/61-62` | P1 | S | 低 | **✅ 已完成** |
 | R-10 | SMOKE 道具无任何游戏效果（纯装饰） | `tank_engine.py:136-152/644` | P1 | M | 中 |
 | R-11 | 五子棋开局/继续的转场从不播放 | `gomoku.py:446-454/586`、`shell_transitions.py:33` | P1 | S | 低 | **✅ 已完成** |
 | R-12 | ZH 键冲突：`RED`/`BLUE` 被坦克方标签覆盖 | `localization.py:282/288/626/627` | P2 | S | 低 |
@@ -472,6 +472,9 @@ AssertionError: 5 is not None
 ---
 
 ### R-08 坦克爆炸坐标改由事件携带
+> **✅ 已完成。** 引擎在发出 `tank_destroyed` 时携带死亡瞬间的 `x`/`y`（此时坦克尚未被同一步的 `_respawn_players` 移动）。`tank_battle.py` 的 `setdefault` 回填保留作兜底，不再被依赖。
+
+**验证证据**：回退 `meridian/tank_engine.py` 后失败信息为 `AssertionError: 'x' not found in {'attacker': 'red'}` 与 `KeyError: 'x'`。
 
 **现状**：`_resolve_damage_batch`（`tank_engine.py:798-811`）在同一步内先发 `tank_destroyed`，紧接着在 `:810` 调用 `_respawn_players(destroyed)` **移动了坦克**。`tank_battle.py:275-277` 才用 `data.setdefault("x", tank.x)` 从坦克**当前（已重生）位置**回填坐标 → 死亡爆炸画在重生点。
 
@@ -491,6 +494,11 @@ events.append(EngineEvent("tank_destroyed", target,
 ---
 
 ### R-09 坦克粒子速度单位
+> **✅ 已完成。** 新增模块常量 `DESTROYED_PARTICLE_SPEED = 0.09`（px/ms），并对每颗粒子加 `rng.uniform(0.6, 1.25)` 的速度扰动；`update_vfx` 补上单位约定说明（`life`/`dt_ms` 为毫秒，故 `vx`/`vy` 必须是 px/ms）。
+>
+> **测试刻意不 import 新常量**，改为断言位移量级，以便对修复前的模块也给出行为级证据。
+>
+> **验证证据**：回退 `meridian/tank_vfx.py` 后失败信息为 `particles barely moved: 0.80px after 200ms`（全生命周期约 2px，正是「静止的点」）与 `a per-frame speed used as px/ms is the R-09 defect`。
 
 **现状**：`tank_vfx.py:44-45` 设置 `vx = cos(angle) * .004`，而 `update_vfx`（`:61-62`）按**毫秒**积分：`effect["x"] += vx * dt`。粒子生命 520ms → 总位移约 **2.08px**，爆炸特效实质是个静止的点。
 

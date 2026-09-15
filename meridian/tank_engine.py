@@ -800,8 +800,16 @@ class TankBattleEngine:
             attacker = attackers[target][0]
             self.score[attacker] += 1
             self.mines = [mine for mine in self.mines if mine.owner != target]
+            # Carry the death position: the respawn below moves the tank, so a
+            # consumer that reads the tank later would place the explosion at
+            # the spawn point instead (R-08).
+            victim = self.tanks.get(target)
             events.append(
-                EngineEvent("tank_destroyed", target, {"attacker": attacker})
+                EngineEvent("tank_destroyed", target, {
+                    "attacker": attacker,
+                    "x": victim.x if victim is not None else 0.0,
+                    "y": victim.y if victim is not None else 0.0,
+                })
             )
         if self.phase is MatchPhase.SUDDEN_DEATH and len(destroyed) == 1:
             self.phase = MatchPhase.ENDED
