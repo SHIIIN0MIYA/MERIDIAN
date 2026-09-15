@@ -11,6 +11,8 @@ import uuid
 os.environ.setdefault("PYGAME_HIDE_SUPPORT_PROMPT", "1")
 os.environ.setdefault("SDL_VIDEODRIVER", "dummy")
 os.environ.setdefault("SDL_AUDIODRIVER", "dummy")
+# Skip ~2s of procedural audio synthesis; no test asserts on sound output.
+os.environ.setdefault("MERIDIAN_FAST_AUDIO", "1")
 
 from meridian import Game, lore
 from meridian.common import pygame

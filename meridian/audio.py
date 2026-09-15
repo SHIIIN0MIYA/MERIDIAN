@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from array import array
 import math
+import os
 import random
 from typing import Callable
 
@@ -366,6 +367,12 @@ class AudioManager:
         self.tracks: dict = {}
         self.effects: dict = {}
         if not self.enabled:
+            return
+        if os.environ.get("MERIDIAN_FAST_AUDIO") == "1":
+            # Opt-out for test runs: skips the ~2s of procedural synthesis.
+            # Every public entry point already no-ops while ``enabled`` is
+            # False, so this changes nothing observable except startup cost.
+            self.enabled = False
             return
         try:
             pygame.mixer.set_num_channels(max(16, pygame.mixer.get_num_channels()))

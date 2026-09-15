@@ -95,17 +95,24 @@ python -m ruff check meridian/ tests/   # 期望 All checks passed
 
 现有 `tests/test_tetris_mines_continue.py:16-41` 已经是可用的骨架，抽出即可。
 
-**R-27c 提升测试速度（前置优化）**
+**R-27c 提升测试速度（前置优化）** ✅ 已完成
 
-当前每个 `Game()` 构造实测 **2.01s**，其中约 2.0s 是音频合成（见 R-17）。测试套件 7.3s 的绝大部分是反复构造。建议在阶段 0 先加一个逃生开关：
+实测澄清（原记录有误）：`Game()` 首次构造 **2.055s**，但**第 2、3 次只要 0.018s / 0.016s** —— 因为 `_cached()`（`audio.py:39-44`）把合成结果写进模块级 `_SOUND_CACHE`，那 2 秒是**每进程一次**，不是每次构造一次。所以原计划里「测试套件 7.3s 的绝大部分是反复构造 → 可提速到 1s 以内」的推断是错的：整套测试只构造一次 `Game` 的进程也只付 2s。
+
+已实现的逃生开关：`audio.py` 的 `AudioManager.__init__` 在合成前短路。
 
 ```python
-# audio.py AudioManager.__init__
 if os.environ.get("MERIDIAN_FAST_AUDIO") == "1":
-    self.enabled = False   # 跳过全部合成，仅保留接口
+    # Opt-out for test runs: skips the ~2s of procedural synthesis.
+    self.enabled = False
+    return
 ```
 
-测试夹具设置该变量，可让整个套件提速到 1s 以内，使「每个 R-xx 跑全量测试」成为可承受的默认动作。这个开关也是 R-17 懒加载改造的先行验证。
+实测效果：单进程 `Game()` 构造 **2.055s → 0.011s**；测试套件 **6.57s → 4.57s**（正好省下那 2 秒）。4 个构造 `Game()` 的测试文件（`test_achievements`、`test_completion_lore`、`test_registration`、`test_tetris_mines_continue`）各自 `setdefault("MERIDIAN_FAST_AUDIO", "1")`。
+
+安全性：所有音频公开入口都以 `self.enabled` 为守卫（`play` `audio.py:487`、`play_music` `:421`、`_update_crossfade` `:440`），`stop()` 遍历空的 `music_channels`，所以快速模式下全部退化为空操作；已逐个调用验证。`tracks`/`effects` 无外部读取点。
+
+**这个开关与 R-17 的关系**：它解决了测试侧的成本，但**不能替代 R-17** —— 真实玩家启动时仍要等那 2 秒（窗口无响应）。R-17 的价值是消除启动卡顿，其测试提速收益已由本项覆盖。
 
 ---
 
