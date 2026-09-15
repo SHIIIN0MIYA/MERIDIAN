@@ -47,7 +47,7 @@
 | R-03 | run_state 存/取均为活引用，会原地篡改存档 | `mines.py:133-143`、`gomoku.py:578-581`、`air_raid.py:325-354` | **P0** | S | 低 | **✅ 已完成** |
 | R-04 | 恢复路径无维度校验；扫雷改尺寸后可 IndexError | `gomoku.py:578-581/628-637`、`mines.py:96-98/133-143`、`system.py:240-264/708-711` | **P0** | M | 低–中 | **✅ 已完成**（留下 R-04b） |
 | R-05 | `wins_on_19` 用 `board_size` 而非棋盘真实尺寸 | `gomoku.py:563/566-568/735` | **P0** | S | 低 | **✅ 已完成** |
-| R-06 | 空袭行动章节→关卡索引错位（**已复现**，第 2–8 章剧情回退 1–7 关） | `air_raid.py:114/128/220-222/1665-1668` | P1 | S | 低 |
+| R-06 | 空袭行动章节→关卡索引错位（**已复现**，第 2–8 章剧情回退 1–7 关） | `air_raid.py:114/128/220-222/1665-1668` | P1 | S | 低 | **✅ 已完成** |
 | R-07 | 解锁横幅永不清除，每次结算重复出现 | `air_raid.py:926/1645` | P1 | S | 低 |
 | R-08 | 坦克爆炸特效画在重生点 | `tank_engine.py:803-811`、`tank_battle.py:275-277` | P1 | S | 低 |
 | R-09 | 坦克粒子速度单位错误，总位移约 2px | `tank_vfx.py:44-45/61-62` | P1 | S | 低 |
@@ -352,6 +352,8 @@ mines 的捕获/恢复不是活引用、恢复后的对局与快照互不影响�
 ## 4. 阶段 2：玩家可见缺陷（P1）
 
 ### R-06 空袭行动章节→关卡索引错位
+> **✅ 已完成。**
+
 
 > **状态：已复现并已定论。** 复现脚本：`tools/repro_r06_air_chapter.py`（`python tools/repro_r06_air_chapter.py`，退出码 1 表示缺陷存在）。语义问题（原 Q2）已通过数据验证解答，见下方「定论」。
 
@@ -417,6 +419,34 @@ if self._check_air_chapter_story(chapter_index, level):
 **验证**
 - 在 `tools/repro_r06_air_chapter.py` 通过后（退出码 0），把 Probe A/B 的逻辑固化为单元测试：对第 1–8 章分别触发剧情，断言恢复关卡 == 请求关卡。
 - 新增 Boss Rush 回归测试：断言 8 个阶段实际进入的关卡都是 Boss 关卡。
+
+**已实施（as-built）**
+
+1. `_check_air_chapter_story(chapter_index, level)` 新增 `level` 参数，改为 `self._pending_brief_level = level`；`_prepare_air_level` 透传。**这正是「把被中断的关卡原样记住」**，不需要按章节查表的派生函数。
+2. `_init_air_raid` 初始化 `self._pending_brief_level = None`，去掉了消费处的 `hasattr` 兜底。
+3. **顺带修复剧情归档的两处缺陷**（原计划第 3 项）：
+   - 归档页主循环的 `ENTER` 分支原先不可达（被前面的 `ESCAPE/RETURN/SPACE` 分支提前 `return` 吞掉），导致「能移动选择但按 ENTER 没反应、直接退回菜单」。改为**归档分支优先处理**。
+   - `_open_air_story_archive` 现在清除 `_pending_brief_level`，避免归档页的 ENTER 意外启动一个关卡。
+   - 键盘与鼠标两条路径原先各自复制了一遍解锁判定，现统一收敛到 `_open_archive_story()` / `_archive_chapter_unlocked()`——正是 `Bug_Log.md` 里记过的教训「同一个动作的多种输入方式必须汇聚到同一领域函数」。
+4. **未改动**：剧情页 ESC 仍等同 ENTER（按决策表保持现状）。
+
+**已落地的测试**（`tests/test_air_chapter_flow.py`，10 个用例）
+
+8 个章节逐一断言「剧情恢复它自己那一关」；完整战役推进路径逐关断言不回退；Boss Rush 从 Boss 关卡开始；同一章节的剧情不会二次触发；归档清僵尸关卡、ENTER 打开高亮章节（含序章）、锁定章节打不开、ESC 退出、阅读归档绝不改变当前关卡。
+
+**验证证据（关键）**：把 `meridian/air_raid.py` 回退到修复前，**10 个用例中 6 个行为级失败**：
+
+```
+AssertionError: 1 != 2 : the story must remember the level it interrupted
+AssertionError: 1 != 2 : advancing from level 1 must reach 2
+AssertionError: 0 != 1
+AssertionError: 'archive_index' != 'chapter_1'
+AssertionError: 5 is not None
+```
+
+`tools/repro_r06_air_chapter.py` 已从「修复前/后对比」改造为**回归校验脚本**（退出码 0 = 映射正确），因为对比在修复后已无意义。
+
+**实施中的一次自伤**：我用 `l.startswith("    def _draw_air_story")` 作为替换的结束边界，前缀匹配到了 `_draw_air_story_strip`，导致切片 `lines[start:end]` 的 `end < start`，替换变成了**插入**——文件里一度存在两个 `_handle_air_story_event`，旧的后定义胜出、修复实际未生效。已删除旧定义并复验。教训：用前缀做代码边界匹配必须精确到函数签名。
 
 **风险**：低（定论后不再是「中」）。改动集中在 `air_raid` 的剧情门，透传一个参数即可；`progress["run_level"]` 不受影响。
 

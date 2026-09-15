@@ -90,6 +90,8 @@ class AirRaidMixin:
         self.air_story_lines = []
         self.air_story_page = 0
         self.air_story_source = ""
+        # Level to launch once the chapter story currently on screen is done.
+        self._pending_brief_level = None
 
     def _air_progress(self):
         return self.save_data["progress"]["air"]
@@ -113,7 +115,13 @@ class AirRaidMixin:
             return True
         return False
 
-    def _check_air_chapter_story(self, chapter_index):
+    def _check_air_chapter_story(self, chapter_index, level):
+        """Show the chapter intro if unseen; ``level`` is the level to resume.
+
+        The caller derived ``chapter_index`` from ``level``, but the two are not
+        interchangeable: chapter N spans levels 2(N-1) and 2(N-1)+1, so parking
+        the chapter index made the story resume at the wrong level (R-06).
+        """
         if not getattr(self, "air_campaign_active", False):
             return False
         chapter_num = chapter_index + 1
@@ -127,7 +135,7 @@ class AirRaidMixin:
             progress["stories_read"] = stories_read
             self._save_now()
             self.state = self.AIR_STORY
-            self._pending_brief_level = chapter_index
+            self._pending_brief_level = level
             return True
         return False
 
@@ -135,6 +143,7 @@ class AirRaidMixin:
         self.air_story_lines = ["STORY ARCHIVE", "Select a chapter to read."]
         self.air_story_page = 0
         self.air_story_source = "archive_index"
+        self._pending_brief_level = None
         self.state = self.AIR_STORY
 
     def _air_menu_items(self):
@@ -220,7 +229,7 @@ class AirRaidMixin:
 
     def _prepare_air_level(self, level, preserve_loadout=False):
         chapter_index = AIR_LEVELS[level]["chapter"] - 1
-        if self._check_air_chapter_story(chapter_index):
+        if self._check_air_chapter_story(chapter_index, level):
             return
         self.air_level = max(0, min(15, int(level)))
         if not preserve_loadout:
@@ -1665,61 +1674,67 @@ class AirRaidMixin:
                 self.air_pressed == button["action"],
             )
 
+    def _archive_chapter_unlocked(self, chapter_num):
+        """Chapter N is readable once the campaign has reached it."""
+        return chapter_num <= self._air_progress().get("completed", 0) // 2 + 1
+
+    def _open_archive_story(self, index):
+        """Open archive entry ``index`` (0 is the prologue) if it is unlocked.
+
+        Shared by the keyboard and mouse paths so both honour the same gate.
+        """
+        if index == 0:
+            self.air_story_lines = list(AIR_PROLOGUE)
+            self.air_story_source = "prologue"
+        elif 1 <= index <= len(AIR_CHAPTER_STORIES) and self._archive_chapter_unlocked(index):
+            self.air_story_lines = list(AIR_CHAPTER_STORIES[index])
+            self.air_story_source = f"chapter_{index}"
+        else:
+            return False
+        self.air_story_page = 0
+        return True
+
     def _handle_air_story_event(self, event):
         if event.type == pygame.KEYDOWN:
+            if self.air_story_source == "archive_index":
+                # The archive is a reader, not the level gate, so it is handled
+                # before the branch below — otherwise ENTER would leave the
+                # archive instead of opening the highlighted chapter.
+                if event.key in (pygame.K_UP, pygame.K_w, pygame.K_DOWN, pygame.K_s):
+                    direction = -1 if event.key in (pygame.K_UP, pygame.K_w) else 1
+                    max_stories = 1 + len(AIR_CHAPTER_STORIES)
+                    self.air_story_page = (self.air_story_page + direction) % max_stories
+                elif event.key in (pygame.K_RETURN, pygame.K_SPACE):
+                    self._open_archive_story(self.air_story_page)
+                elif event.key == pygame.K_ESCAPE:
+                    self.state = self.AIR_MENU
+                return
             if event.key in (pygame.K_ESCAPE, pygame.K_RETURN, pygame.K_SPACE):
-                if hasattr(self, '_pending_brief_level') and self._pending_brief_level is not None:
+                # ESC deliberately matches ENTER: both dismiss the story and
+                # start the level it was gating.
+                if self._pending_brief_level is not None:
                     level = self._pending_brief_level
                     self._pending_brief_level = None
                     self._prepare_air_level(level)
                 else:
                     self.state = self.AIR_MENU
                 return
-            if self.air_story_source == "archive_index":
-                if event.key in (pygame.K_UP, pygame.K_w, pygame.K_DOWN, pygame.K_s):
-                    dir = -1 if event.key in (pygame.K_UP, pygame.K_w) else 1
-                    max_stories = 9  # prologue + 8 chapters
-                    self.air_story_page = (self.air_story_page + dir) % max_stories
-                    return
-                if event.key in (pygame.K_RETURN, pygame.K_SPACE):
-                    sel = self.air_story_page
-                    if sel == 0:
-                        self.air_story_lines = list(AIR_PROLOGUE)
-                        self.air_story_source = "prologue"
-                    elif 1 <= sel <= 8 and sel <= self._air_progress().get("completed", 0) // 2 + 1:
-                        self.air_story_lines = list(AIR_CHAPTER_STORIES[sel])
-                        self.air_story_source = f"chapter_{sel}"
-                    else:
-                        return
-                    self.air_story_page = 0
-                    return
-            else:
-                if event.key in (pygame.K_RIGHT, pygame.K_d):
-                    lines_per_page = 4
-                    max_page = max(0, (len(self.air_story_lines) - 1) // lines_per_page)
-                    self.air_story_page = min(self.air_story_page + 1, max_page)
-                elif event.key in (pygame.K_LEFT, pygame.K_a):
-                    self.air_story_page = max(0, self.air_story_page - 1)
+            if event.key in (pygame.K_RIGHT, pygame.K_d):
+                lines_per_page = 4
+                max_page = max(0, (len(self.air_story_lines) - 1) // lines_per_page)
+                self.air_story_page = min(self.air_story_page + 1, max_page)
+            elif event.key in (pygame.K_LEFT, pygame.K_a):
+                self.air_story_page = max(0, self.air_story_page - 1)
         if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
             if self.air_story_source == "archive_index":
                 panel = pygame.Rect(100, 50, WINDOW_W - 200, WINDOW_H - 100)
-                completed_ch = self._air_progress().get("completed", 0) // 2 + 1
-                for i in range(9):
+                for i in range(1 + len(AIR_CHAPTER_STORIES)):
                     rect = pygame.Rect(panel.x + 40, panel.y + 70 + i * 45, panel.width - 80, 36)
                     if rect.collidepoint(event.pos):
-                        unlocked = (i == 0) or (1 <= i <= 8 and i <= completed_ch)
-                        if unlocked:
-                            if i == 0:
-                                self.air_story_lines = list(AIR_PROLOGUE)
-                                self.air_story_source = "prologue"
-                            else:
-                                self.air_story_lines = list(AIR_CHAPTER_STORIES[i])
-                                self.air_story_source = f"chapter_{i}"
-                            self.air_story_page = 0
+                        self._open_archive_story(i)
                         return
             else:
                 self._handle_air_story_event(pygame.event.Event(pygame.KEYDOWN, key=pygame.K_RETURN))
-
     def _draw_air_story(self):
         self.screen.fill((6, 14, 32))
         panel = pygame.Rect(100, 50, WINDOW_W - 200, WINDOW_H - 100)

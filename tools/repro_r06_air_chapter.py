@@ -18,9 +18,12 @@ Run
 ---
     python tools/repro_r06_air_chapter.py
 
-The script drives the real code paths (no gameplay required) and exits
-non-zero while the mapping is wrong. It writes to a throwaway save file and
-never touches the real one.
+Since R-06 was fixed this is a regression check: it drives the real code
+paths (no gameplay required) and exits non-zero if any story resumes the wrong
+level.  The pre-fix behaviour it used to demonstrate — chapter 2 replaying
+chapter 1's boss, chapter 8 thrown back to chapter 4's boss — is recorded in
+REMEDIATION_PLAN.md.  It writes to a throwaway save file and never touches the
+real one.
 """
 
 from __future__ import annotations
@@ -240,30 +243,29 @@ def main() -> int:
     print("'resume the interrupted level' = the one-line fix (park the level).")
     print()
 
-    for apply_fix in (False, True):
-        label = "REPAIRED (park the level)" if apply_fix else "CURRENT (park the chapter)"
-        print(thin)
-        print(f"{label}")
-        print(thin)
-        print(f"{'next level':<34}{'story?':<9}{'resumed':<34}{'verdict'}")
-        print(thin)
-        walk = walk_campaign(game, apply_fix=apply_fix)
-        gates = 0
-        for row in walk:
-            expected, actual = row["expected"], row["resumed"]
-            if not row["story_shown"]:
-                continue
-            gates += 1
-            verdict = "OK" if actual == expected else "WRONG"
-            print(
-                f"{describe(expected):<34}"
-                f"{'story':<9}"
-                f"{describe(actual):<34}"
-                f"{verdict}"
-            )
-        print(f"{gates} story gates; "
-              f"{'all resume correctly' if apply_fix else 'all but chapter 1 mis-resume'}")
-        print()
+    print(thin)
+    print("Walking the real advance path; every gate must resume the next level")
+    print(thin)
+    print(f"{'next level':<34}{'story?':<9}{'resumed':<34}{'verdict'}")
+    print(thin)
+    walk = walk_campaign(game, apply_fix=False)
+    gates = 0
+    mis_resumed = 0
+    for row in walk:
+        expected, actual = row["expected"], row["resumed"]
+        if not row["story_shown"]:
+            continue
+        gates += 1
+        verdict = "OK" if actual == expected else "WRONG"
+        mis_resumed += actual != expected
+        print(
+            f"{describe(expected):<34}"
+            f"{'story':<9}"
+            f"{describe(actual):<34}"
+            f"{verdict}"
+        )
+    print(f"{gates} story gates; {mis_resumed} mis-resumed")
+    print()
 
     # ── Probe C: Boss Rush ────────────────────────────────────────────
     print(line)
