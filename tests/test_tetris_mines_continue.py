@@ -103,8 +103,8 @@ class ContinueResumeTests(unittest.TestCase):
             if not game.mines_revealed[r][c]
         )
         game._toggle_mines_flag(*flag_cell)
-        game.mines_start_ticks = 9876
         game.mines_elapsed_ms = 12345
+        game.mines_resume_elapsed = 12345
         expected = deepcopy(game._capture_mines_run_state())
 
         game._handle_mines_playing_event(

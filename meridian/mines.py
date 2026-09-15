@@ -14,8 +14,13 @@ class MinesMixin:
         self.mines_revealed_count = 0
         self.mines_flags_count = 0
         self.mines_pressed_action = None
-        self.mines_start_ticks = 0
         self.mines_elapsed_ms = 0
+        # Timer model: mines_elapsed_ms is authoritative and is the only timer
+        # value persisted.  The live segment adds (now - mines_timer_base);
+        # pygame.time.get_ticks() restarts near zero in a new process, so a
+        # saved tick value can never be used as a start point.
+        self.mines_timer_base = 0
+        self.mines_resume_elapsed = 0
         self.mines_best_times = {(9, 10): None, (9, 15): None, (9, 20): None, (16, 40): None, (16, 50): None, (16, 60): None}
         self.mines_last_click_cell = None
         self.mines_last_click_ticks = 0
@@ -97,8 +102,9 @@ class MinesMixin:
             self.mines_revealed = restore_state["revealed"]
             self.mines_flags = restore_state["flags"]
             self.mines_started = restore_state["started"]
-            self.mines_start_ticks = restore_state.get("start_ticks", 0)
-            self.mines_elapsed_ms = restore_state.get("elapsed_ms", 0)
+            self.mines_elapsed_ms = int(restore_state.get("elapsed_ms", 0))
+            self.mines_resume_elapsed = self.mines_elapsed_ms
+            self.mines_timer_base = pygame.time.get_ticks()
             self.mines_game_over = False; self.mines_win = False
             self.mines_revealed_count = restore_state.get("revealed_count", 0)
             self.mines_flags_count = restore_state.get("flags_count", 0)
@@ -117,7 +123,8 @@ class MinesMixin:
         self.mines_flags = [[False]*self.mines_size for _ in range(self.mines_size)]
         self.mines_started = False; self.mines_game_over = False; self.mines_win = False
         self.mines_revealed_count = 0; self.mines_flags_count = 0; self.mines_pressed_action = None
-        self.mines_start_ticks = 0; self.mines_elapsed_ms = 0
+        self.mines_elapsed_ms = 0; self.mines_resume_elapsed = 0
+        self.mines_timer_base = pygame.time.get_ticks()
         self.mines_last_click_cell = None; self.mines_last_click_ticks = 0
         self.mines_reveal_anims.clear(); self.mines_flag_anims.clear(); self.mines_particles.clear()
         self.mines_shake = 0; self.mines_end_panel_frame = 0
@@ -130,13 +137,28 @@ class MinesMixin:
             self._record_stat("mines", "games_started")
         self._clear_run_state("mines")
 
+    def _mines_elapsed_now(self):
+        """Current elapsed play time, correct across a process restart.
+
+        ``pygame.time.get_ticks()`` is only meaningful within one process, so
+        the saved ``mines_elapsed_ms`` is carried forward as
+        ``mines_resume_elapsed`` and the live segment adds the delta since the
+        current ``mines_timer_base``.  Computed in one place so the HUD, the
+        save file and the best-time record can never disagree.
+        """
+        if not self.mines_started or self.mines_game_over or self.mines_win:
+            return self.mines_elapsed_ms
+        return self.mines_resume_elapsed + (pygame.time.get_ticks() - self.mines_timer_base)
+
     def _capture_mines_run_state(self):
+        # mines_elapsed_ms is kept fresh by _update_mines_visual_effects while
+        # the board is live, so it is persisted as-is; recomputing here would
+        # make the stored value depend on when the capture ran.
         return {
             "grid": self.mines_grid,
             "revealed": self.mines_revealed,
             "flags": self.mines_flags,
             "started": self.mines_started,
-            "start_ticks": self.mines_start_ticks,
             "elapsed_ms": self.mines_elapsed_ms,
             "revealed_count": self.mines_revealed_count,
             "flags_count": self.mines_flags_count,
@@ -152,7 +174,10 @@ class MinesMixin:
                 if self.mines_grid[r][c] == -1: continue
                 cnt = sum(1 for dr in [-1,0,1] for dc in [-1,0,1] if not (dr==0 and dc==0) and 0<=r+dr<self.mines_size and 0<=c+dc<self.mines_size and self.mines_grid[r+dr][c+dc]==-1)
                 self.mines_grid[r][c] = cnt
-        self.mines_started = True; self.mines_start_ticks = pygame.time.get_ticks(); self.mines_elapsed_ms = 0
+        self.mines_started = True
+        self.mines_elapsed_ms = 0
+        self.mines_resume_elapsed = 0
+        self.mines_timer_base = pygame.time.get_ticks()
 
     def _get_mines_cell_rect(self, r, c, ox=0, oy=0):
         gap = self._get_mines_gap(); cell = self._get_mines_cell_size()
@@ -222,10 +247,13 @@ class MinesMixin:
         if self.mines_revealed_count >= self.mines_size * self.mines_size - self.mines_count:
             self.mines_win = True; self.mines_game_over = False; self.mines_end_panel_frame = 0
             if self.mines_started:
-                self.mines_elapsed_ms = pygame.time.get_ticks() - self.mines_start_ticks
+                self.mines_elapsed_ms = self._mines_elapsed_now()
                 key = (self.mines_size, self.mines_count)
                 old = self.mines_best_times.get(key)
-                if old is None or self.mines_elapsed_ms < old: self.mines_best_times[key] = self.mines_elapsed_ms
+                # A negative elapsed can only come from a corrupt save; never
+                # let it become an unbreakable "best time".
+                if self.mines_elapsed_ms >= 0 and (old is None or self.mines_elapsed_ms < old):
+                    self.mines_best_times[key] = self.mines_elapsed_ms
             self.state = self.MINES_END
             if not self.mines_stats_completed:
                 self.mines_stats_completed = True
@@ -360,7 +388,7 @@ class MinesMixin:
 
     def _update_mines_visual_effects(self):
         if self.mines_started and not self.mines_game_over and not self.mines_win:
-            self.mines_elapsed_ms = pygame.time.get_ticks() - self.mines_start_ticks
+            self.mines_elapsed_ms = self._mines_elapsed_now()
         self._update_mines_death_animation()
         for lst in [self.mines_reveal_anims, self.mines_flag_anims]:
             for a in lst[:]: a["frame"] += 1

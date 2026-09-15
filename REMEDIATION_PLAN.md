@@ -43,7 +43,7 @@
 | 编号 | 缺陷 | 位置 | 优先级 | 工作量 | 风险 |
 |---|---|---|---|---|---|
 | R-01 | 五子棋胜场双计数器，撤销后永久分叉 | `gomoku.py:684-692`、`system.py:203-205/326-328/439/443` | **P0** | S | 低 | **✅ 已完成** |
-| R-02 | 扫雷计时器跨进程失效，可写入负数最快纪录 | `mines.py:100/139/155/225/363` | **P0** | S | 低 |
+| R-02 | 扫雷计时器跨进程失效，可写入负数最快纪录 | `mines.py:100/139/155/225/363` | **P0** | S | 低 | **✅ 已完成** |
 | R-03 | run_state 存/取均为活引用，会原地篡改存档 | `mines.py:133-143`、`gomoku.py:578-581`、`air_raid.py:325-354` | **P0** | S | 低 |
 | R-04 | 恢复路径无维度校验；扫雷改尺寸后可 IndexError | `gomoku.py:578-581/628-637`、`mines.py:96-98/133-143`、`system.py:240-264/708-711` | **P0** | M | 低–中 |
 | R-05 | `wins_on_19` 用 `board_size` 而非棋盘真实尺寸 | `gomoku.py:563/566-568/735` | **P0** | S | 低 |
@@ -162,7 +162,7 @@ if os.environ.get("MERIDIAN_FAST_AUDIO") == "1":
 
 ---
 
-### R-02 扫雷计时改为增量累加
+### R-02 扫雷计时改为增量累加 ✅ 已完成
 
 **现状**：`mines_start_ticks = pygame.time.get_ticks()`（`mines.py:155`）被持久化（`:139`）并在新进程恢复（`:100`）。新进程 `get_ticks()` 从近 0 重启，而 `mines.py:363` 计算 `get_ticks() - start_ticks` → **负数**。
 
@@ -170,29 +170,37 @@ if os.environ.get("MERIDIAN_FAST_AUDIO") == "1":
 1. HUD 显示垃圾时间（`mines.py:514/652`）。
 2. 胜局时 `mines.py:225` 得到负的 `elapsed_ms`，`:228` 的 `if old is None or self.mines_elapsed_ms < old` **会把负值写入最快纪录**，此后该难度永远无法刷新纪录。
 
-**修改方案（最小侵入，推荐）**：引入计时基准，使 `elapsed_ms` 成为权威值。
+**已实施（as-built）**
 
-```python
-# 恢复时
-self.mines_elapsed_ms = restore_state.get("elapsed_ms", 0)
-self.mines_timer_base = pygame.time.get_ticks()   # 新的非持久化基准
+计时模型换成「权威 elapsed + 活动段基准」：
 
-# 更新时（mines.py:363）
-self.mines_elapsed_ms = self._mines_resume_elapsed + (
-    pygame.time.get_ticks() - self.mines_timer_base
-)
+- `mines_elapsed_ms` 是权威值，也是**唯一被持久化**的计时字段。
+- 新增两个**仅运行时**字段：`mines_timer_base`（当前活动段的起始 tick）与 `mines_resume_elapsed`（本段之前已累计的时间）。
+- 新增 `_mines_elapsed_now()`：`mines_resume_elapsed + (get_ticks() - mines_timer_base)`，在 `_update_mines_visual_effects` 与 `_check_mines_win` **两处共用**（与 R-01 同样的思路：单一计算入口，避免两处公式漂移）。
+- 恢复时把存档的 `elapsed_ms` 作为 `mines_resume_elapsed`，并把 `mines_timer_base` 重置为**当前进程**的 tick；`start_ticks` 不再持久化、不再读取。
+- 胜局写入最快纪录前加 `self.mines_elapsed_ms >= 0` 守卫。
+
+**两处与原计划的偏离**
+
+1. **没有把负值夹到 0。** 原计划写「恢复时 `max(0, ...)`」。但夹到 0 会记录一个 **0 毫秒的伪纪录**，同样不可刷新，而且会让胜局路径的 `>= 0` 守卫变成死代码。改为保留负值、由守卫拦截记录写入，损坏的状态整体交给 R-04 的校验层拒绝——职责更清晰。
+2. **`_capture_mines_run_state` 不做重算。** 一度想让捕获时刷新 elapsed，但那会让存档值依赖「捕获发生的时刻」，使「精确恢复」的既有测试变成时间相关。改为只持久化由更新循环保持新鲜的属性；`mines_elapsed_ms` 在 `MINES_PLAYING` 每帧更新，偏差上限一帧（≈16ms），对计时器无意义。
+
+**同时修正的错误测试**：`tests/test_tetris_mines_continue.py:106` 原先写 `game.mines_start_ticks = 9876`，**把缺陷固化成了规格**（断言该 tick 原样往返）。已改为设置 `mines_elapsed_ms` / `mines_resume_elapsed`。
+
+**已落地的测试**（`tests/test_mines_timer.py`，7 个用例）
+
+旧式绝对 tick 存档恢复后不出现负计时；捕获结果不再含 `start_ticks`；恢复后计时继续前进；elapsed 跨重启存活；**负 elapsed 永不写入最快纪录**；正常快速获胜仍被记录；结算后计时冻结。
+
+**验证证据（关键）**：把 `meridian/mines.py` 临时回退到修复前，两个行为级用例报出真实数值：
+
+```
+AssertionError: -899834 not greater than or equal to 5000
+AssertionError: -899912 is not None : a negative elapsed must never be recorded as a best time
 ```
 
-同时：
-- `_capture_mines_run_state` 停止持久化 `start_ticks`（保留字段但写 `None`，便于旧档兼容）。
-- `mines.py:225` 与 `:228` 前加 `if self.mines_elapsed_ms >= 0` 守卫，负值一律不写纪录。
-- `mines.py:120` 的全新开局路径同样重置 `mines_timer_base`。
+第一条即「恢复后计时变成约 −15 分钟」，第二条在 `mines_win` 为真的前提下证明**那个负值确实被写成了最快纪录**。全量套件 170 passed，ruff 全通过。
 
-**必须同时修正的错误测试**：`tests/test_tetris_mines_continue.py:104-105` 显式断言 `start_ticks` 原样往返，**把缺陷固化成了规格**。改为断言「恢复后 `elapsed_ms` 保持 `12345`，且首帧更新后不出现负值」。
-
-**验证**：构造 `restore_state` 令 `start_ticks` 为一个巨大值（模拟上一个进程），断言首帧 `elapsed_ms` 仍 ≈ 恢复值，且不写入负的最快纪录。
-
-**风险**：低。注意 `dev_game_speed` 会改变 tick 速率（`app.py:553`），但本方案基于 `get_ticks()` 差值，不受影响。
+**风险**：低。`dev_game_speed` 会改 tick 速率（`app.py:553`），但本方案基于 tick 差值，不受影响。
 
 ---
 
