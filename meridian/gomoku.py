@@ -738,7 +738,10 @@ class GomokuMixin:
             self.gomoku_stats_completed = True
             self._record_stat("gomoku", "games_completed")
             # Outcome counters are handled by _adjust_gomoku_outcome above.
-            if self.board_size == 19 and self.board.winner in (1, 2):
+            # Judge by the board actually played, not the current setting: the
+            # size can be changed mid-game without rebuilding the board, so
+            # board_size is only a preference that applies to the next game.
+            if self.board.board_count == 19 and self.board.winner in (1, 2):
                 self._record_stat("gomoku", "wins_on_19")
         self._clear_run_state("gomoku")
 
