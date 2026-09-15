@@ -68,7 +68,7 @@
 | R-24 | 五个街机游戏约 1400 行重复表现层 | `snake/mines/breakout/g2048/tetris` vs `arcade_common.py` | P3 | XL | 中 |
 | R-25 | 死代码、乱码注释、BOM、缺失资源 | 见卡片 | P3 | M | 低 |
 | R-26 | 12 个模块无测试；弱断言；缺陷被测试固化 | `tests/` | P2 | L | 低 |
-| R-27 | 53 项未提交变更堆积 | 工作区 | P3 | S | 低 |
+| R-27 | 53 项未提交变更堆积 | 工作区 | P3 | S | 低 | **✅ 已完成** |
 
 工作量：S ≈ 1 小时内，M ≈ 半天，L ≈ 1–2 天，XL ≈ 3 天以上。
 
@@ -593,7 +593,14 @@ except (OSError, pygame.error):
 
 **风险**：低。中文宽度会使状态栏文本变长，需确认不溢出（`shell_desktop.py:544-560` 的区域）。
 
-**附带发现（需你顺手定一下）**：`version.py:1` 的 `__version__ = "3.2.0"` 与 `Development_Log/Version_History.md` 中「v3.3.0-dev 未发布」的记录**不一致**。D6 决定显示真实版本之后，这个不一致会直接暴露在桌面上。建议 R-19 落地时把 `__version__` 同步为 `3.3.0`（当前分支就是 3.3.0 开发线），或按你的发布习惯保留 —— 我不擅自改版本号。
+**附带发现（已查清，结论与你原本的授权不同，请过目）**：`version.py:1` 的 `__version__ = "3.2.0"` 表面上与 `Version_History.md` 的「v3.3.0-dev 未发布」不一致，但进一步查证后**当前状态其实是自洽的**：
+
+- `tools/check_release.py:12` **硬编码** `RELEASE_VERSION = "3.2.0"`，并要求三件事同时成立：`version.py` 匹配该值、CHANGELOG 存在 `[3.2.0]` 段、工作区干净且无 `v3.2.0` 标签。
+- `CHANGELOG.md` 的 3.3.0 内容位于 `## [Unreleased]` 段，尚未成形为 `[3.3.0]`。
+
+因此「`__version__` 停留在 3.2.0」是**「最新已发布版本」的正常语义**，而不是遗漏。单独把 `version.py` 改成 `3.3.0` 会让 `check_release.py` 立刻失败（version 与 release target 不匹配 + CHANGELOG 缺 `[3.3.0]`），是引入回归。
+
+**修正后的做法**：版本号提升是一个**发布动作**，应当与另外两处原子地一起改 —— `meridian/version.py`、`tools/check_release.py` 的 `RELEASE_VERSION`、以及把 CHANGELOG 的 `## [Unreleased]` 改成 `## [3.3.0] - <日期>`。建议在 3.3.0 真正发布时执行（可与 R-19 合并，也可单独）。在此之前 R-19 只改 `version_label()` 让它读 `__version__`，桌面会显示 `MERIDIAN 3.2.0`，即「最后发布的版本」——这是可接受的语义。**我不擅自提升版本号。**
 
 ---
 
@@ -781,9 +788,10 @@ except (OSError, pygame.error):
 **资源**
 
 - `assets/banner.png` **不存在**，但 7 个 README（`README.md:2` 与 `docs/readme/README_{EN,FR,IT,JA,RU,AR}.md`）都引用它（靠 `onerror="this.style.display='none'"` 掩盖）。**决策：删除全部 7 处引用，不造图。**
-- `assets/fonts/OFL.txt` 已被删除但**未提交**（`git status` 显示 `D`）。确认与 `FusionPixelFont-LICENSE-OFL.txt` 重复后提交删除。
+- ~~`assets/fonts/OFL.txt` 已被删除但未提交~~ —— **R-27 已提交删除**。实测两者**文本完全相同，仅行尾不同**（被删的 `OFL.txt` 为 LF / 4354 字节，保留的 `FusionPixelFont-LICENSE-OFL.txt` 为 CRLF / 4447 字节，93 行各多 1 字节，正好吻合）。原计划里写的「逐字节相同」不准确——`diff --strip-trailing-cr` 无差异，删除是安全的。
 - `tests/__pycache__/test_frame_writer.cpython-312-pytest-8.4.2.pyc` 存在但**源文件已不存在**。清理缓存目录。
-- `build/`、`dist/`、`.pytest_cache/`、`.ruff_cache/`、`pytest-cache-files-*/` 均已存在；确认 `.gitignore` 覆盖（目前 `build/`、`dist/` 有，`.pytest_cache/`、`.ruff_cache/`、`pytest-cache-files-*/` **未覆盖**）。
+- `build/`、`dist/` 已被 `.gitignore:5-6` 覆盖。~~`.pytest_cache/`、`.ruff_cache/`、`pytest-cache-files-*/` 未覆盖~~ —— **此条原判断有误，已更正**：`.pytest_cache/` 与 `.ruff_cache/` 各自带有工具自动生成的 `.gitignore`（内容为 `*`，会连自身一起忽略），`pytest-cache-files-*/` 是空目录，git 对三者均不可见，**无需处理**。本次已新增 `.zcode/` 到 `.gitignore`（与既有的 `.agents/`、`.superpowers/` 同类约定）。
+- 补充：仓库缺少 `.gitattributes`，这是行尾（CRLF/LF 混用）与 BOM 不一致反复出现的根因。建议在 R-25 中一并加入（例如 `* text=auto` 并为核心源码声明 `eol=lf`）。
 
 **验证**：`ruff` + 全量测试 + **手工打开每个页面**（乱码清理会触碰大量注释行，虽然不影响行为，但改错缩进就会坏）。
 
@@ -984,7 +992,7 @@ chore(cleanup):  R-25 死代码 / 乱码注释 / BOM / 资源
 | 项 | 值 | 采集时间 |
 |---|---|---|
 | 测试数 | 147 passed | 2026-09-15 |
-| 测试耗时 | 7.27s | 2026-09-15 |
+| 测试耗时 | 7.27s → **6.57s**（R-27 后复测） | 2026-09-15 |
 | ruff | All checks passed | 2026-09-15 |
 | `Game()` 构造耗时 | 2.01s（音频合成 ~2.0s） | 2026-09-15 |
 | `draw()` DESKTOP / MENU / PLAYING | 5.06 / 4.02 / 2.41 ms（ZH） | 2026-09-15 |
@@ -992,3 +1000,28 @@ chore(cleanup):  R-25 死代码 / 乱码注释 / BOM / 资源
 | 测试行数 | 2,472 | 2026-09-15 |
 
 > 本计划中的每一条 `文件:行号` 均经直接读码核对。性能数据为在本机（Windows 10.0.26200 / Python 3.12.5 / pygame 2.6.1，`SDL_VIDEODRIVER=dummy`）实测，不代表终端用户环境。
+
+### R-27 完成记录（2026-09-15）
+
+积压的 53 项变更已按主题拆为 **11 个提交**，工作区现为干净状态；`origin/codex/repair-known-issues` 落后 11 个提交（**未推送**）。
+
+```
+cceb032 docs: add development log archive and version history
+d24c381 docs: sync six translated READMEs to v3.2.0 facts
+fffc917 docs: normalize CHANGELOG version headings
+c73f7ec docs: add CONTRIBUTING and issue/PR templates
+3b33a28 test: add localization and continue-run regression tests
+19824f7 chore(tools): add gameplay capture script
+24070f5 chore(assets): add gameplay screenshots
+09441c4 chore(assets): remove duplicate font license
+8fdd878 chore: ignore ZCode session directory
+0692b86 docs: add remediation plan and R-06 chapter mapping reproducer
+facb6f4 docs: add design specs and plans for demo videos and continue fixes
+```
+
+提交后复测：`ruff` 全通过，`pytest tests/ -q` → **147 passed in 6.57s**（未触碰任何 `meridian/` 源码，因此结果与基线一致）。
+
+**提交过程中核对出的两点**（已回填到 R-25 与 R-19）：
+
+1. 被删的 `assets/fonts/OFL.txt` 与保留的许可文件**并非逐字节相同**，而是行尾不同（LF vs CRLF），文本内容一致——删除安全，但原计划的措辞不准确。
+2. `__version__` 停留在 `3.2.0` 是**自洽状态**而非遗漏，因为 `tools/check_release.py:12` 硬编码了发布目标 `3.2.0`。版本号提升必须与 `check_release.py` 和 CHANGELOG 的 `[Unreleased]` → `[3.3.0]` 原子地一起改，属发布动作。**故未提升版本号**，详见 R-19。
