@@ -11,5 +11,6 @@ verification-*.png
 .agents/
 .worktrees/
 .superpowers/
+.zcode/
 *.exe
 *.manifest
