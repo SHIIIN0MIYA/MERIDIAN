@@ -636,6 +636,25 @@ class GomokuMixin:
             "win_stones": self.board.win_stones[:],
         }
 
+    def _adjust_gomoku_outcome(self, winner, delta):
+        """Record one Gomoku outcome, keeping statistics and display in step.
+
+        ``statistics.gomoku`` is the source of truth: it drives achievements
+        and completion.  ``self.black_wins`` / ``white_wins`` / ``draws`` are
+        the values the UI reads.  Every change goes through here so the two
+        cannot drift apart — an undo used to roll back only the display side.
+        """
+        if winner == 1:
+            key = "black_wins"
+        elif winner == 2:
+            key = "white_wins"
+        else:
+            key = "draws"
+        stats = self.save_data["statistics"]["gomoku"]
+        stats[key] = max(0, stats.get(key, 0) + delta)
+        setattr(self, key, stats[key])
+        self._check_achievements()
+
     def _do_undo(self):
         # Can't undo during animations
         if self.animations or self.undo_animations:
@@ -682,13 +701,7 @@ class GomokuMixin:
             self.end_overlay_alpha = 0
 
             if was_win != 0 and self._win_scored:
-                if was_win == 1:
-                    self.black_wins = max(0, self.black_wins - 1)
-                elif was_win == 2:
-                    self.white_wins = max(0, self.white_wins - 1)
-                else:
-                    self.draws = max(0, self.draws - 1)
-
+                self._adjust_gomoku_outcome(was_win, -1)
                 self._win_scored = False
 
     def _on_win(self):
@@ -715,23 +728,12 @@ class GomokuMixin:
         self.end_overlay_alpha = 0
 
         if not self._win_scored:
-            if self.board.winner == 1:
-                self.black_wins += 1
-            elif self.board.winner == 2:
-                self.white_wins += 1
-            else:
-                self.draws += 1
-
+            self._adjust_gomoku_outcome(self.board.winner, 1)
             self._win_scored = True
         if not getattr(self, "gomoku_stats_completed", False):
             self.gomoku_stats_completed = True
             self._record_stat("gomoku", "games_completed")
-            if self.board.winner == 1:
-                self._record_stat("gomoku", "black_wins")
-            elif self.board.winner == 2:
-                self._record_stat("gomoku", "white_wins")
-            else:
-                self._record_stat("gomoku", "draws")
+            # Outcome counters are handled by _adjust_gomoku_outcome above.
             if self.board_size == 19 and self.board.winner in (1, 2):
                 self._record_stat("gomoku", "wins_on_19")
         self._clear_run_state("gomoku")

@@ -42,7 +42,7 @@
 
 | 编号 | 缺陷 | 位置 | 优先级 | 工作量 | 风险 |
 |---|---|---|---|---|---|
-| R-01 | 五子棋胜场双计数器，撤销后永久分叉 | `gomoku.py:684-692`、`system.py:203-205/326-328/439/443` | **P0** | S | 低 |
+| R-01 | 五子棋胜场双计数器，撤销后永久分叉 | `gomoku.py:684-692`、`system.py:203-205/326-328/439/443` | **P0** | S | 低 | **✅ 已完成** |
 | R-02 | 扫雷计时器跨进程失效，可写入负数最快纪录 | `mines.py:100/139/155/225/363` | **P0** | S | 低 |
 | R-03 | run_state 存/取均为活引用，会原地篡改存档 | `mines.py:133-143`、`gomoku.py:578-581`、`air_raid.py:325-354` | **P0** | S | 低 |
 | R-04 | 恢复路径无维度校验；扫雷改尺寸后可 IndexError | `gomoku.py:578-581/628-637`、`mines.py:96-98/133-143`、`system.py:240-264/708-711` | **P0** | M | 低–中 |
@@ -118,7 +118,7 @@ if os.environ.get("MERIDIAN_FAST_AUDIO") == "1":
 
 ## 3. 阶段 1：存档与状态正确性（P0）
 
-### R-01 统一五子棋胜场计数器
+### R-01 统一五子棋胜场计数器 ✅ 已完成
 
 **决策**：D1=A（统计回滚、成就保持解锁）+ D2=B（不做迁移）。
 
@@ -132,20 +132,33 @@ if os.environ.get("MERIDIAN_FAST_AUDIO") == "1":
 
 **根因**：`_do_undo`（`gomoku.py:684-692`）只回滚实例属性，不回滚 `statistics`。撤销一次胜局后，界面显示与成就进度永久不一致。
 
-**修改方案**
+**已实施（as-built，与原计划有两处偏离）**
 
-1. **让 `statistics.gomoku` 成为唯一真值来源**：`system.py:203-205` 改为从 `save_data["statistics"]["gomoku"]` 读取 `self.black_wins` / `white_wins` / `draws`。`_capture_data`（`system.py:326-328`）继续写 `records.gomoku.*` 以保持存档形状不变（**不升 schema**，见 D2），但代码里不再保留读取点。
-2. **`_record_stat` 支持负向调用**（`system.py:405-418`）：允许 `amount=-1` 供撤销回滚使用。`mode="max"` 下不允许负向（`max` 与回滚语义冲突），调用时显式拒绝。
-3. **`_do_undo` 同步回滚**（`gomoku.py:684-692`）：把只改实例属性的三行改为「实例属性 + `statistics` 一起回滚」。
-4. **不回收已解锁成就**（D1=A）：`_check_achievements`（`system.py:461-482`）保持只解锁、不回收。由于 `_achievement_progress` 用 `min(value, target)`（`system.py:459`），统计回落后**进度条会回退，但已解锁徽章保持点亮**——这是期望行为，需在 `Bug_Log.md` 记一条说明。
-5. **不做迁移**（D2=B）：不提升 `SCHEMA_VERSION`，不合并历史分叉。旧档若已因历史撤销而分叉，切换读取来源后显示值会变为 `statistics` 一侧的值，接受这一次性变化。
+1. **`statistics.gomoku` 成为唯一真值来源**：`system.py` 的 `_apply_loaded_data` 改为从 `save_data["statistics"]["gomoku"]` 读取 `self.black_wins` / `white_wins` / `draws`。`_capture_data` 继续写 `records.gomoku.*` 并标注为 legacy mirror，**存档形状不变、不升 schema**（D2）。
+2. **偏离一：没有给 `_record_stat` 加负向支持。** 原计划第 2 项被更彻底的方案取代——新增 `GomokuMixin._adjust_gomoku_outcome(winner, delta)`，它**直接写 statistics 并把实例属性从 statistics 派生**，然后调用 `_check_achievements()`：
 
-**验证**
-- 新增测试：走子 → 五连 → 撤销，断言实例属性与 `statistics` 一致。
-- 新增测试：连续「胜 → 撤销 → 胜」，断言 `statistics` 与实例属性始终相等（原缺陷的直接回归测试）。
-- 新增测试：撤销到成就阈值以下，断言已解锁成就**保持解锁**，而 `_achievement_progress` 的进度值回退。
+   ```python
+   stats = self.save_data["statistics"]["gomoku"]
+   stats[key] = max(0, stats.get(key, 0) + delta)
+   setattr(self, key, stats[key])          # 显示缓存镜像 statistics
+   self._check_achievements()
+   ```
 
-**风险**：低。D2=B 之后不涉及不可逆迁移；唯一兼容性影响是旧档显示值可能一次性变化，且 `SaveManager` 已自动产出 `.json.bak` 可回滚。
+   这比「两条路径各自 ±1」更强：显示值与统计值**由构造保证相等**，而不是靠两处调用保持同步。于是 `_record_stat` 无需改动，也就没有留下无调用者的负向分支。
+3. **`_on_win` 与 `_do_undo` 都只经该入口**：`_on_win` 里原本重复的「实例属性 +1」与「`_record_stat`」两块合并为一次 `_adjust_gomoku_outcome(winner, +1)`；`_do_undo` 的三行条件递减改为一次 `_adjust_gomoku_outcome(was_win, -1)`。双向都走同一入口，漂移在结构上不可能再发生。
+4. **不回收已解锁成就**（D1=A）：`_check_achievements` 保持只解锁、不回收。`_achievement_progress` 的 `min(value, target)`（`system.py:459`）使统计回落后**进度条回退、徽章保持点亮**。
+5. **边界（有意为之）**：`games_completed` 与 `wins_on_19` **不在撤销回滚范围内**。前者有 `gomoku_stats_completed` 闩锁防止重复计数；后者保持「已达成即保留」，与 D1=A 的「成就一旦解锁不回滚」语义一致。`wins_on_19` 的判定本身由 R-05 修正。
+6. **不做迁移**（D2=B）：`SCHEMA_VERSION` 未变。
+
+**已落地的测试**（`tests/test_gomoku_counters.py`，11 个用例，用 R-27b 的夹具）
+
+走子 → 五连 → 撤销后两侧一致；**胜 → 撤销 → 胜**（原缺陷直接回归）；白胜与和棋同理回滚；连续两次撤销不出现负数；计数器从 `statistics` 而非 `records` 读取（把 `records` 设成 99、`statistics` 设成 7，断言读到 7）；计数跨重启存活；`records` 镜像仍被写入；撤销后成就保持解锁而进度值归零；重胜不覆盖原始解锁时间戳。
+
+**验证证据（关键）**：把 `meridian/gomoku.py` 与 `meridian/system.py` 临时回退到修复前，**11 个用例中 7 个失败**，其中直接回归用例报出 `AssertionError: 1 != 2`——界面显示 1、统计为 2，正是漂移本身；修复后 11 个全部通过。全量套件 163 passed，ruff 全通过。
+
+**偏离二：未在 `Bug_Log.md` 增加条目。** 原计划第 4 项要求记录「撤销导致统计回落但成就保留」的语义。考虑到 `Development_Log/Bug_Log.md` 坚持只收录可核验条目、且由你维护，我把它留在本计划中而不擅自改动你的日志格式。
+
+**风险**：实际为低。不涉及迁移，存档形状未变；唯一兼容性影响是旧档若已因历史撤销而分叉，切换读取来源后显示值会变为 `statistics` 一侧的值。
 
 ---
 

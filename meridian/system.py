@@ -200,9 +200,14 @@ class SystemMixin:
         self._apply_breakout_preferences()
         self._apply_air_preferences()
         records = self.save_data["records"]
-        self.black_wins = int(records["gomoku"]["black_wins"])
-        self.white_wins = int(records["gomoku"]["white_wins"])
-        self.draws = int(records["gomoku"]["draws"])
+        # statistics.gomoku is the source of truth for Gomoku outcomes — it is
+        # what achievements and completion read.  records.gomoku is still
+        # written (see _capture_data) for save-shape compatibility, but is no
+        # longer read anywhere.
+        gomoku_stats = self.save_data["statistics"]["gomoku"]
+        self.black_wins = int(gomoku_stats.get("black_wins", 0))
+        self.white_wins = int(gomoku_stats.get("white_wins", 0))
+        self.draws = int(gomoku_stats.get("draws", 0))
         self.snake_best = int(records["snake"]["best_score"])
         self.breakout_best = int(records["breakout"]["best_score"])
         self.g2048_best = int(records["2048"]["best_score"])
@@ -323,6 +328,8 @@ class SystemMixin:
             "mines_size": self.mines_size,
             "mines_count": self.mines_count,
         })
+        # Legacy mirror: statistics.gomoku is authoritative (see
+        # _apply_loaded_data).  Kept so the save shape does not change.
         data["records"]["gomoku"].update({
             "black_wins": self.black_wins, "white_wins": self.white_wins, "draws": self.draws,
         })
