@@ -14,3 +14,11 @@ ignore = [
 
 [tool.ruff.format]
 quote-style = "double"
+
+[tool.pytest.ini_options]
+# ``testpaths`` keeps a bare ``pytest`` run scoped to the suite; ``pythonpath``
+# puts the repository root on sys.path so tests import ``meridian`` on a fresh
+# checkout without ``pip install -e .``.  Both are required for V-12: the suite
+# must behave identically from the repository root and from any other cwd.
+testpaths = ["tests"]
+pythonpath = ["."]

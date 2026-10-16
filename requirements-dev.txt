@@ -1,0 +1,10 @@
+# Development and CI tooling.  Runtime dependencies are in requirements.txt,
+# which is pulled in below so a single `pip install -r requirements-dev.txt`
+# gives a working test environment (pygame included).
+-r requirements.txt
+
+# Upper bounds are deliberate: CI must not start failing because a new major
+# release of a test-only tool changed its defaults.
+pytest>=8,<9
+ruff>=0.6,<1
+pytest-cov>=5,<7

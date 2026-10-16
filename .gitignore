@@ -20,3 +20,6 @@ verification-*.png
 pytest-cache-files-*/
 .pytest_cache/
 .ruff_cache/
+# Data file pytest-cov drops in the rootdir when the CI coverage job runs
+# `pytest --cov=meridian`.
+.coverage

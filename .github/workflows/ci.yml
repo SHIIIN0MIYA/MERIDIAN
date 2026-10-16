@@ -2,8 +2,13 @@ name: MERIDIAN CI
 
 on:
   push:
-    branches: [master, main]
+    # Any branch.  The repair work lives on `codex/**` and the remote has no
+    # `master` branch at all (only `main` and `codex/repair-known-issues`), so
+    # the previous `[master, main]` filter meant pushes to the working branch
+    # never triggered CI.
+    branches: ['**']
   pull_request:
+    # Filters the *base* branch, and pull requests here target `main`.
     branches: [master, main]
 
 permissions:
@@ -19,8 +24,10 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - run: pip install ruff
-      - run: ruff check meridian/ tests/
+      - run: pip install -r requirements-dev.txt
+      # Same command as CONTRIBUTING.md and the PR checklist: the app entry
+      # point and `tools/` are linted too, not just `meridian/` and `tests/`.
+      - run: ruff check MERIDIAN.py meridian tools tests
 
   # ── Test Matrix ───────────────────────────────────────────────────────
   test:
@@ -37,9 +44,26 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
-      - run: pip install -r requirements.txt
-      - run: pip install pytest
+      - run: pip install -r requirements-dev.txt
       - run: python -m pytest tests/ -v --tb=short
+
+  # ── Coverage (report only, never blocks) ──────────────────────────────
+  # No `--cov-fail-under` on purpose: the measured total depends on the
+  # interpreter and which optional paths are importable, so a threshold would
+  # turn this job red for reasons unrelated to the change under review.  The
+  # point is to publish the number, not to gate on it.
+  coverage:
+    name: "Coverage (report only)"
+    needs: lint
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -r requirements-dev.txt
+      - run: python -m pytest --cov=meridian --cov-report=term-missing
 
   # ── Build (Windows .exe) ──────────────────────────────────────────────
   build:
