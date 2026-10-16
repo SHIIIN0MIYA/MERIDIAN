@@ -516,6 +516,12 @@ class Game(
                 self.particles.remove(p)
 
     def _update_screen_shake(self) -> None:
+        if not self.screen_shake_enabled:
+            # One shared reset covering every game's shake fields; the previous
+            # copy here and the one in SystemMixin._update_persistence both
+            # missed Mines, 2048 and Tank (R-23).
+            self._reset_screen_shake()
+            return
         if self.shake_duration > 0:
             self.shake_duration -= 1
             intensity = max(1, self.shake_duration // 2)
@@ -524,13 +530,6 @@ class Game(
         else:
             self.shake_x = 0
             self.shake_y = 0
-        if not self.screen_shake_enabled:
-            self.shake_duration = 0
-            self.shake_x = self.shake_y = 0
-            self.snake_shake_duration = 0
-            self.snake_shake_x = self.snake_shake_y = 0
-            self.breakout_shake_duration = 0
-            self.breakout_shake_x = self.breakout_shake_y = 0
 
     def _update_win_overlay(self) -> None:
         if self.board.winner != 0 and self.win_alpha < 160:

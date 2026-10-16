@@ -1,5 +1,6 @@
 """Unified settings, profile, statistics, achievements, and persistence UI."""
 
+import copy
 import datetime as dt
 import json
 
@@ -18,6 +19,23 @@ CROSS_WORLD_THRESHOLDS = (
     (25, "resonance_25"), (50, "resonance_50"),
     (75, "resonance_75"), (100, "resonance_100"),
 )
+
+
+def _without_play_time(data: dict) -> dict:
+    """A copy of ``data`` with every play-time counter removed.
+
+    Play time advances on every frame, so a snapshot comparison that includes it
+    can never report "nothing changed" and the periodic save fires forever.  The
+    counters are still written to disk -- only the change detection ignores them.
+    """
+    stripped = copy.deepcopy(data)
+    statistics = stripped.get("statistics")
+    if not isinstance(statistics, dict):
+        return stripped
+    for container in statistics.values():
+        if isinstance(container, dict):
+            container.pop("play_time_ms", None)
+    return stripped
 
 
 ACHIEVEMENTS = [
@@ -116,6 +134,10 @@ class SystemMixin:
         self.profile_tab = "achievements"
         self.profile_scroll = 0
         self.achievement_notifications = []
+        # Surfaced on the desktop: a failed save (V-8) and a dropped saved run
+        # (R-04b) were previously silent, so vanished progress looked like a bug.
+        self.save_notice = None
+        self._save_failure_count = 0
         self.achievement_wall_pressed_index = None
         self.achievement_wall_detail_index = None
         self.achievement_wall_detail_frame = 0
@@ -507,10 +529,46 @@ class SystemMixin:
         if getattr(self, "dev_mode", False):
             return
         payload = self._capture_data()
-        self.save_manager.save(payload)
-        self._last_persisted_snapshot = json.dumps(payload, sort_keys=True)
+        try:
+            self.save_manager.save(payload)
+        except Exception:  # noqa: BLE001 - a failed save must not end the session
+            # A full disk, a read-only / roaming-unavailable %APPDATA%, or an
+            # antivirus lock used to raise straight out of Game.update() and
+            # kill the window mid-session.  Losing the last two seconds is far
+            # better than losing the session, so degrade and keep playing.
+            self._save_failure_notice()
+        else:
+            self._save_failure_count = 0
+            self.save_notice = None
+        # Stored stripped so it is comparable with the periodic change check,
+        # which must ignore the ever-advancing play-time counters.
+        self._last_persisted_snapshot = json.dumps(_without_play_time(payload), sort_keys=True)
         self._last_save_check = pygame.time.get_ticks()
 
+    def _save_failure_notice(self):
+        """Record (and surface) that saving failed, once per failure streak."""
+        self._save_failure_count = getattr(self, "_save_failure_count", 0) + 1
+        if self._save_failure_count == 1:
+            self.save_notice = "SAVE FAILED - PROGRESS MAY NOT PERSIST"
+
+    # Every per-game shake field.  There used to be two copies of the "shake is
+    # disabled" reset (here and in Game._update_screen_shake), and both covered
+    # only snake/breakout, so turning the setting off left Mines, 2048 and Tank
+    # still shaking.  One list, one reset.
+    _SHAKE_FIELDS = (
+        "shake_duration", "shake_x", "shake_y",
+        "snake_shake_duration", "snake_shake_x", "snake_shake_y",
+        "breakout_shake_duration", "breakout_shake_x", "breakout_shake_y",
+        "mines_shake",
+        "g2048_invalid_shake", "g2048_invalid_shake_dir",
+        "tank_shake_frames", "tank_shake_x", "tank_shake_y",
+    )
+
+    def _reset_screen_shake(self) -> None:
+        """Stop every game's screen shake (used when the setting is off)."""
+        for field in self._SHAKE_FIELDS:
+            if hasattr(self, field):
+                setattr(self, field, "x" if field.endswith("_dir") else 0)
     def _update_persistence(self):
         now = pygame.time.get_ticks()
         delta = max(0, min(1000, now - self._last_usage_tick))
@@ -524,14 +582,13 @@ class SystemMixin:
         if game:
             stats[game]["play_time_ms"] += delta
         if not self.screen_shake_enabled:
-            self.shake_duration = 0
-            self.shake_x = self.shake_y = 0
-            self.snake_shake_duration = 0
-            self.snake_shake_x = self.snake_shake_y = 0
-            self.breakout_shake_duration = 0
-            self.breakout_shake_x = self.breakout_shake_y = 0
+            self._reset_screen_shake()
         if now - self._last_save_check >= 2000:
-            snapshot = json.dumps(self._capture_data(), sort_keys=True)
+            # Compare on a snapshot that excludes the play-time counters: they
+            # advance every frame, so including them made the comparison always
+            # differ and the game rewrote the whole save (deepcopy + json.dumps
+            # + fsync + backup copy) twice a second while merely idling.
+            snapshot = json.dumps(_without_play_time(self._capture_data()), sort_keys=True)
             if snapshot != self._last_persisted_snapshot:
                 self._save_now()
             else:

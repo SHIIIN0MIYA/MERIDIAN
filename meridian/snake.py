@@ -107,18 +107,34 @@ class SnakeMixin:
             self.snake_pressed_action = None
 
     def _set_snake_direction(self, new_dir):
-        """Set snake direction using snake_next_dir for reverse check."""
+        """Queue a turn, rejecting anything that would reverse the snake.
+
+        The check must compare against the *committed* direction
+        (``snake_dir``), not the pending one (``snake_next_dir``).  Comparing
+        with the pending direction let a queue hold a 180-degree reversal:
+        pressing UP and then LEFT in one move interval left
+        ``snake_next_dir == (-1, 0)`` while the snake was still travelling
+        ``(1, 0)``, so the next tick drove the head straight into its own neck.
+        Both keys arrive in the same frame because ``Game.handle_events`` drains
+        the whole event queue before ``update()`` runs.
+        """
         if not self.snake:
             return
 
-        cur_dx, cur_dy = self.snake_next_dir
+        cur_dx, cur_dy = self.snake_dir
         new_dx, new_dy = new_dir
 
-        if cur_dx + new_dx == 0 and cur_dy + new_dy == 0:
+        if new_dir == self.snake_dir:
             return
 
-        if self.snake_next_dir != new_dir:
-            self.audio.play("snake_turn", 0.65)
+        # Reject a reversal of the direction actually being travelled.
+        if cur_dx + new_dx == 0 and cur_dy + new_dy == 0:
+            return
+        # Reject a reversal of a turn that is already queued for this tick.
+        if new_dir == self.snake_next_dir:
+            return
+
+        self.audio.play("snake_turn", 0.65)
         self.snake_next_dir = new_dir
 
     def _handle_snake_playing_event(self, event):

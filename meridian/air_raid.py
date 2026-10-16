@@ -40,6 +40,10 @@ class AirRaidMixin:
         self.air_menu_index = 0
         self.air_mode = "standard"
         self.air_campaign_active = False
+        # True only once the current stage has actually spawned its boss, so an
+        # empty enemy list cannot be mistaken for "boss defeated" (see
+        # _update_air_raid).
+        self._air_boss_spawned = False
         self.air_challenge_unlocked_notice = False
         self.air_unlock_notice_frames = 0
         self.air_paused = False
@@ -195,6 +199,10 @@ class AirRaidMixin:
         ]
 
     def _start_air_campaign(self, mode="standard"):
+        # A stored snapshot belongs to a single CONTINUE attempt.  Leaving it
+        # armed let a later NEW CAMPAIGN / LEVEL SELECT / BOSS RUSH silently
+        # resume the abandoned run's score, health and enemy list.
+        self._air_restore_state = None
         self.air_mode = mode
         self.air_campaign_active = True
         self.air_run_score = 0
@@ -217,6 +225,7 @@ class AirRaidMixin:
         self._prepare_air_level(progress.get("run_level", 0), preserve_loadout=True)
 
     def _start_air_boss_rush(self):
+        self._air_restore_state = None
         self.air_mode = "boss_rush"
         self.air_campaign_active = True
         self.air_boss_rush_index = 0
@@ -226,6 +235,7 @@ class AirRaidMixin:
         self._prepare_air_level(1, preserve_loadout=True)
 
     def _start_air_level(self, level=None, mode="standard"):
+        self._air_restore_state = None
         index = self.air_level if level is None else max(0, min(15, int(level)))
         self.air_mode = mode
         self.air_campaign_active = False
@@ -237,6 +247,7 @@ class AirRaidMixin:
         if self._check_air_chapter_story(chapter_index, level):
             return
         self.air_level = max(0, min(15, int(level)))
+        self._air_boss_spawned = False
         if not preserve_loadout:
             self.air_loadout = dict(AIR_STANDARD_LOADOUTS[self.air_level])
         self.air_brief_page = 0
@@ -441,6 +452,7 @@ class AirRaidMixin:
             "boss": True, "weak": True, "flash": 0, "escaped": False,
         })
         self.air_spawned = 1
+        self._air_boss_spawned = True
         self._record_stat("air", "bosses_encountered")
         self._show_air_story(f"WARNING // {cfg['name']} // PHASE 1", 210)
 
@@ -877,7 +889,12 @@ class AirRaidMixin:
         self._update_air_pickups_and_effects()
         self._update_air_threat()
         if AIR_LEVELS[self.air_level]["boss"] and not self.air_enemies:
-            self._finish_air(True)
+            # Only a level that actually spawned its boss can be won this way.
+            # A restored snapshot taken between waves legitimately has an empty
+            # enemy list, and wiping it on the first frame used to hand out a
+            # free MISSION CLEAR on every boss stage.
+            if self._air_boss_spawned:
+                self._finish_air(True)
 
     def _air_mission_completion(self):
         cfg = AIR_LEVELS[self.air_level]

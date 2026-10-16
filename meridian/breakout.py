@@ -10,6 +10,9 @@ class BreakoutMixin:
         self.breakout_best = 0
         self.breakout_lives = 3
         self.breakout_level = 1
+        # Lives at the start of the current level; the perfect-level check
+        # compares against this, and it is persisted in the run state.
+        self.breakout_level_start_lives = 3
         self.breakout_particles = []
         self.breakout_score_jump_frame = 0
         self.breakout_shake_duration = 0
@@ -154,7 +157,15 @@ class BreakoutMixin:
             self.breakout_shake_duration = 0; self.breakout_shake_x = 0; self.breakout_shake_y = 0
             self.breakout_end_panel_frame = 0; self.breakout_pressed_action = None
             self.state = self.BREAKOUT_PLAYING
-            self.breakout_level_start_lives = self.breakout_lives
+            # `level_start_lives` is the lives this level began with, which is
+            # what the "no life lost this level" check compares against.  It
+            # must come from the snapshot: overwriting it with the restored
+            # lives made a level cleared after losing a life count as perfect
+            # (and re-earn the achievement) once CONTINUE was used.  Old saves
+            # have no such field, so they fall back to the current lives.
+            self.breakout_level_start_lives = restore_state.get(
+                "level_start_lives", self.breakout_lives
+            )
             return
         self._apply_breakout_difficulty()
         self.breakout_score = 0; self.breakout_lives = 3; self.breakout_level = 1
@@ -177,6 +188,10 @@ class BreakoutMixin:
             "score": self.breakout_score,
             "lives": self.breakout_lives,
             "level": self.breakout_level,
+            # Carried so a restored level still knows how many lives it began
+            # with (see _start_breakout_game): without it the perfect-level
+            # check treats the restored lives as the level's starting lives.
+            "level_start_lives": self.breakout_level_start_lives,
         }
 
     def _reset_breakout_ball(self):

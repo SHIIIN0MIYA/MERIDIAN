@@ -1,4 +1,4 @@
-﻿from .common import *
+from .common import *
 from .localization import is_chinese, translate
 from .volume_panel import (
     VolumePanelState,
@@ -1087,6 +1087,31 @@ class DesktopMixin:
     def _completion_desktop_variant(self):
         return "resonant" if global_completion(self.save_data) >= 100 else "normal"
 
+    def _desktop_notice_text(self):
+        """The one-line warning to show on the desktop, or None.
+
+        Both facts were previously invisible: a saved run that could not be
+        restored (R-04b) and a save that failed (V-8).  Silence made vanished
+        progress indistinguishable from a bug.
+        """
+        notices = [text for text in (self.restore_notice, self.save_notice) if text]
+        return "   ".join(notices) if notices else None
+
+    def _draw_desktop_notice(self):
+        text = self._desktop_notice_text()
+        if not text:
+            return
+        surface = render_pixel_text(self.font_small, text, C.PASSWORD_ERROR_TEXT, scale=2)
+        rect = pygame.Rect(0, 0, surface.get_width() + 24, surface.get_height() + 10)
+        rect.centerx = WINDOW_W // 2
+        rect.y = DESKTOP_SCREEN_RECT.y - rect.height - 6
+        pygame.draw.rect(self.screen, C.OUTLINE, rect)
+        pygame.draw.rect(self.screen, C.DESK_BG_TOP, rect.inflate(-4, -4))
+        self.screen.blit(
+            surface, (rect.centerx - surface.get_width() // 2,
+                      rect.centery - surface.get_height() // 2)
+        )
+
     def _draw_desktop(self):
         self._draw_stage_background()
         self._draw_handheld_shell()
@@ -1098,6 +1123,7 @@ class DesktopMixin:
                 inset = 5 + (self.anim_tick // 8) % 3
                 pygame.draw.rect(self.screen, C.GOLD_LIGHT, DESKTOP_SCREEN_RECT.inflate(-inset * 2, -inset * 2), 1)
         self._draw_desktop_status_bar()
+        self._draw_desktop_notice()
         screen_rect = DESKTOP_SCREEN_RECT; old_clip = self.screen.get_clip()
         self.screen.set_clip(screen_rect)
         if self.desktop_slide_active:

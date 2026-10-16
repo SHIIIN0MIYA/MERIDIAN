@@ -1950,7 +1950,11 @@ class GomokuMixin:
             sub_status = "NO WINNER"
         elif self.board.winner != 0:
             name = "BLACK" if self.board.winner == 1 else "WHITE"
-            main_status = f"{name} WINS"
+            # Use the dedicated result keys: the dictionary hit for
+            # "BLACK WINS" is the *statistics* label ("wins count"), and a
+            # dictionary hit outranks the `^(.+) WINS$` rewrite rule, so the
+            # banner used to read "黑方胜场" (a count) instead of "黑方胜利".
+            main_status = f"{name}_WINS_RESULT"
             sub_status = "ROUND OVER"
         else:
             name = "BLACK" if self.board.current_player == 1 else "WHITE"
