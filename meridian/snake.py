@@ -93,7 +93,7 @@ class SnakeMixin:
                     if action == "snake_start":
                         self._start_snake_game()
                     elif action == "continue":
-                        state = self._pending_run_states.pop("snake", None)
+                        state = self._stored_run_state("snake")
                         self._start_snake_game(restore_state=state)
                         self.state = self.SNAKE_PLAYING
                     elif action == "settings":

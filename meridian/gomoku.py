@@ -450,7 +450,7 @@ class GomokuMixin:
                         self._start_new_game()
                         self._start_transition(self.PLAYING, "fade")
                     elif action == "continue":
-                        state = self._pending_run_states.pop("gomoku", None)
+                        state = self._stored_run_state("gomoku")
                         self._start_new_game(restore_state=state)
                         self._start_transition(self.PLAYING, "fade")
                     elif action == "resume":

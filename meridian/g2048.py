@@ -179,7 +179,7 @@ class Game2048Mixin:
                     if direction == "left": all_merge_cells.append((idx, mi, new_line[mi]))
                     elif direction == "right": all_merge_cells.append((idx, G2048_SIZE - 1 - mi, new_line[G2048_SIZE - 1 - mi]))
                     elif direction == "up": all_merge_cells.append((mi, idx, new_line[mi]))
-                    else: all_merge_cells.append((G2048_SIZE - 1 - mi, idx, new_line[mi]))
+                    else: all_merge_cells.append((G2048_SIZE - 1 - mi, idx, new_line[G2048_SIZE - 1 - mi]))
         if self.g2048_grid == old_grid:
             self.g2048_invalid_shake = G2048_INVALID_SHAKE_FRAMES
             self.g2048_invalid_shake_dir = "x" if direction in ["left", "right"] else "y"

@@ -102,7 +102,9 @@ class TankBattleMixin:
 
     def _tank_buttons(self, page):
         if page == "menu":
-            if "tank" in getattr(self, "_pending_run_states", {}):
+            # Same predicate the CONTINUE handler uses (SystemMixin._has_stored_run),
+            # so the button and the action can never disagree.
+            if self._has_stored_run("tank"):
                 return [
                     arcade_button((520, 350, 240, 52), "CONTINUE", "continue"),
                     arcade_button((520, 414, 240, 52), "NEW MATCH", "start"),
@@ -154,7 +156,7 @@ class TankBattleMixin:
             self.state = target
 
     def _continue_tank_battle(self):
-        snapshot = getattr(self, "_pending_run_states", {}).pop("tank", None)
+        snapshot = self._stored_run_state("tank")
         if snapshot is not None:
             self._restore_tank_run_state(snapshot)
         self._tank_held.clear()

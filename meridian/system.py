@@ -481,6 +481,28 @@ class SystemMixin:
         finally:
             self._run_state_save_suppressed.discard(game_id)
 
+    def _stored_run_state(self, game_id):
+        """The saved run state for ``game_id``, or None when there is none.
+
+        The single accessor for "should CONTINUE be offered, and what does it
+        restore".  Games previously disagreed about this: mines/tetris/2048/
+        breakout read the stored snapshot, while gomoku/snake/tank read
+        ``_pending_run_states``, which `_apply_loaded_data` fills only at
+        process start.  That made an in-session CONTINUE start a brand-new game
+        and silently discard the saved run -- and because the *menu button* was
+        drawn from a different predicate than the handler used, the two could
+        disagree.  Both must call this.
+        """
+        progress = self.save_data.get("progress", {}).get(game_id)
+        if not isinstance(progress, dict):
+            return None
+        if not progress.get("run_active"):
+            return None
+        return progress.get("run_state")
+
+    def _has_stored_run(self, game_id) -> bool:
+        return self._stored_run_state(game_id) is not None
+
     def _save_now(self):
         if getattr(self, "dev_mode", False):
             return
