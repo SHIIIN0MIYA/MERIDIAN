@@ -419,8 +419,8 @@ class TankBattleMixin:
         versus = render_pixel_text(self.font_menu_title, "VS", C.TANK_ACCENT_LIGHT, scale=3)
         self.screen.blit(versus, (outer.centerx - versus.get_width() // 2,
                                   arena_card.centery - versus.get_height() // 2))
-        red_call = render_pixel_text(self.font_small, translate("RED"), C.TANK_RED_LIGHT, scale=2)
-        blue_call = render_pixel_text(self.font_small, translate("BLUE"), C.TANK_BLUE_LIGHT, scale=2)
+        red_call = render_pixel_text(self.font_small, translate("SIDE_RED"), C.TANK_RED_LIGHT, scale=2)
+        blue_call = render_pixel_text(self.font_small, translate("SIDE_BLUE"), C.TANK_BLUE_LIGHT, scale=2)
         self.screen.blit(red_call, (arena_card.x + 122, arena_card.bottom - 40))
         self.screen.blit(blue_call, (arena_card.right - 122 - blue_call.get_width(), arena_card.bottom - 40))
         rule = render_pixel_text(
@@ -545,8 +545,8 @@ class TankBattleMixin:
         text = render_pixel_text(self.font_menu_title, title, winner_color, scale=4)
         self.screen.blit(text, (panel.centerx - text.get_width() // 2, 178))
         score_label = (
-            f"{translate('RED')} {self.tank_engine.score['red']}  :  "
-            f"{self.tank_engine.score['blue']} {translate('BLUE')}"
+            f"{translate('SIDE_RED')} {self.tank_engine.score['red']}  :  "
+            f"{self.tank_engine.score['blue']} {translate('SIDE_BLUE')}"
         )
         score = render_pixel_text(self.font_status, score_label, C.TANK_TEXT, scale=3)
         self.screen.blit(score, (panel.centerx - score.get_width() // 2, 272))
@@ -577,7 +577,7 @@ class TankBattleMixin:
         shots = self._tank_player_shots[player]
         accuracy = round(self._tank_player_hits[player] * 100 / shots) if shots else 0
         return (
-            f"{translate(player.upper())}  {translate('ACCURACY')} {accuracy}%",
+            f"{translate(f'SIDE_{player.upper()}')}  {translate('ACCURACY')} {accuracy}%",
             f"{translate('ITEMS USED')} {self._tank_player_items_used[player]}",
         )
 
@@ -587,9 +587,9 @@ class TankBattleMixin:
         red = self.tank_engine.tanks["red"]
         blue = self.tank_engine.tanks["blue"]
         remain = max(0, self.tank_engine.remaining_ms // 1000)
-        red_name = render_pixel_text(self.font_status, translate("RED"), C.TANK_RED_LIGHT, scale=2)
+        red_name = render_pixel_text(self.font_status, translate("SIDE_RED"), C.TANK_RED_LIGHT, scale=2)
         red_item = render_pixel_text(self.font_status, self._item_label(red.held_item), C.TANK_RED_LIGHT, scale=2)
-        blue_name = render_pixel_text(self.font_status, translate("BLUE"), C.TANK_BLUE_LIGHT, scale=2)
+        blue_name = render_pixel_text(self.font_status, translate("SIDE_BLUE"), C.TANK_BLUE_LIGHT, scale=2)
         blue_item = render_pixel_text(self.font_status, self._item_label(blue.held_item), C.TANK_BLUE_LIGHT, scale=2)
         clock = render_pixel_text(
             self.font_status,

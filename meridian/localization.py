@@ -623,8 +623,11 @@ ZH.update({
     "ITEM SMOKE": "道具 烟幕",
     "ITEM WARP": "道具 跃迁器",
     "Use all eight item types": "使用全部八种道具",
-    "RED": "红方",
-    "BLUE": "蓝方",
+    # Faction ("side") labels.  "RED"/"BLUE" stay reserved for COLOUR
+    # semantics (see the shared game options block above); sides use
+    # dedicated keys so both meanings can coexist.
+    "SIDE_RED": "红方",
+    "SIDE_BLUE": "蓝方",
     "HP": "生命",
     "RED WINS": "红方胜利",
     "BLUE WINS": "蓝方胜利",
