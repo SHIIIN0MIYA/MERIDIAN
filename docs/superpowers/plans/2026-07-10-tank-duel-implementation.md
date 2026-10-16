@@ -1,4 +1,4 @@
-﻿# TANK DUEL / 坦克对决 Implementation Plan
+# TANK DUEL / 坦克对决 Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 

@@ -504,7 +504,7 @@ class BreakoutMixin:
             panel_h
         )
 
-        # 缁熶竴甯冨眬鍙傛暟
+# 统一布局参数
         row_y = panel.y + 188
         row_gap = 78
         btn_h = 42
@@ -571,7 +571,7 @@ class BreakoutMixin:
             lambda value: self.breakout_paddle_skin == value
         )
 
-        # BACK 鎸夐挳
+# BACK 按钮
         back_w = 220
         back_h = 48
         btns.append({
@@ -643,7 +643,7 @@ class BreakoutMixin:
         ]
 
         for label, y in rows:
-            # 姣忎竴琛岀殑娣℃贰鑳屾櫙妗嗭紝璁╂帓鐗堟洿绋冲畾
+# 每一行的淡淡背景框，让排版更稳定
             row_rect = pygame.Rect(panel.x + 70, y - 10, panel_w - 140, 60)
             pygame.draw.rect(self.screen, C.BREAKOUT_PANEL_DARK, row_rect)
             pygame.draw.rect(self.screen, C.BREAKOUT_ACCENT, row_rect, 1)
@@ -653,7 +653,7 @@ class BreakoutMixin:
             ly = y + 10
             self.screen.blit(label_surf, (lx, ly))
 
-        # 缁樺埗鎸夐挳
+# 绘制按钮
         mp = self._logical_mouse_pos()
 
         for b in self._get_breakout_settings_buttons():

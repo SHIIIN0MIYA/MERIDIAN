@@ -475,7 +475,7 @@ class DesktopMixin:
     def _draw_handheld_shell(self):
         outer = HANDHELD_RECT
 
-        # 澶栧３涓讳綋
+# 外壳主体
         pygame.draw.rect(self.screen, C.OUTLINE, outer, 6)
         pygame.draw.rect(self.screen, C.GOLD_DARK, outer.inflate(-8, -8), 4)
 
@@ -612,7 +612,7 @@ class DesktopMixin:
         if pressed:
             rect.y += 5
 
-        # 闃村奖
+# 阴影
         if hovered:
             pygame.draw.rect(self.screen, C.OUTLINE, rect.move(5, 5))
 
@@ -626,7 +626,7 @@ class DesktopMixin:
 
         pygame.draw.rect(self.screen, fill, rect.inflate(-5, -5))
 
-        # 楂樹寒鎻忚竟
+# 高亮描边
         border_col = C.DESK_ACCENT_LIGHT if hovered else C.DESK_ACCENT
         pygame.draw.rect(self.screen, border_col, rect.inflate(-12, -12), 2)
 

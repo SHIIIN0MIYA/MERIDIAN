@@ -138,6 +138,33 @@ _REQUIRED_KEYS = {
             "loadout"),
 }
 
+# Presence alone is not enough: the restore paths iterate, unpack and index these
+# values, so a present-but-wrong-typed key (``snake.body == 5``) passed the shape
+# check and then raised TypeError/ValueError while restoring -- a crash on the
+# path the validator exists to make safe.  Each entry maps a key to the types the
+# restore path can actually consume.
+_REQUIRED_TYPES: dict[str, dict[str, tuple[type, ...]]] = {
+    "snake": {
+        "body": (list, tuple), "dir": (list, tuple), "next_dir": (list, tuple),
+        "food": (list, tuple, type(None)), "score": (int,), "move_timer": (int,),
+    },
+    "breakout": {
+        "bricks": (list,), "ball": (dict, type(None)), "paddle": (dict, type(None)),
+        "score": (int,), "lives": (int,), "level": (int,),
+    },
+    "2048": {"grid": (list,), "score": (int,), "moves": (int,)},
+    "tetris": {
+        "grid": (list,), "bag": (list,), "next": (list,), "hold": (str, type(None)),
+        "can_hold": (bool,), "current": (dict, type(None)), "score": (int,),
+        "lines": (int,), "level": (int,), "fall_tick": (int,), "lock_tick": (int,),
+    },
+    "air": {
+        "player": (dict,), "enemies": (list,), "bullets": (list,),
+        "score": (int,), "health": (int,), "missile_charge": (int,),
+        "loadout": (dict,),
+    },
+}
+
 
 def _validate_shape_only(game_id, state) -> RunStateVerdict:
     """Accept snapshots whose restore path can unpack them, reject the rest."""
@@ -146,9 +173,13 @@ def _validate_shape_only(game_id, state) -> RunStateVerdict:
         return RunStateVerdict.RESUMABLE
     if not isinstance(state, dict):
         return RunStateVerdict.REJECTED
-    if all(key in state for key in required):
-        return RunStateVerdict.RESUMABLE
-    return RunStateVerdict.REJECTED
+    if not all(key in state for key in required):
+        return RunStateVerdict.REJECTED
+    expected_types = _REQUIRED_TYPES.get(game_id, {})
+    for key, allowed in expected_types.items():
+        if not isinstance(state[key], allowed):
+            return RunStateVerdict.REJECTED
+    return RunStateVerdict.RESUMABLE
 
 
 def validate(game_id: str, state, *, expected_size=None,
@@ -170,7 +201,14 @@ def validate(game_id: str, state, *, expected_size=None,
                 # Pre-format snapshots cannot be checked for size, and loading
                 # one into a differently sized board is the failure we guard.
                 return RunStateVerdict.REJECTED
-            if expected_size is not None and state.get("size", state.get("board_count")) != expected_size:
+            # Read the game's OWN size key.  A fallback chain let a decoy
+            # "size" key satisfy the check while the real board_count stayed
+            # wrong (a 5x5 grid passed a 15-wide board check), so the restore
+            # then walked off the grid.
+            actual_size = (
+                state.get("board_count") if game_id == "gomoku" else state.get("size")
+            )
+            if expected_size is not None and actual_size != expected_size:
                 return RunStateVerdict.REJECTED
             if expected_count is not None and state.get("mines_count") != expected_count:
                 return RunStateVerdict.REJECTED

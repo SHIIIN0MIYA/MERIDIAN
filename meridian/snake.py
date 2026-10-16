@@ -195,7 +195,7 @@ class SnakeMixin:
         cx = WINDOW_W // 2
         btns = []
 
-        # SPEED 鎸夐挳
+# SPEED 按钮
         speed_btn_w = 150
         speed_btn_h = 48
         speed_gap = 24
@@ -223,7 +223,7 @@ class SnakeMixin:
                 "selected": self.snake_speed_mode == label.lower(),
             })
 
-        # COLOR 鎸夐挳
+# COLOR 按钮
         color_btn_w = 150
         color_btn_h = 48
         color_gap = 24
@@ -251,7 +251,7 @@ class SnakeMixin:
                 "selected": self.snake_skin == label.lower(),
             })
 
-        # BACK 鎸夐挳
+# BACK 按钮
         back_w = 220
         back_h = 52
         back_y = 585
@@ -368,17 +368,17 @@ class SnakeMixin:
         pygame.draw.line(self.screen, C.SNAKE_ACCENT, (panel.x + 70, line_y), (panel.right - 70, line_y), 3)
         pygame.draw.line(self.screen, C.OUTLINE, (panel.x + 70, line_y + 5), (panel.right - 70, line_y + 5), 2)
 
-        # SPEED 鍖哄煙
+# SPEED 区域
         speed_label = render_pixel_text(self.font_status, "SPEED", C.SNAKE_TEXT, scale=2)
         self.screen.blit(speed_label, (panel.centerx - speed_label.get_width() // 2, panel.y + 185))
         speed_note = render_pixel_text(self.font_small, "Adjust snake movement speed", C.SNAKE_ACCENT, scale=2)
         self.screen.blit(speed_note, (panel.centerx - speed_note.get_width() // 2, panel.y + 214))
 
-        # COLOR 鍖哄煙
+# COLOR 区域
         color_label = render_pixel_text(self.font_status, "SKIN COLOR", C.SNAKE_TEXT, scale=2)
         self.screen.blit(color_label, (panel.centerx - color_label.get_width() // 2, panel.y + 335))
 
-        # 鎸夐挳
+# 按钮
         mouse_pos = self._logical_mouse_pos()
         for b in self._get_snake_settings_buttons():
             hovered = b["rect"].collidepoint(mouse_pos)
@@ -518,7 +518,7 @@ class SnakeMixin:
 
         self.snake.append(new_head)
 
-        # 鍚冨埌椋熺墿
+# 吃到食物
         if self.snake_food is not None and new_head == self.snake_food:
             self.audio.play("snake_eat")
             self.snake_score += 1
@@ -529,12 +529,12 @@ class SnakeMixin:
             self.snake_best = max(self.snake_best, self.snake_score)
             self.snake_score_jump = 6
             self.snake_score_jump_frame = 8
-            # 椋熺墿绮掑瓙
+# 食物粒子
             fx = SNAKE_X + self.snake_food[1] * SNAKE_CELL_SIZE + SNAKE_CELL_SIZE // 2
             fy = SNAKE_Y + self.snake_food[0] * SNAKE_CELL_SIZE + SNAKE_CELL_SIZE // 2
             self._spawn_snake_particles(fx, fy)
             self._spawn_snake_food()
-            # 闅惧害闅忓垎鏁版彁鍗囩敱 _get_snake_current_interval() 璁＄畻
+# 难度随分数提升由 _get_snake_current_interval() 计算
             # 杩欓噷涓嶈鐩存帴淇敼 snake_base_interval锛屽惁鍒欎細鐮村潖璁剧疆椤甸€夋嫨
         else:
             self.snake.pop(0)
@@ -545,7 +545,7 @@ class SnakeMixin:
         return max(4, self.snake_base_interval - bonus)
 
     def _update_snake_visual_effects(self):
-        # SNAKE 姝讳骸鎶栧睆
+# SNAKE 死亡抖屏
         if self.snake_shake_duration > 0:
             self.snake_shake_duration -= 1
             intensity = max(1, self.snake_shake_duration // 4)
@@ -555,7 +555,7 @@ class SnakeMixin:
             self.snake_shake_x = 0
             self.snake_shake_y = 0
 
-        # 椋熺墿绮掑瓙
+# 食物粒子
         for p in self.snake_particles[:]:
             p["x"] += p["vx"]
             p["y"] += p["vy"]
@@ -585,7 +585,7 @@ class SnakeMixin:
         self._record_stat("snake", "games_completed")
         self._record_stat("snake", "best_score", self.snake_score, mode="max")
 
-        # SNAKE 涓撶敤姝讳骸鎶栧睆
+# SNAKE 专用死亡抖屏
         self.snake_shake_duration = 18
         self.snake_shake_x = 0
         self.snake_shake_y = 0
@@ -689,14 +689,14 @@ class SnakeMixin:
 
         cell = SNAKE_CELL_SIZE
 
-        # 缃戞牸
+# 网格
         for i in range(SNAKE_GRID_COUNT + 1):
             x = board_rect.x + i * cell
             y = board_rect.y + i * cell
             pygame.draw.line(self.screen, C.SNAKE_GRID_DARK, (x, board_rect.y), (x, board_rect.bottom), 1)
             pygame.draw.line(self.screen, C.SNAKE_GRID_DARK, (board_rect.x, y), (board_rect.right, y), 1)
 
-        # 椋熺墿
+# 食物
         if self.snake_food is not None:
             fr, fc = self.snake_food
             fx = board_rect.x + fc * cell
@@ -785,18 +785,18 @@ class SnakeMixin:
         rect = button["rect"].copy()
         selected = button.get("selected", False)
 
-        # 鍔ㄦ晥锛氭偓鍋滄斁澶э紝鎸変笅涓嬫矇
+# 动效：悬停放大，按下下沉
         if hovered:
             rect = rect.inflate(10, 8)
 
         if pressed:
             rect.y += 4
 
-        # 闃村奖
+# 阴影
         shadow_offset = 6 if hovered else 4
         pygame.draw.rect(self.screen, C.OUTLINE, rect.move(shadow_offset, shadow_offset))
 
-        # 涓讳綋棰滆壊
+# 主体颜色
         if selected:
             fill = C.SNAKE_ACCENT
             inner = C.SNAKE_ACCENT_LIGHT
@@ -827,7 +827,7 @@ class SnakeMixin:
             pygame.draw.rect(self.screen, C.OUTLINE, mark)
             pygame.draw.rect(self.screen, C.SNAKE_TEXT, mark.inflate(-2, -2))
 
-        # 鏂囨湰
+# 文本
         label = render_pixel_text(self.font_btn, button["label"], text_col, scale=2)
 
         if label.get_width() > rect.width - 24:
@@ -851,7 +851,7 @@ class SnakeMixin:
         overlay.fill((0, 0, 0, 165))
         self.screen.blit(overlay, (0, 0))
 
-        # 灞呬腑缁撴潫闈㈡澘
+# 居中结束面板
         panel_w = 560
         panel_h = 430
         panel = pygame.Rect(
@@ -875,7 +875,7 @@ class SnakeMixin:
             )
         )
 
-        # 鍒嗘暟
+# 分数
         score = render_pixel_text(self.font_status, f"SCORE {self.snake_score}", C.SNAKE_TEXT, scale=3)
         best = render_pixel_text(self.font_status, f"BEST {self.snake_best}", C.SNAKE_ACCENT_LIGHT, scale=3)
 
@@ -895,7 +895,7 @@ class SnakeMixin:
             )
         )
 
-        # 鎸夐挳
+# 按钮
         mouse_pos = self._logical_mouse_pos()
 
         for b in self._get_snake_end_buttons():

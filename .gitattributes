@@ -1,0 +1,28 @@
+# Line endings and encoding policy.
+#
+# The repository has a history of mixed CRLF/LF and stray UTF-8 BOMs: BOMs break
+# source-analysis tools that read with plain utf-8 (for example an ast.parse of
+# shell_boot.py or shell_desktop.py used to raise on U+FEFF), and mixed endings
+# made line counts and diffs inconsistent between tools.
+#
+# `text=auto` normalises on commit.  The source and test trees are pinned to LF
+# so a checkout is identical everywhere; the Windows scripts keep CRLF so cmd.exe
+# is happy.
+* text=auto
+
+*.py    text eol=lf
+*.md    text eol=lf
+*.toml  text eol=lf
+*.yml   text eol=lf
+*.yaml  text eol=lf
+*.json  text eol=lf
+*.txt   text eol=lf
+*.cfg   text eol=lf
+
+*.bat   text eol=crlf
+*.cmd   text eol=crlf
+
+*.ttf   binary
+*.png   binary
+*.jpg   binary
+*.exe   binary

@@ -1,4 +1,4 @@
-﻿from .common import *
+from .common import *
 from .localization import is_chinese, set_language
 
 

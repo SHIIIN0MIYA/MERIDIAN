@@ -82,7 +82,7 @@ class GomokuMixin:
 
             surf = pygame.Surface((panel_w, panel_h), pygame.SRCALPHA)
 
-            # 鍚婄墝涓讳綋
+# 吊牌主体
             plaque_rect = pygame.Rect(4, 12, panel_w - 8, panel_h - 16)
 
             pygame.draw.rect(surf, C.OUTLINE, plaque_rect)
@@ -90,7 +90,7 @@ class GomokuMixin:
             pygame.draw.rect(surf, C.RED, plaque_rect.inflate(-8, -8))
             pygame.draw.rect(surf, C.RED_LIGHT, plaque_rect.inflate(-12, -12), 1)
 
-            # 椤堕儴閲戝睘鎸傜墖
+# 顶部金属挂片
             # 淇锛氭寕鐗囩洿鎺ュ睘浜庡悐鐗屾湰浣擄紝缁冲瓙浼氱‖杩炴帴鍒拌繖閲?
             cap_w = 16
             cap_h = 8
@@ -105,16 +105,16 @@ class GomokuMixin:
             hook_local_x = panel_w // 2
             hook_local_y = cap_y
 
-            # 鎸傚瓟灏忕偣
+# 挂孔小点
             pygame.draw.rect(surf, C.OUTLINE, (hook_local_x - 1, cap_y + 3, 2, 2))
 
-            # 宸﹀彸閾嗛拤
+# 左右铆钉
             pygame.draw.rect(surf, C.OUTLINE, (plaque_rect.x + 6, plaque_rect.y + 6, 4, 4))
             pygame.draw.rect(surf, C.OUTLINE, (plaque_rect.right - 10, plaque_rect.y + 6, 4, 4))
             pygame.draw.rect(surf, C.GOLD_LIGHT, (plaque_rect.x + 7, plaque_rect.y + 7, 2, 2))
             pygame.draw.rect(surf, C.GOLD_LIGHT, (plaque_rect.right - 9, plaque_rect.y + 7, 2, 2))
 
-            # 瀛楁瘝
+# 字母
             lx = (panel_w - letter.get_width()) // 2
             ly = plaque_rect.y + (plaque_rect.height - letter.get_height()) // 2 + 2
 
@@ -237,7 +237,7 @@ class GomokuMixin:
             hook_x = anchor_x + math.sin(pendulum_rad) * rope_len
             hook_y = anchor_y + math.cos(pendulum_rad) * rope_len
 
-            # 鏃嬭浆鍚婄墝
+# 旋转吊牌
             rotated = pygame.transform.rotozoom(surf, -angle, 1.0)
 
             # ============================================================
@@ -390,7 +390,7 @@ class GomokuMixin:
         cx = WINDOW_W // 2
         btns = []
 
-        # 妫嬬洏澶у皬鎸夐挳
+# 棋盘大小按钮
         size_btn_w = 120
         size_btn_h = 44
         size_gap = 22
@@ -410,7 +410,7 @@ class GomokuMixin:
                 "selected": self.board_size == sz,
             })
 
-        # BACK 鎸夐挳鏀惧埌搴曢儴鍖哄煙锛屽拰鎻愮ず鏂囧瓧鎷夊紑
+# BACK 按钮放到底部区域，和提示文字拉开
         back_w = 200
         back_h = 48
         back_y = 520
@@ -538,7 +538,7 @@ class GomokuMixin:
                         self.occupied_hover_pos = None
                         self.pressed_button_action = None
                     elif action == "quit":
-                        # 鍥炲埌妗岄潰锛屼笉鍏抽棴绋嬪簭
+# 回到桌面，不关闭程序
                         self._go_desktop()
 
     def _handle_settings_event(self, event):
@@ -616,7 +616,7 @@ class GomokuMixin:
 
         self.occupied_hover_pos = None
 
-        # 娓呯悊鑳滃埄婕斿嚭
+# 清理胜利演出
         self.win_line_frame = 0
         self.win_line_active = False
         self.win_stone_flash_frame = 0
@@ -858,7 +858,7 @@ class GomokuMixin:
                 self.preview_target_y = float(target_y)
                 self.preview_player = self.board.current_player
 
-            # 宸叉湁妫嬪瓙浣嶇疆锛氫笉瑕佺獊鐒舵秷澶憋紝鏀逛负鏄剧ず涓嶅彲钀藉瓙鎻愮ず
+# 已有棋子位置：不要突然消失，改为显示不可落子提示
             else:
                 self.hover_pos = None
                 self.occupied_hover_pos = (r, c)
@@ -968,7 +968,7 @@ class GomokuMixin:
 
         pressed = self.pressed_button_action == action
 
-        # 鍔ㄦ晥锛氭偓鍋滄椂杞诲井鏀惧ぇ
+# 动效：悬停时轻微放大
         if hovered:
             rect = rect.inflate(8, 6)
 
@@ -977,7 +977,7 @@ class GomokuMixin:
             float_y = int(math.sin(self.anim_tick * 0.18) * 2)
             rect.y += float_y
 
-        # 鍔ㄦ晥锛氱偣鍑绘椂涓嬪帇
+# 动效：点击时下压
         if pressed:
             rect.y += 4
 
@@ -1096,7 +1096,7 @@ class GomokuMixin:
             self.screen.blit(num, (nx, ny))
 
     def _draw_end_page(self):
-        # 鍏堢敾妫嬬洏鑳屾櫙
+# 先画棋盘背景
         self._draw_game()
 
         # 鍗婇€忔槑鏆楄壊閬僵
@@ -1241,7 +1241,7 @@ class GomokuMixin:
             )
 
         # ============================================================
-        #  鍒嗘暟鍖哄煙
+# 分数区域
         # ============================================================
         score_title_y = panel_rect.y + 300
         score_value_y = panel_rect.y + 338
@@ -1264,7 +1264,7 @@ class GomokuMixin:
         )
 
         # ============================================================
-        #  鎿嶄綔鎻愮ず
+# 操作提示
         # ============================================================
         # 淇锛氭彁绀哄崟鐙暀涓€琛岋紝骞朵笖鍜屾寜閽尯鎷夊紑璺濈
         hint_y = panel_rect.y + 382
@@ -1279,7 +1279,7 @@ class GomokuMixin:
         )
 
         # ============================================================
-        #  鎸夐挳
+# 按钮
         # ============================================================
         mouse_pos = self._logical_mouse_pos()
         for b in self._get_end_buttons():
@@ -1336,14 +1336,14 @@ class GomokuMixin:
 
         self.screen.blit(board_label, (board_label_x, board_label_y))
 
-        # 妫嬬洏澶у皬鎸夐挳
+# 棋盘大小按钮
         mouse_pos = self._logical_mouse_pos()
         for b in self._get_settings_buttons():
             hovered = b["rect"].collidepoint(mouse_pos)
             self._draw_menu_button(b, hovered)
 
         # ============================================================
-        #  褰撳墠閫夋嫨
+# 当前选择
         # ============================================================
         current_text = f"Current: {self.board_size} x {self.board_size}"
         current = render_pixel_text(self.font_status, current_text, C.CREAM, scale=2)
@@ -1354,7 +1354,7 @@ class GomokuMixin:
         self.screen.blit(current, (current_x, current_y))
 
         # ============================================================
-        #  鎻愮ず鏂囧瓧
+# 提示文字
         # ============================================================
         note_text = "Changing size affects the next new game."
         note = render_pixel_text(self.font_small, note_text, C.GOLD_DARK, scale=2)
@@ -1422,11 +1422,11 @@ class GomokuMixin:
             red = (*C.RED_LIGHT, alpha)
             outline = (*C.OUTLINE, alpha)
 
-            # 澶栧眰榛戣壊鎻忚竟
+# 外层黑色描边
             pygame.draw.line(cross_surf, outline, (4, 4), (size * 2 + 4, size * 2 + 4), 4)
             pygame.draw.line(cross_surf, outline, (size * 2 + 4, 4), (4, size * 2 + 4), 4)
 
-            # 鍐呭眰绾㈠弶
+# 内层红叉
             pygame.draw.line(cross_surf, red, (4, 4), (size * 2 + 4, size * 2 + 4), 2)
             pygame.draw.line(cross_surf, red, (size * 2 + 4, 4), (4, size * 2 + 4), 2)
 
@@ -1462,19 +1462,19 @@ class GomokuMixin:
         # 鍥涗釜瑙掞紝涓嶈鏁村湀鍖呬綇锛岄伩鍏嶅お鎶㈢溂
         leg_len = 7
 
-        # 宸︿笂
+# 左上
         pygame.draw.line(hint_surf, col, (3, 3), (3 + leg_len, 3), 2)
         pygame.draw.line(hint_surf, col, (3, 3), (3, 3 + leg_len), 2)
 
-        # 鍙充笂
+# 右上
         pygame.draw.line(hint_surf, col, (size * 2 + 3, 3), (size * 2 + 3 - leg_len, 3), 2)
         pygame.draw.line(hint_surf, col, (size * 2 + 3, 3), (size * 2 + 3, 3 + leg_len), 2)
 
-        # 宸︿笅
+# 左下
         pygame.draw.line(hint_surf, col, (3, size * 2 + 3), (3 + leg_len, size * 2 + 3), 2)
         pygame.draw.line(hint_surf, col, (3, size * 2 + 3), (3, size * 2 + 3 - leg_len), 2)
 
-        # 鍙充笅
+# 右下
         pygame.draw.line(hint_surf, col, (size * 2 + 3, size * 2 + 3), (size * 2 + 3 - leg_len, size * 2 + 3), 2)
         pygame.draw.line(hint_surf, col, (size * 2 + 3, size * 2 + 3), (size * 2 + 3, size * 2 + 3 - leg_len), 2)
 
@@ -1640,7 +1640,7 @@ class GomokuMixin:
         cur_x = x1 + (x2 - x1) * t
         cur_y = y1 + (y2 - y1) * t
 
-        # 澶栧眰娣辫壊鎻忚竟
+# 外层深色描边
         pygame.draw.line(
             self.screen,
             C.OUTLINE,
@@ -1667,7 +1667,7 @@ class GomokuMixin:
             3
         )
 
-        # 绾垮ご楂樺厜
+# 线头高光
         flash = 7 + int(math.sin(self.anim_tick * 0.35) * 2)
         pygame.draw.rect(
             self.screen,
@@ -1873,7 +1873,7 @@ class GomokuMixin:
         pygame.draw.rect(self.screen, C.OUTLINE, rect, 4)
         pygame.draw.rect(self.screen, C.GOLD_DARK, rect.inflate(-8, -8), 2)
 
-        # 瑙掓爣
+# 角标
         corner_size = 18
         for cx, cy in [
             (rect.x, rect.y),
@@ -1885,7 +1885,7 @@ class GomokuMixin:
             pygame.draw.rect(self.screen, C.GOLD, (cx + 4, cy + 4, corner_size - 8, corner_size - 8))
             pygame.draw.rect(self.screen, C.GOLD_LIGHT, (cx + 7, cy + 7, 4, 4))
 
-        # 绔栨帓 GOMOKU
+# 竖排 GOMOKU
         logo = render_vertical_pixel_text(
             self.font_menu_title,
             "GOMOKU",
@@ -1923,7 +1923,7 @@ class GomokuMixin:
         pygame.draw.rect(self.screen, C.OUTLINE, panel_rect, 4)
         pygame.draw.rect(self.screen, C.GOLD_DARK, panel_rect.inflate(-8, -8), 2)
 
-        # 瑙掓爣
+# 角标
         corner_size = 18
         for cx, cy in [
             (panel_rect.x, panel_rect.y),
@@ -1976,7 +1976,7 @@ class GomokuMixin:
             pygame.draw.rect(self.screen, C.GOLD_DARK, icon_box.inflate(-6, -6), 2)
             self.screen.blit(icon, (icon_box.centerx - icon_size // 2, icon_box.centery - icon_size // 2))
 
-        # 鍒嗘暟鍖哄煙
+# 分数区域
         score_line_y = panel_rect.y + 304
         pygame.draw.line(self.screen, C.GOLD_DARK, (panel_rect.x + 48, score_line_y), (panel_rect.right - 48, score_line_y), 3)
         pygame.draw.line(self.screen, C.OUTLINE, (panel_rect.x + 48, score_line_y + 4), (panel_rect.right - 48, score_line_y + 4), 2)
@@ -1990,7 +1990,7 @@ class GomokuMixin:
             score = render_pixel_text(self.font_status, score_text, C.CREAM, scale=1)
         self.screen.blit(score, (panel_rect.centerx - score.get_width() // 2, panel_rect.y + 370))
 
-        # 鎿嶄綔鎻愮ず
+# 操作提示
         hint1 = render_pixel_text(self.font_small, "U: Undo    R: Restart", C.GOLD_DARK, scale=2)
         hint2 = render_pixel_text(self.font_small, "ESC: Menu", C.GOLD_DARK, scale=2)
         self.screen.blit(hint1, (panel_rect.centerx - hint1.get_width() // 2, panel_rect.y + 452))

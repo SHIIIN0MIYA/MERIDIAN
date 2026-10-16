@@ -329,11 +329,21 @@ class SystemMixin:
         self.g2048_best = int(records["2048"]["best_score"])
         self.tetris_best = int(records["tetris"]["best_score"])
         self.tetris_best_level = int(records["tetris"]["best_level"])
+        # `mines_best_times` is keyed by (size, count) and read by the
+        # statistics page.  Record keys this build does not offer (written by an
+        # older or newer version) are kept verbatim in a side dict so the next
+        # save preserves them instead of deleting them.
+        stored_best_times = records["mines"]["best_times"]
         self.mines_best_times = {}
         for size in MINES_SIZE_CHOICES:
             for count in MINES_COUNT_CHOICES[size]:
                 key = f"{size}x{count}"
-                self.mines_best_times[(size, count)] = records["mines"]["best_times"].get(key)
+                self.mines_best_times[(size, count)] = stored_best_times.get(key)
+        known_keys = {f"{size}x{count}" for (size, count) in self.mines_best_times}
+        self.mines_legacy_best_times = {
+            key: value for key, value in stored_best_times.items()
+            if key not in known_keys
+        }
         self._rebuild_stone_assets()
         self._set_display_mode(self.fullscreen, persist=False)
         # Load pending run states for resume support
@@ -479,10 +489,18 @@ class SystemMixin:
             "boss_rush_score": air_progress["boss_rush_best"]["score"],
             "boss_rush_health": air_progress["boss_rush_best"]["health"],
         })
-        data["records"]["mines"]["best_times"] = {
-            f"{size}x{count}": value
-            for (size, count), value in self.mines_best_times.items()
-        }
+        # Merge rather than rebuild: assigning a fresh dict here deleted the
+        # records of any mode this build no longer lists.  Unknown keys are
+        # carried through untouched; known modes are refreshed, and a mode with
+        # no record keeps its existing entry rather than gaining a null.
+        best_times = data["records"]["mines"].setdefault("best_times", {})
+        best_times.update(getattr(self, "mines_legacy_best_times", {}))
+        for (size, count), value in self.mines_best_times.items():
+            key = f"{size}x{count}"
+            if value is None:
+                best_times.setdefault(key, None)
+            else:
+                best_times[key] = value
         # Capture in-progress game run state
         game_id = self._game_id_from_state()
         if game_id and game_id not in self._run_state_save_suppressed:
