@@ -12,6 +12,20 @@ from typing import Any
 
 SCHEMA_VERSION: int = 5
 
+# The top-level containers a real profile always has, each of which must be a
+# dict.  A file that parses as JSON but does not carry all of them is not a
+# profile: it is a half-written / cloud-synced / hand-edited file that must be
+# quarantined rather than merged into the defaults.  Merging it would report a
+# brand-new profile to the player and then overwrite the good ``.bak``.
+CORE_CONTAINERS: tuple[str, ...] = (
+    "settings", "records", "statistics", "progress", "achievements", "lore",
+)
+
+# A profile is small (a few KB).  Anything far larger is rejected before
+# parsing, so a deeply nested document cannot raise RecursionError out of
+# ``load()`` and past the quarantine path.
+MAX_SAVE_BYTES: int = 8 * 1024 * 1024
+
 
 def default_settings() -> dict[str, Any]:
     return {
@@ -164,6 +178,30 @@ def default_data() -> dict[str, Any]:
     }
 
 
+def _is_profile_shaped(data: object) -> bool:
+    """True when ``data`` is a profile (possibly an old/partial one) rather than junk.
+
+    Deliberately tolerant about *missing* containers: a v0 save may legitimately
+    carry only some of them, and ``tests/test_persistence.py`` pins that a
+    settings-only file still migrates (e.g. a language choice must survive).
+    It is strict about *wrong types*: a container that is present but is not a
+    dict is damage, and merging it would carry the bad shape into
+    ``_apply_loaded_data`` and crash the game for good.
+
+    An empty ``{}`` is rejected: real v0 saves always carried game containers,
+    while ``{}`` is what a partial write or a sync conflict leaves behind.
+    """
+    if not isinstance(data, dict):
+        return False
+    if not data:
+        return False
+    return all(
+        isinstance(value, dict)
+        for key, value in data.items()
+        if key in CORE_CONTAINERS
+    )
+
+
 def _deep_merge(default: dict, incoming: dict) -> dict:
     if not isinstance(default, dict) or not isinstance(incoming, dict):
         return deepcopy(incoming)
@@ -171,6 +209,11 @@ def _deep_merge(default: dict, incoming: dict) -> dict:
     for key, value in incoming.items():
         if key in result and isinstance(result[key], dict) and isinstance(value, dict):
             result[key] = _deep_merge(result[key], value)
+        elif key in result and isinstance(result[key], dict):
+            # A wrong-typed inbound value must not replace a trustworthy default
+            # structure: keeping the default is what lets a damaged save start
+            # the game instead of crashing in _apply_loaded_data (R-21).
+            continue
         else:
             result[key] = deepcopy(value)
     return result
@@ -208,6 +251,9 @@ class SaveManager:
             path = root / "MERIDIAN" / "save.json"
         self.path = Path(path)
         self.backup_path = self.path.with_suffix(".json.bak")
+        # A second generation so one bad rotation cannot take the last good copy
+        # with it.
+        self.backup_path_2 = self.path.with_suffix(".json.bak2")
 
     def migrate(self, data: dict) -> dict[str, Any]:
         version = int(data.get("schema_version", 0)) if isinstance(data, dict) else 0
@@ -238,27 +284,45 @@ class SaveManager:
         return migrated
 
     def _read(self, path: Path) -> dict[str, Any]:
+        # Size guard first: a huge (e.g. deeply nested) document would raise
+        # RecursionError out of json.load, which the quarantine path must still
+        # catch, but refusing it up front keeps the failure cheap and clear.
+        if path.stat().st_size > MAX_SAVE_BYTES:
+            raise ValueError(f"save file is implausibly large: {path}")
         with path.open("r", encoding="utf-8") as handle:
-            return self.migrate(json.load(handle))
+            data = json.load(handle)
+        if not _is_profile_shaped(data):
+            raise ValueError("file is valid JSON but not a MERIDIAN profile")
+        return self.migrate(data)
+
+    def _quarantine(self, path: Path) -> None:
+        """Move an unusable save aside so it is not read or overwritten again."""
+        stamp = datetime.now().strftime("%Y%m%d-%H%M%S-%f")
+        try:
+            path.replace(path.with_name(f"save.corrupt-{stamp}.json"))
+        except OSError:
+            pass
 
     def load(self) -> dict[str, Any]:
         if not self.path.exists():
             return default_data()
         try:
             return self._read(self.path)
-        except (OSError, ValueError, TypeError):
-            stamp = datetime.now().strftime("%Y%m%d-%H%M%S")
-            corrupt = self.path.with_name(f"save.corrupt-{stamp}.json")
+        except Exception:  # noqa: BLE001 - any failure here means "unusable save"
+            # Widened deliberately: a shape-corrupt save raises AttributeError /
+            # KeyError / ZeroDivisionError from migrate() or from the caller's
+            # _apply_loaded_data(), and none of those may end the process.
+            self._quarantine(self.path)
+
+        # Only a file that still passes the full shape check is worth adopting.
+        for candidate in (self.backup_path, self.backup_path_2):
+            if not candidate.exists():
+                continue
             try:
-                self.path.replace(corrupt)
-            except OSError:
-                pass
-            if self.backup_path.exists():
-                try:
-                    return self._read(self.backup_path)
-                except (OSError, ValueError, TypeError):
-                    pass
-            return default_data()
+                return self._read(candidate)
+            except Exception:  # noqa: BLE001
+                self._quarantine(candidate)
+        return default_data()
 
     def save(self, data: dict) -> None:
         self.path.parent.mkdir(parents=True, exist_ok=True)
@@ -268,9 +332,27 @@ class SaveManager:
             json.dump(payload, handle, indent=2, ensure_ascii=True, sort_keys=True)
             handle.flush()
             os.fsync(handle.fileno())
-        if self.path.exists():
+        # Rotate the backup only from a file that is itself a usable profile.
+        # Rotating unconditionally is what let a junk primary destroy the last
+        # good copy: the junk was copied over .bak moments before being written.
+        if self.path.exists() and self._is_usable_file(self.path):
+            if self.backup_path.exists():
+                try:
+                    shutil.copy2(self.backup_path, self.backup_path_2)
+                except OSError:
+                    pass
             shutil.copy2(self.path, self.backup_path)
         os.replace(temp_path, self.path)
+
+    def _is_usable_file(self, path: Path) -> bool:
+        """True when ``path`` is a readable, profile-shaped save."""
+        try:
+            if path.stat().st_size > MAX_SAVE_BYTES:
+                return False
+            with path.open("r", encoding="utf-8") as handle:
+                return _is_profile_shaped(json.load(handle))
+        except (OSError, ValueError, TypeError):
+            return False
 
     def reset_settings(self, data: dict) -> dict[str, Any]:
         result = self.migrate(data)

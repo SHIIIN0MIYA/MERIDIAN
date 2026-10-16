@@ -236,6 +236,7 @@ class AtomicWriteRecoveryTests(unittest.TestCase):
 
     def tearDown(self):
         for path in (self.save_path, self.save_path.with_suffix(".json.bak"),
+                     self.save_path.with_suffix(".json.bak2"),
                      self.save_path.with_suffix(".json.tmp")):
             path.unlink(missing_ok=True)
         # Also clean up any corrupt snapshots

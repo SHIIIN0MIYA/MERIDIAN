@@ -38,6 +38,7 @@ class ContinueResumeTests(unittest.TestCase):
         for path in (
             self.save_path,
             self.save_path.with_suffix(self.save_path.suffix + ".bak"),
+            self.save_path.with_suffix(self.save_path.suffix + ".bak2"),
             self.save_path.with_suffix(self.save_path.suffix + ".tmp"),
         ):
             path.unlink(missing_ok=True)

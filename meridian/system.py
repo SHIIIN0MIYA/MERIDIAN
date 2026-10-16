@@ -5,7 +5,7 @@ import json
 
 from .common import *
 from . import runstate
-from .persistence import SaveManager
+from .persistence import SaveManager, default_settings
 from .runstate import RunStateVerdict
 from .localization import set_language, get_chinese_font, is_chinese
 from . import lore as _lore
@@ -183,7 +183,90 @@ class SystemMixin:
             self._save_now()
         return new_ids
 
+    # ── Settings vocabulary ──────────────────────────────────────────────
+    # Every value the settings pages cycle through must come from exactly one
+    # place, and every value read from a save must be checked against it.  A
+    # stale or corrupt value used to raise ValueError out of the settings page
+    # (list.index) and could not be corrected in-game, because the bad value was
+    # saved again on every cycle.
+
+    ANIMATION_LEVELS = ("full", "reduced", "off")
+    SNAKE_SPEEDS = ("slow", "normal", "fast")
+    SNAKE_SKINS = ("green", "lime", "red")
+    BREAKOUT_DIFFICULTIES = ("easy", "normal", "hard")
+    BREAKOUT_CONTROLS = ("keyboard", "mouse")
+    BREAKOUT_BALL_SKINS = ("yellow", "cyan", "pink")
+    BREAKOUT_BRICK_SKINS = ("purple", "orange", "blue")
+    BREAKOUT_PADDLE_SKINS = ("orange", "cyan", "pink")
+
+    @staticmethod
+    def _mines_modes() -> list[tuple[int, int]]:
+        """Every legal (size, count) pair, derived from the shared tables."""
+        return [
+            (size, count)
+            for size in MINES_SIZE_CHOICES
+            for count in MINES_COUNT_CHOICES[size]
+        ]
+
+    def _sanitize_settings(self) -> None:
+        """Replace any setting a save cannot vouch for with a legal default.
+
+        Runs before ``_apply_loaded_data`` reads a single value, so a wrong-typed
+        or out-of-vocabulary field degrades to a playable default instead of
+        raising from ``int()``/``list.index()``.  Values that are already legal
+        are left untouched, which matters for the degenerate-board guard: only
+        the three real board sizes are accepted, never merely "a positive int".
+        """
+        settings = self.save_data["settings"]
+        defaults = default_settings()
+
+        def choice(key: str, allowed) -> None:
+            if settings.get(key) not in allowed:
+                settings[key] = defaults[key]
+
+        def unit_float(key: str) -> None:
+            try:
+                value = float(settings[key])
+            except (KeyError, TypeError, ValueError):
+                settings[key] = defaults[key]
+                return
+            if value != value:  # NaN
+                settings[key] = defaults[key]
+            else:
+                settings[key] = min(1.0, max(0.0, value))
+
+        def flag(key: str) -> None:
+            if not isinstance(settings.get(key), bool):
+                settings[key] = defaults[key]
+
+        choice("language", ("en", "zh_hans"))
+        for key in ("master_volume", "music_volume", "sfx_volume"):
+            unit_float(key)
+        for key in ("muted", "fullscreen", "screen_shake"):
+            flag(key)
+        choice("animation_level", self.ANIMATION_LEVELS)
+        choice("gomoku_board_size", BOARD_SIZE_CHOICES)
+        choice("snake_speed", self.SNAKE_SPEEDS)
+        choice("snake_skin", self.SNAKE_SKINS)
+        choice("breakout_control", self.BREAKOUT_CONTROLS)
+        choice("breakout_difficulty", self.BREAKOUT_DIFFICULTIES)
+        choice("breakout_ball_skin", self.BREAKOUT_BALL_SKINS)
+        choice("breakout_brick_skin", self.BREAKOUT_BRICK_SKINS)
+        choice("breakout_paddle_skin", self.BREAKOUT_PADDLE_SKINS)
+        choice("air_skin", ("default", "crimson", "azure", "gold"))
+
+        modes = self._mines_modes()
+        defaults_mode = (default_settings()["mines_size"], default_settings()["mines_count"])
+        try:
+            current = (int(settings["mines_size"]), int(settings["mines_count"]))
+        except (KeyError, TypeError, ValueError):
+            current = defaults_mode
+        if current not in modes:
+            current = defaults_mode if defaults_mode in modes else modes[0]
+        settings["mines_size"], settings["mines_count"] = current
+
     def _apply_loaded_data(self):
+        self._sanitize_settings()
         settings = self.save_data["settings"]
         self.language = settings.get("language", "en")
         set_language(self.language)
@@ -706,7 +789,7 @@ class SystemMixin:
         elif action == "toggle_fullscreen":
             self._set_display_mode(not self.fullscreen)
         elif action == "cycle_animation":
-            levels = ["full", "reduced", "off"]
+            levels = list(self.ANIMATION_LEVELS)
             self.animation_level = levels[(levels.index(self.animation_level) + 1) % len(levels)]
         elif action == "toggle_shake":
             self.screen_shake_enabled = not self.screen_shake_enabled
@@ -726,11 +809,11 @@ class SystemMixin:
                 self.board = Board(self.board_size)
                 self._rebuild_stone_assets()
         elif action == "cycle_snake_speed":
-            values = ["slow", "normal", "fast"]
+            values = list(self.SNAKE_SPEEDS)
             self.snake_speed_mode = values[(values.index(self.snake_speed_mode) + 1) % len(values)]
             self._apply_snake_preferences()
         elif action == "cycle_snake_skin":
-            values = ["green", "lime", "red"]
+            values = list(self.SNAKE_SKINS)
             self.snake_skin = values[(values.index(self.snake_skin) + 1) % len(values)]
             self._apply_snake_preferences()
         elif action == "cycle_air_skin":
@@ -745,11 +828,11 @@ class SystemMixin:
         elif action == "cycle_breakout_control":
             self.breakout_control_mode = "mouse" if self.breakout_control_mode == "keyboard" else "keyboard"
         elif action == "cycle_breakout_difficulty":
-            values = ["easy", "normal", "hard"]
+            values = list(self.BREAKOUT_DIFFICULTIES)
             self.breakout_difficulty = values[(values.index(self.breakout_difficulty) + 1) % len(values)]
             self._apply_breakout_difficulty()
         elif action == "cycle_mines":
-            modes = [(9, 10), (9, 15), (9, 20), (16, 40), (16, 50), (16, 60)]
+            modes = self._mines_modes()
             current = (self.mines_size, self.mines_count)
             self.mines_size, self.mines_count = modes[(modes.index(current) + 1) % len(modes)]
             # The saved board no longer matches the mode; drop it (R-04).

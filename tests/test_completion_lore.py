@@ -188,6 +188,7 @@ class LoreStartupIntegrationTests(unittest.TestCase):
         for path in (
             self.save_path,
             self.save_path.with_suffix(".json.bak"),
+            self.save_path.with_suffix(".json.bak2"),
             self.save_path.with_suffix(".json.tmp"),
         ):
             path.unlink(missing_ok=True)

@@ -1,4 +1,4 @@
-﻿__pycache__/
+__pycache__/
 *.py[cod]
 .idea/
 .reasonix/
@@ -14,3 +14,9 @@ verification-*.png
 .zcode/
 *.exe
 *.manifest
+# Per-test save files created when MERIDIAN_TEST_SAVE_ROOT defaults to the repo
+# root (includes the .bak/.bak2/.tmp generations the save manager rotates).
+.meridian-*
+pytest-cache-files-*/
+.pytest_cache/
+.ruff_cache/
