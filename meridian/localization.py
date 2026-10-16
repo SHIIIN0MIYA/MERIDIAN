@@ -56,6 +56,19 @@ def resource_path(*parts: str) -> Path:
     return root.joinpath(*parts)
 
 
+_font_fallback_warned = False
+
+
+def _warn_font_fallback_once(reason) -> None:
+    """Tell the developer once that the bundled font could not be used."""
+    global _font_fallback_warned
+    if _font_fallback_warned:
+        return
+    _font_fallback_warned = True
+    print(f"WARNING: bundled Chinese font unavailable ({reason}); "
+          "falling back to a system CJK font.", file=sys.stderr)
+
+
 def get_chinese_font(size: int = 12) -> pygame.font.Font:
     if not pygame.font.get_init():
         pygame.font.init()
@@ -65,8 +78,25 @@ def get_chinese_font(size: int = 12) -> pygame.font.Font:
         path = resource_path(
             "assets", "fonts", "fusion-pixel-12px-proportional-zh_hans.ttf"
         )
-        _font_cache[size] = pygame.font.Font(str(path), size)
+        try:
+            _font_cache[size] = pygame.font.Font(str(path), size)
+        except (OSError, pygame.error) as exc:
+            # A missing or unreadable font asset used to raise
+            # FileNotFoundError on the first Chinese render, which happens
+            # during the boot screen -- the game could not start at all.  Fall
+            # back to a system CJK font and keep playing.
+            _warn_font_fallback_once(exc)
+            _font_cache[size] = _fallback_cjk_font(size)
     return _font_cache[size]
+
+
+def _fallback_cjk_font(size: int) -> pygame.font.Font:
+    """Best-effort system CJK font for when the bundled asset is unusable."""
+    return pygame.font.SysFont(
+        ["microsoftyahei", "simhei", "notosanscjksc", "arialunicodems",
+         "wenquanyimicrohei", "sans"],
+        size,
+    )
 
 
 GAME_SUBTITLES: dict[str, str] = {
@@ -94,6 +124,7 @@ ZH: dict[str, str] = {
     "GOMOKU": "五子棋",
     "SNAKE": "贪吃蛇",
     "BREAKOUT": "打砖块",
+    "2048": "数字合成",
     "MINES": "扫雷",
     "TETRIS": "俄罗斯方块",
     "AIR RAID": "空袭行动",
@@ -603,7 +634,9 @@ ZH.update({
     "MOVE IN 8 DIRECTIONS": "八方向移动",
     "P: PAUSE    ESC: MENU": "P：暂停    ESC：菜单",
     "PAUSED": "已暂停",
-    "P TO RESUME   ESC FOR MENU": "P 继续   ESC 返回菜单",
+    # "P TO RESUME   ESC FOR MENU" is defined once, in the shared controls
+    # block above, and uses the project's full-width hint style.  Re-defining
+    # it here silently overrode that value (R6 duplicate-key audit).
     "SUDDEN DEATH": "骤死决胜",
     "REPAIR KIT": "维修包",
     "SHIELD": "护盾",
@@ -674,7 +707,11 @@ def _format_dynamic(text: str) -> str:
         (r"^SCORE (\d+)$", r"得分 \1"),
         (r"^BEST (\d+)$", r"最高 \1"),
         (r"^LINES (\d+)\s+LEVEL (\d+)$", r"消行 \1　等级 \2"),
-        (r"^TIME (.+)$", r"时间 \1"),
+        # Narrow on purpose: the only emitter is mines.py's end-panel HUD
+        # (`TIME MM:SS`; _format_mines_time zero-pads the minutes, so a very
+        # long session yields three digits).  A loose `^TIME (.+)$` also
+        # half-translated unrelated labels such as "TIME ATTACK".
+        (r"^TIME (\d{1,3}:\d{2})$", r"时间 \1"),
         (r"^Current: (.+)$", r"当前：\1"),
         (r"^OPEN (\d+)$", r"已翻开 \1"),
         (r"^CHAPTER (\d+)$", r"章节 \1"),
@@ -682,9 +719,14 @@ def _format_dynamic(text: str) -> str:
         (r"^(.+) / MISSION$", r"\1 / 任务"),
         (r"^(.+) / BOSS$", r"\1 / Boss"),
         (r"^OBJECTIVE: DESTROY (.+)$", r"任务目标：摧毁 \1"),
-        (r"^(.+) // PHASE (\d+)$", r"\1 // 阶段 \2"),
-        (r"^(.+) // PHASE (\d+) // ARMOR SHIFT$", r"\1 // 阶段 \2 // 装甲切换"),
+        # The "// PHASE" family.  _format_dynamic returns on the FIRST match,
+        # so the specialised rules must outrank the generic
+        # `(.+) // PHASE (\d+)$` rule.  V-6: the generic rule used to shadow
+        # the WARNING rule, so `WARNING // <boss> // PHASE 1` (air_raid.py)
+        # rendered as "WARNING // TEMPEST // 阶段 1".
         (r"^WARNING // (.+) // PHASE (\d+)$", r"警报 // \1 // 阶段 \2"),
+        (r"^(.+) // PHASE (\d+) // ARMOR SHIFT$", r"\1 // 阶段 \2 // 装甲切换"),
+        (r"^(.+) // PHASE (\d+)$", r"\1 // 阶段 \2"),
         (r"^ALERT: HOSTILE COMMAND FRAME (.+) CONFIRMED\.$", r"警报：确认敌方指挥机体 \1。"),
         (r"^COMMAND: CHAPTER (\d+) FLIGHT WINDOW IS OPEN\.$", r"指挥部：第 \1 章飞行窗口已开启。"),
         (r"^ARCHIVE (\d+) // (.+)$", r"档案 \1 // \2"),
@@ -705,7 +747,6 @@ def _format_dynamic(text: str) -> str:
         (r"^(.+)'S TURN$", r"轮到\1"),
         (r"^FPS (.+)$", r"帧率 \1"),
         (r"^INDEX (\d+)$", r"指数 \1"),
-        (r"^UNLOCKED (\d+) / (\d+)$", r"已解锁 \1 / \2"),
     )
     for pattern, replacement in patterns:
         if re.match(pattern, text):
