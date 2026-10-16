@@ -186,6 +186,14 @@ class Game(
             s.SYSTEM_READY: (True, []),
             s.PASSWORD: (True, ["_update_password"]),
             s.SHUTDOWN: (True, ["_update_shutdown"]),
+            # Gomoku's own states are registered explicitly.  Before R7 they
+            # reached its animation code only by falling through the generic
+            # tail, which is why "no entry in the table" implicitly meant "run
+            # Gomoku's updates" for all 19 unregistered states.
+            s.MENU: (True, ["_update_gomoku"]),
+            s.PLAYING: (True, ["_update_gomoku"]),
+            s.END: (True, ["_update_gomoku"]),
+            s.SETTINGS: (True, ["_update_gomoku"]),
             s.SNAKE_PLAYING: (True, ["_update_snake", "_update_snake_visual_effects"]),
             s.SNAKE_END: (True, ["_update_snake_visual_effects"]),
             s.BREAKOUT_PLAYING: (True, ["_update_breakout", "_update_breakout_visual_effects"]),
@@ -423,6 +431,16 @@ class Game(
             if should_return:
                 return
 
+        # Shared visual subsystems, plus Gomoku's own (registered for its four
+        # states).  This tail is also the documented meaning of "no entry in
+        # _UPDATE_DISPATCH", and extensions rely on it, so the contents are
+        # unchanged by R7 -- only its owner for Gomoku states moved.
+        self._update_gomoku()
+        self._update_particles()
+        self._update_screen_shake()
+
+    def _update_gomoku(self) -> None:
+        """Gomoku's per-frame animations, registered for its four main states."""
         self._update_drop_animations()
         self._update_magnetic_preview()
         self._update_ripples()
@@ -432,8 +450,6 @@ class Game(
         self._update_win_stone_flash()
         self._update_delayed_end_page()
         self._update_end_page_animation()
-        self._update_particles()
-        self._update_screen_shake()
         self._update_win_overlay()
 
     # ── Animation Subsystems ────────────────────────────────────
